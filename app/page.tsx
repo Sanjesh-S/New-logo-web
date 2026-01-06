@@ -1,0 +1,29 @@
+import HeroSection from '@/components/HeroSection'
+import BrandLogos from '@/components/BrandLogos'
+import HowItWorksSection from '@/components/HowItWorksSection'
+import TrustSection from '@/components/TrustSection'
+import Testimonials from '@/components/Testimonials'
+import FAQSection from '@/components/FAQSection'
+import CTASection from '@/components/CTASection'
+import Navigation from '@/components/Navigation'
+import Footer from '@/components/Footer'
+import WhatsAppButton from '@/components/WhatsAppButton'
+import MobileCTA from '@/components/MobileCTA'
+
+export default function Home() {
+  return (
+    <main className="min-h-screen">
+      <Navigation />
+      <HeroSection />
+      <BrandLogos />
+      <HowItWorksSection />
+      <TrustSection />
+      <Testimonials />
+      <FAQSection />
+      <CTASection />
+      <Footer />
+      <WhatsAppButton />
+      <MobileCTA />
+    </main>
+  )
+}
