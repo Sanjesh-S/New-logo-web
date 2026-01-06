@@ -35,15 +35,15 @@ export default function Navigation() {
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/worthyten-logo.jpg"
+                src="/images/worthyten-logo.png"
                 alt="WorthyTEN"
-                width={200}
-                height={80}
-                className="h-14 md:h-16 w-auto object-contain"
+                width={160}
+                height={60}
+                className="w-32 md:w-40 h-auto object-contain"
                 priority
               />
             </Link>
