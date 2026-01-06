@@ -55,7 +55,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const digits = value.replace(/\D/g, '')
-    
+
     // Format as +91XXXXXXXXXX
     if (digits.length <= 10) {
       return digits
@@ -114,7 +114,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
     e.preventDefault()
     const pastedData = e.clipboardData.getData('text').slice(0, 6)
     const digits = pastedData.split('').filter(char => /^\d$/.test(char))
-    
+
     if (digits.length === 6) {
       setOtp(digits)
       otpInputRefs.current[5]?.focus()
@@ -315,7 +315,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                       {otp.map((digit, index) => (
                         <input
                           key={index}
-                          ref={(el) => (otpInputRefs.current[index] = el)}
+                          ref={(el) => { otpInputRefs.current[index] = el }}
                           type="text"
                           inputMode="numeric"
                           maxLength={1}

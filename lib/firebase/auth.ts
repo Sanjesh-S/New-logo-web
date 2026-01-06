@@ -1,13 +1,22 @@
-import { 
+import {
   signInWithPhoneNumber,
   ConfirmationResult,
   User,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   RecaptchaVerifier,
+  Auth,
 } from 'firebase/auth'
 import { auth } from './config'
 import { createOrUpdateUser } from './database'
+
+// Helper to get auth with type safety
+function getAuth(): Auth {
+  if (!auth) {
+    throw new Error('Firebase auth is not initialized. This function must be called on the client side.')
+  }
+  return auth
+}
 
 // Setup reCAPTCHA verifier
 export function setupRecaptcha(containerId: string = 'recaptcha-container'): RecaptchaVerifier {
@@ -17,7 +26,7 @@ export function setupRecaptcha(containerId: string = 'recaptcha-container'): Rec
     existingVerifier.clear()
   }
 
-  const recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+  const recaptchaVerifier = new RecaptchaVerifier(getAuth(), containerId, {
     size: 'invisible',
     callback: () => {
       // reCAPTCHA solved, allow signInWithPhoneNumber
@@ -28,7 +37,7 @@ export function setupRecaptcha(containerId: string = 'recaptcha-container'): Rec
     },
   })
 
-  ;(window as any).recaptchaVerifier = recaptchaVerifier
+    ; (window as any).recaptchaVerifier = recaptchaVerifier
   return recaptchaVerifier
 }
 
@@ -38,7 +47,7 @@ export async function sendOTP(
   recaptchaVerifier: RecaptchaVerifier
 ): Promise<ConfirmationResult> {
   try {
-    const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier)
+    const confirmationResult = await signInWithPhoneNumber(getAuth(), phoneNumber, recaptchaVerifier)
     return confirmationResult
   } catch (error: any) {
     console.error('Error sending OTP:', error)
@@ -73,7 +82,7 @@ export async function verifyOTP(
 // Sign out
 export async function signOut(): Promise<void> {
   try {
-    await firebaseSignOut(auth)
+    await firebaseSignOut(getAuth())
   } catch (error: any) {
     console.error('Error signing out:', error)
     throw new Error(error.message || 'Failed to sign out')
@@ -82,11 +91,15 @@ export async function signOut(): Promise<void> {
 
 // Get current user
 export function getCurrentUser(): User | null {
-  return auth.currentUser
+  return auth?.currentUser ?? null
 }
 
 // Listen to auth state changes
 export function onAuthStateChange(callback: (user: User | null) => void): () => void {
-  return onAuthStateChanged(auth, callback)
+  const authInstance = auth
+  if (!authInstance) {
+    // Return no-op unsubscribe if auth isn't available
+    return () => { }
+  }
+  return onAuthStateChanged(authInstance, callback)
 }
-

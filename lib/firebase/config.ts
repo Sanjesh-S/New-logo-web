@@ -13,20 +13,32 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-WBXQ5SM16Y",
 }
 
-let app: FirebaseApp
-let db: Firestore
-let auth: Auth
-
-if (typeof window !== 'undefined') {
+// Initialize Firebase only on client side
+function getFirebaseApp(): FirebaseApp | undefined {
+  if (typeof window === 'undefined') return undefined
+  
   if (!getApps().length) {
-    app = initializeApp(firebaseConfig)
-  } else {
-    app = getApps()[0]
+    return initializeApp(firebaseConfig)
   }
-  db = getFirestore(app)
-  auth = getAuth(app)
+  return getApps()[0]
 }
 
-export { app, db, auth }
-export type { RecaptchaVerifier }
+function getFirestoreInstance(): Firestore | undefined {
+  const app = getFirebaseApp()
+  if (!app) return undefined
+  return getFirestore(app)
+}
 
+function getAuthInstance(): Auth | undefined {
+  const app = getFirebaseApp()
+  if (!app) return undefined
+  return getAuth(app)
+}
+
+// Lazy initialization - will be undefined during SSR/build
+const app = getFirebaseApp()
+const db = getFirestoreInstance()
+const auth = getAuthInstance()
+
+export { app, db, auth, firebaseConfig }
+export type { RecaptchaVerifier }
