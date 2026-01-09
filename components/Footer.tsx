@@ -31,7 +31,7 @@ export default function Footer() {
                         <Link href="/" className="inline-block mb-4">
                             <div className="bg-white rounded-lg p-2 inline-block">
                                 <Image
-                                    src="/images/worthyten-logo.jpg"
+                                    src="/images/worthyten-logo.svg"
                                     alt="WorthyTEN"
                                     width={150}
                                     height={60}

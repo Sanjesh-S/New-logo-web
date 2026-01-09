@@ -46,6 +46,17 @@ export interface Device {
   createdAt: Timestamp | Date
 }
 
+// Products used for listing (backed by `products` collection in Firestore)
+export interface Product {
+  id: string
+  brand: string
+  category: string
+  modelName: string
+  basePrice: number // Display price (boom price)
+  internalBasePrice?: number // Internal base price for calculations
+  imageUrl?: string
+}
+
 export interface User {
   id: string
   email?: string
@@ -107,24 +118,303 @@ export async function getUserValuations(userId: string): Promise<Valuation[]> {
 // Device Operations
 export async function getDevices(category: string, brand?: string): Promise<Device[]> {
   const devicesRef = collection(getDb(), 'devices')
-  let q
-
-  if (brand) {
-    q = query(
-      devicesRef,
-      where('category', '==', category),
-      where('brand', '==', brand.toLowerCase())
-    )
-  } else {
-    q = query(devicesRef, where('category', '==', category))
+  
+  // Normalize category to match database values
+  // Database uses: 'Phone', 'Laptop', 'iPad', 'Camera' (capitalized, singular)
+  const normalizedCategory = category.toLowerCase().trim()
+  let dbCategory = normalizedCategory
+  
+  // Map category variations to database values
+  // Database uses 'DSLR' and 'Lens' for camera products
+  if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
+    dbCategory = 'Phone' // Try capitalized singular first
+  } else if (normalizedCategory.includes('laptop')) {
+    dbCategory = 'Laptop'
+  } else if (normalizedCategory.includes('tablet') || normalizedCategory.includes('ipad')) {
+    dbCategory = 'iPad'
+  } else if (normalizedCategory.includes('camera')) {
+    dbCategory = 'DSLR' // Database uses 'DSLR' for camera products
   }
+  
+  let q
+  let querySnapshot
 
-  const querySnapshot = await getDocs(q)
+  try {
+    if (brand) {
+      q = query(
+        devicesRef,
+        where('category', '==', dbCategory),
+        where('brand', '==', brand.trim())
+      )
+    } else {
+      q = query(devicesRef, where('category', '==', dbCategory))
+    }
+
+    querySnapshot = await getDocs(q)
+    
+    // If no results, try other variations (especially for cameras: DSLR, Lens, Camera)
+    if (querySnapshot.empty) {
+      let altCategory = dbCategory
+      if (normalizedCategory.includes('camera')) {
+        // Try Lens if DSLR didn't work, then Camera
+        if (dbCategory === 'DSLR') {
+          altCategory = 'Lens'
+        } else if (dbCategory === 'Lens') {
+          altCategory = 'Camera'
+        } else {
+          altCategory = 'DSLR'
+        }
+      } else if (normalizedCategory.includes('phone')) {
+        altCategory = 'phone'
+      } else if (normalizedCategory.includes('laptop')) {
+        altCategory = 'laptop'
+      } else if (normalizedCategory.includes('tablet') || normalizedCategory.includes('ipad')) {
+        altCategory = 'ipad'
+      }
+      
+      if (brand) {
+        q = query(
+          devicesRef,
+          where('category', '==', altCategory),
+          where('brand', '==', brand.trim())
+        )
+      } else {
+        q = query(devicesRef, where('category', '==', altCategory))
+      }
+      querySnapshot = await getDocs(q)
+    }
+  } catch (error) {
+    console.error('Error querying devices:', error)
+    return []
+  }
 
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   })) as Device[]
+}
+
+// Products helpers (for `products` collection)
+export async function getProductsByBrand(
+  category: string,
+  brand: string
+): Promise<Product[]> {
+  const productsRef = collection(getDb(), 'products')
+  
+  // Normalize category to match database values
+  const normalizedCategory = category.toLowerCase().trim()
+  
+  // Map category variations to database values
+  // Database uses: 'Phone', 'Laptop', 'iPad', 'Camera' (capitalized, singular)
+  // We need to query for both variations
+  let dbCategoryVariations: string[] = []
+  
+  if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
+    dbCategoryVariations = ['Phone', 'phone', 'phones', 'Phones']
+  } else if (normalizedCategory.includes('laptop')) {
+    dbCategoryVariations = ['Laptop', 'laptop', 'laptops', 'Laptops']
+  } else if (normalizedCategory.includes('tablet') || normalizedCategory.includes('ipad')) {
+    dbCategoryVariations = ['iPad', 'ipad', 'Tablet', 'tablet', 'tablets', 'Tablets']
+  } else if (normalizedCategory.includes('camera')) {
+    // Database uses 'DSLR' for camera products (exclude 'Lens' - lenses are separate)
+    dbCategoryVariations = ['DSLR', 'dslr', 'Dslr', 'Camera', 'camera', 'cameras', 'Cameras']
+  } else {
+    dbCategoryVariations = [normalizedCategory, normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)]
+  }
+  
+  // Normalize brand (handle case sensitivity)
+  const normalizedBrand = brand.trim()
+  
+  // Try querying with the first category variation
+  // If no results, we'll fall back to client-side filtering
+  const q = query(
+    productsRef,
+    where('brand', '==', normalizedBrand),
+    where('category', '==', dbCategoryVariations[0])
+  )
+  
+  let snapshot
+  try {
+    snapshot = await getDocs(q)
+    
+    // If no results with first variation, try other category variations
+    if (snapshot.empty && dbCategoryVariations.length > 1) {
+      for (let i = 1; i < dbCategoryVariations.length; i++) {
+        const altQ = query(
+          productsRef,
+          where('brand', '==', normalizedBrand),
+          where('category', '==', dbCategoryVariations[i])
+        )
+        const altSnapshot = await getDocs(altQ)
+        if (!altSnapshot.empty) {
+          snapshot = altSnapshot
+          break
+        }
+      }
+    }
+    
+    // If still no results, try querying just by brand to see if products exist
+    if (snapshot.empty) {
+      console.log(`No products found for category variations ${dbCategoryVariations.join(', ')} and brand "${normalizedBrand}". Trying brand-only query...`)
+      const brandOnlyQ = query(productsRef, where('brand', '==', normalizedBrand))
+      const brandOnlySnapshot = await getDocs(brandOnlyQ)
+      
+      if (!brandOnlySnapshot.empty) {
+        console.log(`Found ${brandOnlySnapshot.docs.length} products for brand "${normalizedBrand}" with categories:`, 
+          [...new Set(brandOnlySnapshot.docs.map(doc => doc.data().category))])
+        // Use brand-only results and filter client-side
+        snapshot = brandOnlySnapshot
+      }
+    }
+  } catch (queryError) {
+    console.error('Firestore query error:', queryError)
+    // If query fails, try a simpler query without category filter
+    const fallbackQ = query(productsRef, where('brand', '==', normalizedBrand))
+    snapshot = await getDocs(fallbackQ)
+  }
+
+  const products = snapshot.docs.map(docSnap => {
+    const data: any = docSnap.data()
+
+    const modelName =
+      data.modelName ??
+      data['Model Name'] ??
+      data.name ??
+      ''
+
+    const basePrice =
+      data.basePrice ??
+      data.price ??
+      data['Price (₹)'] ??
+      0
+
+    const imageUrl = data.imageUrl ?? data.image
+
+    return {
+      id: docSnap.id,
+      brand: data.brand,
+      category: data.category,
+      modelName,
+      basePrice,
+      imageUrl,
+    } as Product
+  })
+
+  // Additional client-side filtering to ensure category and brand match (fallback)
+  // This handles case sensitivity issues and category variations
+  // Database uses: 'Phone', 'Laptop', 'iPad', 'Camera' - we need to match these
+  const filtered = products.filter(product => {
+    const productCategory = product.category?.trim() || ''
+    const productBrand = product.brand?.trim() || ''
+    
+    // Check category match - handle both database format ('Phone', 'Laptop', 'iPad', 'Camera') and our format ('phones', 'laptops', 'tablets', 'cameras')
+    let categoryMatch = false
+    const normalizedProductCategory = productCategory.toLowerCase()
+    
+    // More flexible matching - check if either contains the other
+    if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
+      categoryMatch = normalizedProductCategory.includes('phone') || normalizedProductCategory.includes('iphone')
+    } else if (normalizedCategory.includes('laptop')) {
+      categoryMatch = normalizedProductCategory.includes('laptop')
+    } else if (normalizedCategory.includes('tablet') || normalizedCategory.includes('ipad')) {
+      categoryMatch = normalizedProductCategory.includes('tablet') || normalizedProductCategory.includes('ipad')
+    } else if (normalizedCategory.includes('camera')) {
+      // For cameras, match 'camera', 'cameras', 'Camera', 'Cameras', 'DSLR'
+      // Exclude 'Lens' - lenses are separate products
+      categoryMatch = (normalizedProductCategory.includes('camera') || 
+                      productCategory.toLowerCase().includes('camera') ||
+                      productCategory.toLowerCase() === 'camera' ||
+                      productCategory.toLowerCase() === 'cameras' ||
+                      normalizedProductCategory === 'dslr' ||
+                      productCategory === 'DSLR' ||
+                      productCategory === 'dslr') &&
+                      // Explicitly exclude Lens
+                      normalizedProductCategory !== 'lens' &&
+                      productCategory !== 'Lens' &&
+                      productCategory !== 'lens'
+    } else {
+      // For other categories, try exact match or substring match
+      categoryMatch = normalizedProductCategory === normalizedCategory || 
+                      normalizedProductCategory.includes(normalizedCategory) ||
+                      normalizedCategory.includes(normalizedProductCategory) ||
+                      productCategory.toLowerCase() === normalizedCategory
+    }
+    
+    // Check brand match (case-insensitive)
+    const brandMatch = productBrand.toLowerCase() === normalizedBrand.toLowerCase()
+    
+    return categoryMatch && brandMatch
+  })
+
+  // If no results after filtering, log details for debugging and try lenient matching
+  if (filtered.length === 0 && products.length > 0) {
+    const uniqueCategories = [...new Set(products.map(p => p.category))]
+    console.warn(`No products found after filtering. Found ${products.length} products for brand "${normalizedBrand}". Categories:`, uniqueCategories)
+    console.log(`Looking for category: "${normalizedCategory}" (normalized from "${category}")`)
+    console.log(`Tried category variations:`, dbCategoryVariations)
+    
+    // Lenient fallback: if we're looking for cameras and products exist, match any product with 'camera' or 'dslr' in category
+    // Exclude 'Lens' - lenses are separate products
+    if (normalizedCategory.includes('camera')) {
+      const lenientFiltered = products.filter(product => {
+        const productCategory = (product.category || '').toLowerCase()
+        const productBrand = (product.brand || '').toLowerCase()
+        // Match camera or dslr categories, but exclude lens
+        const isCameraRelated = (productCategory.includes('camera') || 
+                                productCategory === 'dslr' || 
+                                product.category === 'DSLR') &&
+                                productCategory !== 'lens' &&
+                                product.category !== 'Lens' &&
+                                product.category !== 'lens'
+        return isCameraRelated && productBrand === normalizedBrand.toLowerCase()
+      })
+      if (lenientFiltered.length > 0) {
+        console.log(`Using lenient camera filter: found ${lenientFiltered.length} products (excluding lenses)`)
+        return lenientFiltered
+      }
+    }
+  }
+
+  return filtered
+}
+
+export async function getProductById(productId: string): Promise<Product | null> {
+  const productRef = doc(getDb(), 'products', productId)
+  const productSnap = await getDoc(productRef)
+
+  if (!productSnap.exists()) {
+    return null
+  }
+
+  const data: any = productSnap.data()
+
+  const modelName =
+    data.modelName ??
+    data['Model Name'] ??
+    data.name ??
+    ''
+
+  const basePrice =
+    data.basePrice ??
+    data.price ??
+    data['Price (₹)'] ??
+    0
+
+  const internalBasePrice =
+    data.internalBasePrice ??
+    (basePrice * 0.5) // Fallback to 50% of display price if not set
+
+  const imageUrl = data.imageUrl ?? data.image
+
+  return {
+    id: productSnap.id,
+    brand: data.brand,
+    category: data.category,
+    modelName,
+    basePrice,
+    internalBasePrice,
+    imageUrl,
+  } as Product
 }
 
 export async function getDevice(brand: string, model: string): Promise<Device | null> {

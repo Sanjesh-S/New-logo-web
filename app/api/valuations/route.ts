@@ -4,24 +4,69 @@ import { createValuation, getValuation, updateValuation, getUserValuations } fro
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { category, brand, model, condition, usage, accessories, basePrice, estimatedValue, userId } = body
+    const { 
+      category, 
+      brand, 
+      model, 
+      condition, 
+      usage, 
+      accessories, 
+      basePrice, 
+      internalBasePrice,
+      estimatedValue, 
+      userId,
+      productId,
+      answers // New assessment answers structure
+    } = body
 
-    if (!category || !brand || !model || !condition || !usage) {
+    // Support both old format (condition, usage) and new assessment format (answers)
+    if (!category || !brand || !model) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: category, brand, model' },
         { status: 400 }
       )
     }
+
+    // For new assessment flow, extract condition/usage from answers if needed
+    let finalCondition = condition
+    let finalUsage = usage
+    let finalAccessories = accessories || []
+
+    if (answers) {
+      // Map assessment answers to legacy format if needed
+      // This allows backward compatibility
+      if (!finalCondition && answers.bodyCondition) {
+        const bodyCond = Array.isArray(answers.bodyCondition) 
+          ? answers.bodyCondition[0] 
+          : answers.bodyCondition
+        finalCondition = bodyCond || 'good'
+      }
+      if (!finalUsage && answers.age) {
+        // Map age to usage
+        if (answers.age === 'lessThan3Months') finalUsage = 'light'
+        else if (answers.age === 'fourToTwelveMonths') finalUsage = 'moderate'
+        else finalUsage = 'heavy'
+      }
+      if (!finalAccessories.length && answers.accessories) {
+        finalAccessories = Array.isArray(answers.accessories) 
+          ? answers.accessories 
+          : [answers.accessories]
+      }
+    }
+
+    // Ensure we have condition and usage (use defaults if not provided)
+    finalCondition = finalCondition || 'good'
+    finalUsage = finalUsage || 'moderate'
 
     const valuationId = await createValuation({
       category,
       brand,
       model,
-      condition,
-      usage,
-      accessories: accessories || [],
-      basePrice,
-      estimatedValue,
+      condition: finalCondition,
+      usage: finalUsage,
+      accessories: finalAccessories,
+      basePrice: basePrice || 0,
+      estimatedValue: estimatedValue || 0,
       userId: userId || null,
       status: 'pending',
     })
@@ -101,6 +146,10 @@ export async function PATCH(request: NextRequest) {
     )
   }
 }
+
+
+
+
 
 
 

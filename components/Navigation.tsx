@@ -39,11 +39,11 @@ export default function Navigation() {
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/worthyten-logo.png"
+                src="/images/worthyten-logo.svg"
                 alt="WorthyTEN"
                 width={160}
                 height={60}
-                className="w-32 md:w-40 h-auto object-contain"
+                className="h-10 md:h-12 w-auto object-contain"
                 priority
               />
             </Link>

@@ -2,18 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Phone, ArrowRight, CheckCircle, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
-import { useAuth } from '@/contexts/AuthContext'
 
-interface OTPLoginProps {
-  onSuccess?: () => void
-  onClose?: () => void
+interface AssessmentOTPModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onVerified: () => void
 }
 
-export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
-  const { user } = useAuth()
+export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: AssessmentOTPModalProps) {
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -23,70 +22,89 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
+  // Reset state when modal opens/closes
   useEffect(() => {
-    // Setup reCAPTCHA when component mounts (with delay to ensure Firebase is ready)
-    const timer = setTimeout(() => {
-      try {
-        // Clear any existing verifier first
-        if ((window as any).recaptchaVerifier) {
-          try {
-            const existing = (window as any).recaptchaVerifier
-            if (existing && typeof existing.clear === 'function') {
-              existing.clear()
-            }
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-          delete (window as any).recaptchaVerifier
-        }
-
-        const verifier = setupRecaptcha('recaptcha-container')
-        recaptchaVerifierRef.current = verifier
-      } catch (error) {
-        console.error('Error setting up reCAPTCHA:', error)
-      }
-    }, 300)
-
-    return () => {
-      clearTimeout(timer)
-      // Cleanup reCAPTCHA on unmount
-      if (recaptchaVerifierRef.current) {
+    if (isOpen) {
+      setStep('phone')
+      setPhoneNumber('')
+      setOtp(['', '', '', '', '', ''])
+      setError('')
+      setConfirmationResult(null)
+      
+      // Setup reCAPTCHA when modal opens (with a small delay to ensure DOM and Firebase are ready)
+      const timer = setTimeout(async () => {
         try {
-          if (typeof recaptchaVerifierRef.current.clear === 'function') {
-            recaptchaVerifierRef.current.clear()
+          // Ensure Firebase is initialized first
+          const { getApp } = await import('@/lib/firebase/config')
+          const app = getApp()
+          if (!app) {
+            throw new Error('Firebase app is not initialized')
           }
+          
+          console.log('Firebase app verified before reCAPTCHA setup:', {
+            name: app.name,
+            projectId: app.options.projectId,
+            apiKey: app.options.apiKey?.substring(0, 10) + '...'
+          })
+          
+          // Clear any existing verifier first
+          if (recaptchaVerifierRef.current) {
+            try {
+              recaptchaVerifierRef.current.clear()
+            } catch (e) {
+              // Ignore errors during cleanup
+            }
+          }
+          
+          // Clear window reference too
+          if ((window as any).recaptchaVerifier) {
+            try {
+              (window as any).recaptchaVerifier.clear()
+            } catch (e) {
+              // Ignore errors
+            }
+            delete (window as any).recaptchaVerifier
+          }
+          
+          const verifier = setupRecaptcha('assessment-recaptcha-container')
+          recaptchaVerifierRef.current = verifier
         } catch (error: any) {
-          // Ignore errors - verifier might already be cleared
-          if (error?.code !== 'auth/internal-error') {
+          console.error('Error setting up reCAPTCHA:', error)
+          const errorMessage = error?.message || 'Failed to initialize authentication'
+          setError(`${errorMessage}. Please refresh the page and try again.`)
+        }
+      }, 300)
+
+      return () => {
+        clearTimeout(timer)
+        // Cleanup reCAPTCHA when modal closes
+        if (recaptchaVerifierRef.current) {
+          try {
+            recaptchaVerifierRef.current.clear()
+          } catch (error) {
             console.error('Error clearing reCAPTCHA:', error)
           }
+          recaptchaVerifierRef.current = null
+        }
+      }
+    } else {
+      // Cleanup reCAPTCHA when modal closes
+      if (recaptchaVerifierRef.current) {
+        try {
+          recaptchaVerifierRef.current.clear()
+        } catch (error) {
+          console.error('Error clearing reCAPTCHA:', error)
         }
         recaptchaVerifierRef.current = null
       }
-      // Also clear window reference
-      if ((window as any).recaptchaVerifier) {
-        delete (window as any).recaptchaVerifier
-      }
     }
-  }, [])
-
-  // If user is already authenticated, show success
-  useEffect(() => {
-    if (user) {
-      setStep('otp')
-      setError('')
-    }
-  }, [user])
+  }, [isOpen])
 
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const digits = value.replace(/\D/g, '')
-
-    // Format as +91XXXXXXXXXX
-    if (digits.length <= 10) {
-      return digits
-    }
-    return digits
+    // Limit to 10 digits
+    return digits.slice(0, 10)
   }
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
@@ -96,21 +114,63 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
 
     try {
       // Format phone number with country code
-      const formattedPhone = phoneNumber.startsWith('+')
-        ? phoneNumber
-        : `+91${phoneNumber}`
+      const formattedPhone = `+91${phoneNumber}`
 
+      // Ensure reCAPTCHA verifier exists and is ready
       if (!recaptchaVerifierRef.current) {
-        const verifier = setupRecaptcha('recaptcha-container')
-        recaptchaVerifierRef.current = verifier
+        try {
+          // Clear any existing verifier first
+          const existingVerifier = (window as any).recaptchaVerifier
+          if (existingVerifier) {
+            try {
+              existingVerifier.clear()
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+            delete (window as any).recaptchaVerifier
+          }
+          
+          // Wait a bit to ensure DOM is ready
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          const verifier = setupRecaptcha('assessment-recaptcha-container')
+          recaptchaVerifierRef.current = verifier
+          
+          // Wait a bit more for reCAPTCHA to initialize
+          await new Promise(resolve => setTimeout(resolve, 200))
+        } catch (setupError: any) {
+          console.error('Error setting up reCAPTCHA:', setupError)
+          throw new Error('Failed to initialize authentication. Please refresh the page and try again.')
+        }
       }
 
+      // Verify verifier is still valid
+      if (!recaptchaVerifierRef.current) {
+        throw new Error('reCAPTCHA verifier is not ready. Please try again.')
+      }
+
+      console.log('Attempting to send OTP to:', formattedPhone)
       const confirmation = await sendOTP(formattedPhone, recaptchaVerifierRef.current)
       setConfirmationResult(confirmation)
       setStep('otp')
       setError('')
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP. Please try again.')
+      console.error('OTP send error:', err)
+      
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to send OTP. Please try again.'
+      if (err.message) {
+        if (err.message.includes('invalid-app-credential') || err.code === 'auth/invalid-app-credential') {
+          errorMessage = 'Firebase configuration error. Please verify:\n1. API key matches Firebase project\n2. Phone Authentication is enabled\n3. Try refreshing the page'
+        } else if (err.message.includes('too-many-requests') || err.code === 'auth/too-many-requests') {
+          errorMessage = 'Too many requests. Please wait a moment and try again.'
+        } else if (err.message.includes('invalid-phone-number') || err.code === 'auth/invalid-phone-number') {
+          errorMessage = 'Invalid phone number. Please enter a valid 10-digit mobile number.'
+        } else {
+          errorMessage = err.message
+        }
+      }
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -169,9 +229,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
 
       await verifyOTP(confirmationResult, code)
       setError('')
-      if (onSuccess) {
-        onSuccess()
-      }
+      onVerified()
     } catch (err: any) {
       setError(err.message || 'Invalid OTP. Please try again.')
       setOtp(['', '', '', '', '', ''])
@@ -187,12 +245,10 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
     setOtp(['', '', '', '', '', ''])
 
     try {
-      const formattedPhone = phoneNumber.startsWith('+')
-        ? phoneNumber
-        : `+91${phoneNumber}`
+      const formattedPhone = `+91${phoneNumber}`
 
       if (!recaptchaVerifierRef.current) {
-        const verifier = setupRecaptcha('recaptcha-container')
+        const verifier = setupRecaptcha('assessment-recaptcha-container')
         recaptchaVerifierRef.current = verifier
       }
 
@@ -206,6 +262,8 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
     }
   }
 
+  if (!isOpen) return null
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div
@@ -215,19 +273,17 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
         className="relative w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden"
       >
         {/* Close button */}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors z-10"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* reCAPTCHA container (hidden) - must exist in DOM for Firebase */}
+        <div id="assessment-recaptcha-container" style={{ display: 'none' }}></div>
 
         <div className="p-6 md:p-8">
-          {/* reCAPTCHA container (hidden) */}
-          <div id="recaptcha-container"></div>
-
           <AnimatePresence mode="wait">
             {step === 'phone' ? (
               <motion.div
@@ -238,37 +294,29 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                 className="space-y-6"
               >
                 <div className="text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring' }}
-                    className="w-16 h-16 bg-gradient-to-br from-brand-blue-600 to-brand-lime rounded-full flex items-center justify-center mx-auto mb-4"
-                  >
-                    <Phone className="w-8 h-8 text-white" />
-                  </motion.div>
                   <h2 className="text-2xl md:text-3xl font-bold text-brand-blue-900 mb-2">
-                    Login with OTP
+                    Login Required
                   </h2>
                   <p className="text-gray-600">
-                    Enter your phone number to receive OTP
+                    Please verify your phone number to see the final price.
                   </p>
                 </div>
 
                 <form onSubmit={handlePhoneSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
+                      Enter mobile number
                     </label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                    <div className="flex gap-2">
+                      <div className="w-20 flex items-center justify-center bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-700 font-medium">
                         +91
                       </div>
                       <input
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
-                        placeholder="Enter your phone number"
-                        className="w-full pl-16 pr-4 py-3 bg-white border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-brand-lime"
+                        placeholder="Enter 10-digit mobile"
+                        className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-brand-lime"
                         required
                         maxLength={10}
                       />
@@ -288,17 +336,14 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                   <motion.button
                     type="submit"
                     disabled={loading || phoneNumber.length !== 10}
-                    className="w-full py-4 bg-brand-lime text-brand-blue-900 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-brand-lime-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ scale: loading ? 1 : 1.02 }}
                     whileTap={{ scale: loading ? 1 : 0.98 }}
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>
-                        Send OTP
-                        <ArrowRight className="w-5 h-5" />
-                      </>
+                      'Send OTP'
                     )}
                   </motion.button>
                 </form>
@@ -312,14 +357,6 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                 className="space-y-6"
               >
                 <div className="text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring' }}
-                    className="w-16 h-16 bg-gradient-to-br from-brand-lime to-brand-lime-600 rounded-full flex items-center justify-center mx-auto mb-4"
-                  >
-                    <CheckCircle className="w-8 h-8 text-white" />
-                  </motion.div>
                   <h2 className="text-2xl md:text-3xl font-bold text-brand-blue-900 mb-2">
                     Enter OTP
                   </h2>
@@ -369,7 +406,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                     <motion.button
                       type="submit"
                       disabled={loading || otp.some(d => !d)}
-                      className="w-full py-4 bg-brand-lime text-brand-blue-900 rounded-xl font-semibold hover:bg-brand-lime-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-4 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       whileHover={{ scale: loading ? 1 : 1.02 }}
                       whileTap={{ scale: loading ? 1 : 0.98 }}
                     >
@@ -410,5 +447,4 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
     </div>
   )
 }
-
 

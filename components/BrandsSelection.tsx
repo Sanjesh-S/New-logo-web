@@ -101,7 +101,7 @@ export default function BrandsSelection() {
   }, [searchQuery, brands])
 
   const handleBrandClick = (brand: string) => {
-    router.push(`/trade-in?category=${category}&brand=${encodeURIComponent(brand)}`)
+    router.push(`/products?category=${category}&brand=${encodeURIComponent(brand)}`)
   }
 
   const categoryName = categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1)
@@ -221,4 +221,8 @@ export default function BrandsSelection() {
     </div>
   )
 }
+
+
+
+
 
