@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Check, Camera } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { getDevices as getDevicesFromDb, getDevice as getDeviceFromDb, createValuation } from '@/lib/firebase/database'
 
 interface Device {
   id: string
@@ -70,15 +71,13 @@ export default function TradeInFlow() {
     const fetchBrands = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/devices?category=${category}`)
-        if (response.ok) {
-          const data = await response.json()
-          setDevices(data.devices || [])
-          const uniqueBrands = Array.from(
-            new Set(data.devices?.map((d: Device) => d.brand) || [])
-          ).sort() as string[]
-          setBrands(uniqueBrands)
-        }
+        // Use Firebase directly instead of API routes (for static export)
+        const fetchedDevices = await getDevicesFromDb(category)
+        setDevices(fetchedDevices as Device[])
+        const uniqueBrands = Array.from(
+          new Set(fetchedDevices?.map((d) => d.brand) || [])
+        ).sort() as string[]
+        setBrands(uniqueBrands)
       } catch (error) {
         console.error('Error fetching brands:', error)
       } finally {
@@ -100,14 +99,12 @@ export default function TradeInFlow() {
   // Fetch models when brand is selected
   const fetchModelsForBrand = async (brand: string) => {
     try {
-      const response = await fetch(`/api/devices?category=${category}&brand=${encodeURIComponent(brand)}`)
-      if (response.ok) {
-        const data = await response.json()
-        const uniqueModels = Array.from(
-          new Set(data.devices?.map((d: Device) => d.model) || [])
-        ).sort() as string[]
-        setModels(uniqueModels)
-      }
+      // Use Firebase directly instead of API routes (for static export)
+      const fetchedDevices = await getDevicesFromDb(category, brand)
+      const uniqueModels = Array.from(
+        new Set(fetchedDevices?.map((d) => d.model) || [])
+      ).sort() as string[]
+      setModels(uniqueModels)
     } catch (error) {
       console.error('Error fetching models:', error)
     }
@@ -117,18 +114,17 @@ export default function TradeInFlow() {
   useEffect(() => {
     if (valuation.brand && valuation.model) {
       const device = devices.find(
-        d => d.brand.toLowerCase() === valuation.brand.toLowerCase() && 
-        d.model === valuation.model
+        d => d.brand.toLowerCase() === valuation.brand.toLowerCase() &&
+          d.model === valuation.model
       )
       if (device) {
         setBasePrice(device.basePrice)
       } else {
-        // Fallback: try to fetch from API
-        fetch(`/api/devices?category=${category}&brand=${encodeURIComponent(valuation.brand)}&model=${encodeURIComponent(valuation.model)}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.device) {
-              setBasePrice(data.device.basePrice)
+        // Fallback: try to fetch directly from Firebase
+        getDeviceFromDb(valuation.brand, valuation.model)
+          .then(deviceData => {
+            if (deviceData) {
+              setBasePrice(deviceData.basePrice)
             }
           })
           .catch(err => console.error('Error fetching device price:', err))
@@ -227,11 +223,10 @@ export default function TradeInFlow() {
             <motion.button
               key={brand}
               onClick={() => handleBrandSelect(brand)}
-              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 font-semibold capitalize transition-all ${
-                valuation.brand.toLowerCase() === brand.toLowerCase()
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime scale-105'
-                  : 'bg-white border-gray-200 hover:border-brand-lime'
-              }`}
+              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 font-semibold capitalize transition-all ${valuation.brand.toLowerCase() === brand.toLowerCase()
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime scale-105'
+                : 'bg-white border-gray-200 hover:border-brand-lime'
+                }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -256,11 +251,10 @@ export default function TradeInFlow() {
             <motion.button
               key={model}
               onClick={() => handleModelSelect(model)}
-              className={`p-4 rounded-xl border-2 text-brand-blue-900 text-left transition-all ${
-                valuation.model === model
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 hover:border-brand-lime'
-              }`}
+              className={`p-4 rounded-xl border-2 text-brand-blue-900 text-left transition-all ${valuation.model === model
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                : 'bg-white border-gray-200 hover:border-brand-lime'
+                }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -279,11 +273,10 @@ export default function TradeInFlow() {
             <motion.button
               key={option.value}
               onClick={() => handleConditionSelect(option.value)}
-              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 text-left transition-all ${
-                valuation.condition === option.value
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 hover:border-brand-lime'
-              }`}
+              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 text-left transition-all ${valuation.condition === option.value
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                : 'bg-white border-gray-200 hover:border-brand-lime'
+                }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -303,11 +296,10 @@ export default function TradeInFlow() {
             <motion.button
               key={option.value}
               onClick={() => handleUsageSelect(option.value)}
-              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 text-center transition-all ${
-                valuation.usage === option.value
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 hover:border-brand-lime'
-              }`}
+              className={`p-4 md:p-6 rounded-xl border-2 text-brand-blue-900 text-center transition-all ${valuation.usage === option.value
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                : 'bg-white border-gray-200 hover:border-brand-lime'
+                }`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -327,11 +319,10 @@ export default function TradeInFlow() {
             <motion.button
               key={accessory.value}
               onClick={() => toggleAccessory(accessory.value)}
-              className={`w-full p-4 rounded-xl border-2 text-brand-blue-900 flex items-center justify-between transition-all ${
-                valuation.accessories.includes(accessory.value)
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 hover:border-brand-lime'
-              }`}
+              className={`w-full p-4 rounded-xl border-2 text-brand-blue-900 flex items-center justify-between transition-all ${valuation.accessories.includes(accessory.value)
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                : 'bg-white border-gray-200 hover:border-brand-lime'
+                }`}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
             >
@@ -420,11 +411,10 @@ export default function TradeInFlow() {
           <motion.button
             onClick={handleBack}
             disabled={currentStep === 1}
-            className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition-all text-sm md:text-base ${
-              currentStep === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
-            }`}
+            className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition-all text-sm md:text-base ${currentStep === 1
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
+              }`}
             whileHover={currentStep > 1 ? { scale: 1.05 } : {}}
             whileTap={currentStep > 1 ? { scale: 0.95 } : {}}
           >
@@ -440,14 +430,13 @@ export default function TradeInFlow() {
                 (currentStep === 3 && !valuation.condition) ||
                 (currentStep === 4 && !valuation.usage)
               }
-              className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm md:text-base ${
-                (currentStep === 1 && !valuation.brand) ||
+              className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm md:text-base ${(currentStep === 1 && !valuation.brand) ||
                 (currentStep === 2 && !valuation.model) ||
                 (currentStep === 3 && !valuation.condition) ||
                 (currentStep === 4 && !valuation.usage)
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
-              }`}
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
+                }`}
               whileHover={
                 !(
                   (currentStep === 1 && !valuation.brand) ||
@@ -478,32 +467,22 @@ export default function TradeInFlow() {
             <motion.button
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/valuations', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      category: category,
-                      brand: valuation.brand,
-                      model: valuation.model,
-                      condition: valuation.condition,
-                      usage: valuation.usage,
-                      accessories: valuation.accessories,
-                      basePrice,
-                      estimatedValue,
-                      userId: user?.uid || null,
-                    }),
+                  // Use Firebase directly instead of API routes (for static export)
+                  const valuationId = await createValuation({
+                    category: category as 'cameras' | 'phones' | 'laptops',
+                    brand: valuation.brand,
+                    model: valuation.model,
+                    condition: valuation.condition as 'excellent' | 'good' | 'fair' | 'poor',
+                    usage: valuation.usage as 'light' | 'moderate' | 'heavy',
+                    accessories: valuation.accessories,
+                    basePrice,
+                    estimatedValue,
+                    status: 'pending',
+                    userId: user?.uid || undefined,
                   })
 
-                  const data = await response.json()
-                  
-                  if (response.ok) {
-                    // Redirect to success page
-                    window.location.href = `/success?id=${data.id}&value=${estimatedValue}`
-                  } else {
-                    alert('Failed to submit valuation. Please try again.')
-                  }
+                  // Redirect to success page
+                  window.location.href = `/success?id=${valuationId}&value=${estimatedValue}`
                 } catch (error) {
                   console.error('Error submitting valuation:', error)
                   alert('An error occurred. Please try again.')
