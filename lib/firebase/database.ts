@@ -118,12 +118,12 @@ export async function getUserValuations(userId: string): Promise<Valuation[]> {
 // Device Operations
 export async function getDevices(category: string, brand?: string): Promise<Device[]> {
   const devicesRef = collection(getDb(), 'devices')
-  
+
   // Normalize category to match database values
   // Database uses: 'Phone', 'Laptop', 'iPad', 'Camera' (capitalized, singular)
   const normalizedCategory = category.toLowerCase().trim()
   let dbCategory = normalizedCategory
-  
+
   // Map category variations to database values
   // Database uses 'DSLR' and 'Lens' for camera products
   if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
@@ -135,7 +135,7 @@ export async function getDevices(category: string, brand?: string): Promise<Devi
   } else if (normalizedCategory.includes('camera')) {
     dbCategory = 'DSLR' // Database uses 'DSLR' for camera products
   }
-  
+
   let q
   let querySnapshot
 
@@ -151,7 +151,7 @@ export async function getDevices(category: string, brand?: string): Promise<Devi
     }
 
     querySnapshot = await getDocs(q)
-    
+
     // If no results, try other variations (especially for cameras: DSLR, Lens, Camera)
     if (querySnapshot.empty) {
       let altCategory = dbCategory
@@ -171,7 +171,7 @@ export async function getDevices(category: string, brand?: string): Promise<Devi
       } else if (normalizedCategory.includes('tablet') || normalizedCategory.includes('ipad')) {
         altCategory = 'ipad'
       }
-      
+
       if (brand) {
         q = query(
           devicesRef,
@@ -200,15 +200,15 @@ export async function getProductsByBrand(
   brand: string
 ): Promise<Product[]> {
   const productsRef = collection(getDb(), 'products')
-  
+
   // Normalize category to match database values
   const normalizedCategory = category.toLowerCase().trim()
-  
+
   // Map category variations to database values
   // Database uses: 'Phone', 'Laptop', 'iPad', 'Camera' (capitalized, singular)
   // We need to query for both variations
   let dbCategoryVariations: string[] = []
-  
+
   if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
     dbCategoryVariations = ['Phone', 'phone', 'phones', 'Phones']
   } else if (normalizedCategory.includes('laptop')) {
@@ -221,10 +221,10 @@ export async function getProductsByBrand(
   } else {
     dbCategoryVariations = [normalizedCategory, normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)]
   }
-  
+
   // Normalize brand (handle case sensitivity)
   const normalizedBrand = brand.trim()
-  
+
   // Try querying with the first category variation
   // If no results, we'll fall back to client-side filtering
   const q = query(
@@ -232,11 +232,11 @@ export async function getProductsByBrand(
     where('brand', '==', normalizedBrand),
     where('category', '==', dbCategoryVariations[0])
   )
-  
+
   let snapshot
   try {
     snapshot = await getDocs(q)
-    
+
     // If no results with first variation, try other category variations
     if (snapshot.empty && dbCategoryVariations.length > 1) {
       for (let i = 1; i < dbCategoryVariations.length; i++) {
@@ -252,15 +252,15 @@ export async function getProductsByBrand(
         }
       }
     }
-    
+
     // If still no results, try querying just by brand to see if products exist
     if (snapshot.empty) {
       console.log(`No products found for category variations ${dbCategoryVariations.join(', ')} and brand "${normalizedBrand}". Trying brand-only query...`)
       const brandOnlyQ = query(productsRef, where('brand', '==', normalizedBrand))
       const brandOnlySnapshot = await getDocs(brandOnlyQ)
-      
+
       if (!brandOnlySnapshot.empty) {
-        console.log(`Found ${brandOnlySnapshot.docs.length} products for brand "${normalizedBrand}" with categories:`, 
+        console.log(`Found ${brandOnlySnapshot.docs.length} products for brand "${normalizedBrand}" with categories:`,
           [...new Set(brandOnlySnapshot.docs.map(doc => doc.data().category))])
         // Use brand-only results and filter client-side
         snapshot = brandOnlySnapshot
@@ -306,11 +306,11 @@ export async function getProductsByBrand(
   const filtered = products.filter(product => {
     const productCategory = product.category?.trim() || ''
     const productBrand = product.brand?.trim() || ''
-    
+
     // Check category match - handle both database format ('Phone', 'Laptop', 'iPad', 'Camera') and our format ('phones', 'laptops', 'tablets', 'cameras')
     let categoryMatch = false
     const normalizedProductCategory = productCategory.toLowerCase()
-    
+
     // More flexible matching - check if either contains the other
     if (normalizedCategory.includes('phone') || normalizedCategory.includes('iphone')) {
       categoryMatch = normalizedProductCategory.includes('phone') || normalizedProductCategory.includes('iphone')
@@ -321,28 +321,28 @@ export async function getProductsByBrand(
     } else if (normalizedCategory.includes('camera')) {
       // For cameras, match 'camera', 'cameras', 'Camera', 'Cameras', 'DSLR'
       // Exclude 'Lens' - lenses are separate products
-      categoryMatch = (normalizedProductCategory.includes('camera') || 
-                      productCategory.toLowerCase().includes('camera') ||
-                      productCategory.toLowerCase() === 'camera' ||
-                      productCategory.toLowerCase() === 'cameras' ||
-                      normalizedProductCategory === 'dslr' ||
-                      productCategory === 'DSLR' ||
-                      productCategory === 'dslr') &&
-                      // Explicitly exclude Lens
-                      normalizedProductCategory !== 'lens' &&
-                      productCategory !== 'Lens' &&
-                      productCategory !== 'lens'
+      categoryMatch = (normalizedProductCategory.includes('camera') ||
+        productCategory.toLowerCase().includes('camera') ||
+        productCategory.toLowerCase() === 'camera' ||
+        productCategory.toLowerCase() === 'cameras' ||
+        normalizedProductCategory === 'dslr' ||
+        productCategory === 'DSLR' ||
+        productCategory === 'dslr') &&
+        // Explicitly exclude Lens
+        normalizedProductCategory !== 'lens' &&
+        productCategory !== 'Lens' &&
+        productCategory !== 'lens'
     } else {
       // For other categories, try exact match or substring match
-      categoryMatch = normalizedProductCategory === normalizedCategory || 
-                      normalizedProductCategory.includes(normalizedCategory) ||
-                      normalizedCategory.includes(normalizedProductCategory) ||
-                      productCategory.toLowerCase() === normalizedCategory
+      categoryMatch = normalizedProductCategory === normalizedCategory ||
+        normalizedProductCategory.includes(normalizedCategory) ||
+        normalizedCategory.includes(normalizedProductCategory) ||
+        productCategory.toLowerCase() === normalizedCategory
     }
-    
+
     // Check brand match (case-insensitive)
     const brandMatch = productBrand.toLowerCase() === normalizedBrand.toLowerCase()
-    
+
     return categoryMatch && brandMatch
   })
 
@@ -352,7 +352,7 @@ export async function getProductsByBrand(
     console.warn(`No products found after filtering. Found ${products.length} products for brand "${normalizedBrand}". Categories:`, uniqueCategories)
     console.log(`Looking for category: "${normalizedCategory}" (normalized from "${category}")`)
     console.log(`Tried category variations:`, dbCategoryVariations)
-    
+
     // Lenient fallback: if we're looking for cameras and products exist, match any product with 'camera' or 'dslr' in category
     // Exclude 'Lens' - lenses are separate products
     if (normalizedCategory.includes('camera')) {
@@ -360,12 +360,12 @@ export async function getProductsByBrand(
         const productCategory = (product.category || '').toLowerCase()
         const productBrand = (product.brand || '').toLowerCase()
         // Match camera or dslr categories, but exclude lens
-        const isCameraRelated = (productCategory.includes('camera') || 
-                                productCategory === 'dslr' || 
-                                product.category === 'DSLR') &&
-                                productCategory !== 'lens' &&
-                                product.category !== 'Lens' &&
-                                product.category !== 'lens'
+        const isCameraRelated = (productCategory.includes('camera') ||
+          productCategory === 'dslr' ||
+          product.category === 'DSLR') &&
+          productCategory !== 'lens' &&
+          product.category !== 'Lens' &&
+          product.category !== 'lens'
         return isCameraRelated && productBrand === normalizedBrand.toLowerCase()
       })
       if (lenientFiltered.length > 0) {
@@ -457,4 +457,78 @@ export async function getUser(userId: string): Promise<User | null> {
     return { id: userDoc.id, ...userDoc.data() } as User
   }
   return null
+}
+
+// Admin Operations
+export async function getAllProducts(): Promise<Product[]> {
+  const productsRef = collection(getDb(), 'products')
+  const snapshot = await getDocs(productsRef)
+
+  return snapshot.docs.map(docSnap => {
+    const data: any = docSnap.data()
+
+    const modelName =
+      data.modelName ??
+      data['Model Name'] ??
+      data.name ??
+      ''
+
+    const basePrice =
+      data.basePrice ??
+      data.price ??
+      data['Price (₹)'] ??
+      0
+
+    const internalBasePrice =
+      data.internalBasePrice ??
+      (basePrice * 0.5)
+
+    const imageUrl = data.imageUrl ?? data.image
+
+    return {
+      id: docSnap.id,
+      brand: data.brand,
+      category: data.category,
+      modelName,
+      basePrice,
+      internalBasePrice,
+      imageUrl,
+    } as Product
+  })
+}
+
+export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
+  const docRef = doc(getDb(), 'products', id)
+  await updateDoc(docRef, updates)
+}
+
+export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumber?: string | null }): Promise<boolean> {
+  try {
+    const staffRef = collection(getDb(), 'staffUsers')
+
+    // Check by email if available
+    if (user.email) {
+      const qEmail = query(staffRef, where('email', '==', user.email))
+      const snapshotEmail = await getDocs(qEmail)
+      if (!snapshotEmail.empty) {
+        const staffDoc = snapshotEmail.docs[0].data()
+        if (staffDoc.role === 'superadmin' && staffDoc.isActive === true) return true
+      }
+    }
+
+    // Check by phone number if available
+    if (user.phoneNumber) {
+      const qPhone = query(staffRef, where('phoneNumber', '==', user.phoneNumber))
+      const snapshotPhone = await getDocs(qPhone)
+      if (!snapshotPhone.empty) {
+        const staffDoc = snapshotPhone.docs[0].data()
+        if (staffDoc.role === 'superadmin' && staffDoc.isActive === true) return true
+      }
+    }
+
+    return false
+  } catch (error: any) {
+    console.error('Error checking super admin status:', error)
+    throw error
+  }
 }

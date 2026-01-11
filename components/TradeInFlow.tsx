@@ -6,6 +6,7 @@ import { ChevronRight, Check, Camera } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { getDevices as getDevicesFromDb, getDevice as getDeviceFromDb, createValuation } from '@/lib/firebase/database'
+import OTPLogin from '@/components/OTPLogin'
 
 interface Device {
   id: string
@@ -63,6 +64,7 @@ export default function TradeInFlow() {
   const [models, setModels] = useState<string[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const totalSteps = 5
 
@@ -389,18 +391,29 @@ export default function TradeInFlow() {
           >
             <div className="bg-gradient-to-br from-brand-blue-700 to-brand-lime-600 rounded-xl p-4 md:p-6 shadow-xl">
               <div className="text-white/90 text-sm mb-1">Estimated Value</div>
-              <motion.div
-                key={estimatedValue}
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                className="text-3xl md:text-4xl font-bold text-white"
-              >
-                ${estimatedValue.toLocaleString()}
-              </motion.div>
-              {basePrice > 0 && (
-                <div className="text-white/80 text-xs mt-2">
-                  Base: ${basePrice.toLocaleString()}
-                </div>
+              {isAuthenticated ? (
+                <>
+                  <motion.div
+                    key={estimatedValue}
+                    initial={{ scale: 1.2 }}
+                    animate={{ scale: 1 }}
+                    className="text-3xl md:text-4xl font-bold text-white"
+                  >
+                    ${estimatedValue.toLocaleString()}
+                  </motion.div>
+                  {basePrice > 0 && (
+                    <div className="text-white/80 text-xs mt-2">
+                      Base: ${basePrice.toLocaleString()}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="w-full mt-2 py-2 bg-white text-brand-blue-900 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+                >
+                  Login to View Price
+                </button>
               )}
             </div>
           </motion.div>
@@ -497,7 +510,12 @@ export default function TradeInFlow() {
           )}
         </div>
       </div>
+      {showLoginModal && (
+        <OTPLogin
+          onSuccess={() => setShowLoginModal(false)}
+          onClose={() => setShowLoginModal(false)}
+        />
+      )}
     </div>
   )
 }
-
