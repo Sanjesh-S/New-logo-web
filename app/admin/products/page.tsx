@@ -1,14 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAllProducts, type Product } from '@/lib/firebase/database'
-import EditProductModal from '@/components/admin/EditProductModal'
+import { getAllProducts, getAllPickupRequests, updatePickupRequest, type Product, type PickupRequest } from '@/lib/firebase/database'
+import ProductFormModal from '@/components/admin/ProductFormModal'
+import PricingCalculator from '@/components/admin/PricingCalculator'
 
 export default function AdminProductsPage() {
+    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup'>('products')
     const [products, setProducts] = useState<Product[]>([])
+    const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([])
     const [loading, setLoading] = useState(true)
+    const [pickupLoading, setPickupLoading] = useState(false)
+    const [isFormOpen, setIsFormOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+
+    // Filters
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedCategory, setSelectedCategory] = useState('All')
 
     const fetchProducts = async () => {
         try {
@@ -23,14 +31,76 @@ export default function AdminProductsPage() {
         }
     }
 
+    const fetchPickupRequests = async () => {
+        try {
+            setPickupLoading(true)
+            const data = await getAllPickupRequests()
+            setPickupRequests(data)
+        } catch (error) {
+            console.error('Error fetching pickup requests:', error)
+            alert('Failed to load pickup requests')
+        } finally {
+            setPickupLoading(false)
+        }
+    }
+
+    const handleStatusChange = async (requestId: string, newStatus: string) => {
+        try {
+            console.log('Updating status in Firebase:', requestId, newStatus)
+            await updatePickupRequest(requestId, { status: newStatus as any })
+            console.log('Status updated successfully in Firebase')
+            // Refresh the list to show updated status
+            await fetchPickupRequests()
+        } catch (error) {
+            console.error('Error updating status in Firebase:', error)
+            alert('Failed to update status: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+
+    const handleRemarksChange = async (requestId: string, remarks: string) => {
+        try {
+            await updatePickupRequest(requestId, { remarks })
+            // Optionally refresh to show updated timestamp
+            await fetchPickupRequests()
+        } catch (error) {
+            console.error('Error updating remarks:', error)
+            alert('Failed to update remarks')
+        }
+    }
+
     useEffect(() => {
         fetchProducts()
     }, [])
 
-    const filteredProducts = products.filter((product) =>
-        product.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.brand.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    useEffect(() => {
+        if (activeTab === 'pickup') {
+            fetchPickupRequests()
+        }
+    }, [activeTab])
+
+    const filteredProducts = products.filter((product) => {
+        const matchesSearch = product.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.brand.toLowerCase().includes(searchTerm.toLowerCase())
+
+        const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory
+
+        return matchesSearch && matchesCategory
+    })
+
+    const handleEdit = (product: Product) => {
+        setEditingProduct(product)
+        setIsFormOpen(true)
+    }
+
+    const handleAddNew = () => {
+        setEditingProduct(null)
+        setIsFormOpen(true)
+    }
+
+    const handleCloseModal = () => {
+        setIsFormOpen(false)
+        setEditingProduct(null)
+    }
 
     if (loading) {
         return (
@@ -40,100 +110,344 @@ export default function AdminProductsPage() {
         )
     }
 
+    // Get unique categories for filter
+    const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).sort()]
+
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Products Management</h1>
-                <div className="flex gap-4">
-                    <input
-                        type="text"
-                        placeholder="Search products..."
-                        className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            <div className="flex flex-col gap-6">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-2xl font-bold text-gray-900">Products Management</h1>
+                    {activeTab === 'products' && (
+                        <button
+                            onClick={handleAddNew}
+                            className="bg-brand-blue-900 text-white px-4 py-2 rounded-lg hover:bg-brand-blue-800 transition-colors flex items-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Product
+                        </button>
+                    )}
+                </div>
+
+                {/* Tabs */}
+                <div className="border-b border-gray-200">
+                    <nav className="-mb-px flex space-x-8">
+                        <button
+                            onClick={() => setActiveTab('products')}
+                            className={`${activeTab === 'products'
+                                    ? 'border-brand-blue-900 text-brand-blue-900'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        >
+                            Product List
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('calculator')}
+                            className={`${activeTab === 'calculator'
+                                    ? 'border-brand-blue-900 text-brand-blue-900'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        >
+                            Price Calculator
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('pickup')}
+                            className={`${activeTab === 'pickup'
+                                    ? 'border-brand-blue-900 text-brand-blue-900'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        >
+                            Pickup Requests
+                        </button>
+                    </nav>
                 </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Product
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Category
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Display Price
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Internal Base
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="h-10 w-10 flex-shrink-0">
-                                                {product.imageUrl ? (
-                                                    <img
-                                                        className="h-10 w-10 rounded-full object-cover"
-                                                        src={product.imageUrl}
-                                                        alt=""
-                                                    />
-                                                ) : (
-                                                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
-                                                        No Img
+            {activeTab === 'products' ? (
+                <>
+                    {/* Filters Bar */}
+                    <div className="bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-4">
+                        <div className="flex-1">
+                            <input
+                                type="text"
+                                placeholder="Search by name or brand..."
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-full sm:w-48">
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="bg-white shadow rounded-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Product
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Category
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Display Price
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Internal Base
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredProducts.map((product) => (
+                                        <tr key={product.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className="h-10 w-10 flex-shrink-0">
+                                                        {product.imageUrl ? (
+                                                            <img
+                                                                className="h-10 w-10 rounded-full object-cover"
+                                                                src={product.imageUrl}
+                                                                alt=""
+                                                            />
+                                                        ) : (
+                                                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+                                                                No Img
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                            <div className="ml-4">
-                                                <div className="text-sm font-medium text-gray-900">{product.modelName}</div>
-                                                <div className="text-sm text-gray-500">{product.brand}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            {product.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        ₹{product.basePrice.toLocaleString('en-IN')}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        ₹{product.internalBasePrice?.toLocaleString('en-IN')}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button
-                                            onClick={() => setEditingProduct(product)}
-                                            className="text-brand-blue-600 hover:text-brand-blue-900"
-                                        >
-                                            Edit
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                                    <div className="ml-4">
+                                                        <div className="text-sm font-medium text-gray-900">{product.modelName}</div>
+                                                        <div className="text-sm text-gray-500">{product.brand}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                    {product.category}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                ₹{product.basePrice.toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                ₹{product.internalBasePrice?.toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button
+                                                    onClick={() => handleEdit(product)}
+                                                    className="text-brand-blue-600 hover:text-brand-blue-900 font-medium"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredProducts.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                                                No products found matching your search.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-            {editingProduct && (
-                <EditProductModal
-                    isOpen={true}
-                    product={editingProduct}
-                    onClose={() => setEditingProduct(null)}
-                    onProductUpdated={fetchProducts}
-                />
+                    <ProductFormModal
+                        isOpen={isFormOpen}
+                        product={editingProduct}
+                        onClose={handleCloseModal}
+                        onProductSaved={fetchProducts}
+                    />
+                </>
+            ) : activeTab === 'calculator' ? (
+                <PricingCalculator />
+            ) : (
+                <>
+                    {/* Pickup Requests Table */}
+                    {pickupLoading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue-900"></div>
+                        </div>
+                    ) : (
+                        <div className="bg-white shadow rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Request ID
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Product
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Customer
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Price
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Pickup Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Remarks
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {pickupRequests.map((request) => {
+                                            const createdAt = request.createdAt instanceof Date 
+                                                ? request.createdAt 
+                                                : (request.createdAt as any)?.toDate?.() || new Date()
+                                            
+                                            // Handle different data structures
+                                            const productName = request.productName || request.device?.productName || 'N/A'
+                                            const price = request.price || request.device?.adjustedPrice || 0
+                                            const customerName = request.customer?.name || request.userName || 'N/A'
+                                            const customerPhone = request.customer?.phone || request.userPhone || 'N/A'
+                                            const customerEmail = request.customer?.email || request.userEmail || 'N/A'
+                                            const address = request.customer?.address || request.pickupAddress || ''
+                                            const city = request.customer?.city || ''
+                                            const state = request.customer?.state || request.state || ''
+                                            const pincode = request.customer?.pincode || ''
+                                            const pickupDate = request.pickupDate ? new Date(request.pickupDate) : null
+                                            const status = request.status || 'pending'
+                                            
+                                            return (
+                                                <tr key={request.id} className="hover:bg-gray-50">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-mono text-gray-900">
+                                                            {request.id.substring(0, 8)}...
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {createdAt.toLocaleDateString('en-IN')}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm font-medium text-gray-900">
+                                                            {productName}
+                                                        </div>
+                                                        {request.device?.accessories && request.device.accessories.length > 0 && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                Accessories: {request.device.accessories.join(', ')}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm text-gray-900">{customerName}</div>
+                                                        <div className="text-sm text-gray-500">{customerPhone}</div>
+                                                        {customerEmail !== 'N/A' && (
+                                                            <div className="text-sm text-gray-500">{customerEmail}</div>
+                                                        )}
+                                                        {(address || city || state) && (
+                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                {address && `${address}, `}
+                                                                {city && `${city}, `}
+                                                                {state}
+                                                                {pincode && ` - ${pincode}`}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-medium text-gray-900">
+                                                            ₹{price.toLocaleString('en-IN')}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {pickupDate ? (
+                                                            <>
+                                                                <div className="text-sm text-gray-900">
+                                                                    {pickupDate.toLocaleDateString('en-IN', { 
+                                                                        weekday: 'short',
+                                                                        day: 'numeric',
+                                                                        month: 'short'
+                                                                    })}
+                                                                </div>
+                                                                {request.pickupTime && (
+                                                                    <div className="text-sm text-gray-500">{request.pickupTime}</div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-400">Not set</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <select
+                                                            value={status}
+                                                            onChange={(e) => handleStatusChange(request.id, e.target.value)}
+                                                            className={`text-xs font-semibold rounded-full px-3 py-1 border-0 focus:ring-2 focus:ring-brand-blue-500 outline-none cursor-pointer ${
+                                                                status === 'pending' 
+                                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                                    : status === 'completed'
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : status === 'hold'
+                                                                    ? 'bg-orange-100 text-orange-800'
+                                                                    : status === 'verification'
+                                                                    ? 'bg-purple-100 text-purple-800'
+                                                                    : status === 'reject'
+                                                                    ? 'bg-red-100 text-red-800'
+                                                                    : status === 'suspect'
+                                                                    ? 'bg-pink-100 text-pink-800'
+                                                                    : status === 'confirmed'
+                                                                    ? 'bg-blue-100 text-blue-800'
+                                                                    : 'bg-gray-100 text-gray-800'
+                                                            }`}
+                                                        >
+                                                            <option value="pending">Pending</option>
+                                                            <option value="completed">Completed</option>
+                                                            <option value="hold">Hold</option>
+                                                            <option value="verification">Verification</option>
+                                                            <option value="reject">Reject</option>
+                                                            <option value="suspect">Suspect</option>
+                                                            <option value="confirmed">Confirmed</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <textarea
+                                                            defaultValue={request.remarks || ''}
+                                                            onBlur={(e) => handleRemarksChange(request.id, e.target.value)}
+                                                            placeholder="Add remarks..."
+                                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none resize-none"
+                                                            rows={2}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                        {pickupRequests.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                                                    No pickup requests found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     )

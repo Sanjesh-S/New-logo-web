@@ -6,7 +6,6 @@ import Testimonials from '@/components/Testimonials'
 import FAQSection from '@/components/FAQSection'
 import CTASection from '@/components/CTASection'
 import Navigation from '@/components/Navigation'
-import Footer from '@/components/Footer'
 import WhatsAppButton from '@/components/WhatsAppButton'
 import MobileCTA from '@/components/MobileCTA'
 
@@ -21,7 +20,6 @@ export default function Home() {
       <Testimonials />
       <FAQSection />
       <CTASection />
-      <Footer />
       <WhatsAppButton />
       <MobileCTA />
     </main>

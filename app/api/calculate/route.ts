@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { calculateRequestSchema } from '@/lib/validations/schemas'
+import { validateSchema, validationErrorResponse } from '@/lib/validations'
+import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { createLogger } from '@/lib/utils/logger'
+
+const logger = createLogger('API:Calculate')
 
 // Base prices for different camera models
 const BASE_PRICES: Record<string, Record<string, number>> = {
@@ -54,15 +60,34 @@ const ACCESSORY_PRICES: Record<string, number> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { brand, model, condition, usage, accessories } = body
-
-    if (!brand || !model) {
+    // Rate limiting (200 requests per minute per IP for calculations)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 200, windowMs: 60000 })
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: 'Brand and model are required' },
-        { status: 400 }
+        {
+          error: 'Too many requests',
+          message: 'Rate limit exceeded. Please try again later.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+          },
+        }
       )
     }
+    
+    const body = await request.json()
+    
+    // Validate request body
+    const validation = validateSchema(calculateRequestSchema, body)
+    if (!validation.isValid) {
+      return validationErrorResponse(validation.errors!)
+    }
+    
+    const { brand, model, condition, usage, accessories } = validation.data!
 
     // Get base price
     const brandPrices = BASE_PRICES[brand.toLowerCase()]
@@ -118,7 +143,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error calculating value:', error)
+    logger.error('Error calculating value', error)
     return NextResponse.json(
       { error: 'Failed to calculate value' },
       { status: 500 }

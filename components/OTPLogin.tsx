@@ -173,7 +173,11 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
         onSuccess()
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid OTP. Please try again.')
+      // Show user-friendly error message
+      const errorMessage = err.message?.includes('Wrong OTP') 
+        ? 'Wrong OTP. Please try again.' 
+        : err.message || 'Invalid OTP. Please try again.'
+      setError(errorMessage)
       setOtp(['', '', '', '', '', ''])
       otpInputRefs.current[0]?.focus()
     } finally {

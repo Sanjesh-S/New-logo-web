@@ -80,6 +80,14 @@ export default function Navigation() {
                         <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200">
                           {user?.phoneNumber}
                         </div>
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          Dashboard
+                        </Link>
                         <button
                           onClick={handleLogout}
                           className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 flex items-center gap-2 transition-colors"
@@ -144,6 +152,14 @@ export default function Navigation() {
                       <div className="px-4 py-2 text-sm text-gray-600">
                         Logged in as {user?.phoneNumber}
                       </div>
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 font-medium"
+                      >
+                        <User className="w-5 h-5" />
+                        Dashboard
+                      </Link>
                       <button
                         onClick={() => {
                           handleLogout()

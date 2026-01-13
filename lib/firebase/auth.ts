@@ -188,6 +188,10 @@ export async function verifyOTP(
     return user
   } catch (error: any) {
     console.error('Error verifying OTP:', error)
+    // Provide user-friendly error messages
+    if (error.code === 'auth/invalid-verification-code' || error.code === 'auth/code-expired') {
+      throw new Error('Wrong OTP. Please try again.')
+    }
     throw new Error(error.message || 'Invalid OTP code')
   }
 }

@@ -9,7 +9,7 @@ import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 interface AssessmentOTPModalProps {
   isOpen: boolean
   onClose: () => void
-  onVerified: () => void
+  onVerified: (phoneNumber?: string) => void
 }
 
 export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: AssessmentOTPModalProps) {
@@ -229,9 +229,13 @@ export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: Asse
 
       await verifyOTP(confirmationResult, code)
       setError('')
-      onVerified()
+      onVerified(phoneNumber)
     } catch (err: any) {
-      setError(err.message || 'Invalid OTP. Please try again.')
+      // Show user-friendly error message
+      const errorMessage = err.message?.includes('Wrong OTP') 
+        ? 'Wrong OTP. Please try again.' 
+        : err.message || 'Invalid OTP. Please try again.'
+      setError(errorMessage)
       setOtp(['', '', '', '', '', ''])
       otpInputRefs.current[0]?.focus()
     } finally {

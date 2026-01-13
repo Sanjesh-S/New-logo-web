@@ -40,15 +40,72 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, brand])
 
-  // Filter products based on search query
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return products
+  // Natural sorting function for model names (e.g., 80D, 90D, 100D)
+  const naturalSort = (a: Product, b: Product) => {
+    const modelA = a.modelName.toLowerCase()
+    const modelB = b.modelName.toLowerCase()
+    
+    // Extract numeric parts and text parts for comparison
+    const extractParts = (str: string) => {
+      const parts: Array<{ type: 'number' | 'text', value: number | string }> = []
+      const regex = /(\d+)|([^\d]+)/g
+      let match
+      while ((match = regex.exec(str)) !== null) {
+        if (match[1]) {
+          parts.push({ type: 'number', value: parseInt(match[1], 10) })
+        } else if (match[2]) {
+          parts.push({ type: 'text', value: match[2] })
+        }
+      }
+      return parts
     }
-    const query = searchQuery.toLowerCase()
-    return products.filter((product) =>
-      product.modelName.toLowerCase().includes(query)
-    )
+    
+    const partsA = extractParts(modelA)
+    const partsB = extractParts(modelB)
+    
+    // Compare parts
+    const minLength = Math.min(partsA.length, partsB.length)
+    for (let i = 0; i < minLength; i++) {
+      const partA = partsA[i]
+      const partB = partsB[i]
+      
+      // If types differ, text comes after number
+      if (partA.type !== partB.type) {
+        return partA.type === 'number' ? -1 : 1
+      }
+      
+      // Compare values
+      if (partA.type === 'number' && partB.type === 'number') {
+        if (partA.value !== partB.value) {
+          return (partA.value as number) - (partB.value as number)
+        }
+      } else {
+        const textA = partA.value as string
+        const textB = partB.value as string
+        if (textA !== textB) {
+          return textA.localeCompare(textB)
+        }
+      }
+    }
+    
+    // If all parts match up to minLength, shorter string comes first
+    return partsA.length - partsB.length
+  }
+
+  // Filter and sort products based on search query
+  const filteredProducts = useMemo(() => {
+    let result = products
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = products.filter((product) =>
+        product.modelName.toLowerCase().includes(query)
+      )
+    }
+    
+    // Sort products naturally
+    return [...result].sort(naturalSort)
   }, [products, searchQuery])
 
   if (loading) {

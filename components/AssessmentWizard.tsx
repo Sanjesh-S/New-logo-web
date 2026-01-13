@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { getProductById, type Product } from '@/lib/firebase/database'
+import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
+import { getProductById, type Product, getPricingRules } from '@/lib/firebase/database'
 import { calculatePrice, type AnswerMap } from '@/lib/pricing/modifiers'
+import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { useAuth } from '@/contexts/AuthContext'
 import YesNoQuestion from './questions/YesNoQuestion'
 import SingleSelectQuestion from './questions/SingleSelectQuestion'
 import ConditionGrid from './questions/ConditionGrid'
@@ -20,6 +22,7 @@ import LaptopAccessoryGrid from './questions/LaptopAccessoryGrid'
 import TabletAccessoryGrid from './questions/TabletAccessoryGrid'
 import AgeQuestion from './questions/AgeQuestion'
 import AssessmentOTPModal from './AssessmentOTPModal'
+import OrderConfirmation, { type AddressData } from './OrderConfirmation'
 
 interface AssessmentWizardProps {
   productId: string
@@ -41,6 +44,7 @@ export default function AssessmentWizard({
   brand,
   model,
 }: AssessmentWizardProps) {
+  const { user, isAuthenticated } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,30 +53,40 @@ export default function AssessmentWizard({
   const [calculatedPrice, setCalculatedPrice] = useState(0)
   const [showOTPModal, setShowOTPModal] = useState(false)
   const [showPrice, setShowPrice] = useState(false)
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [pricingRules, setPricingRules] = useState<PricingRules>(DEFAULT_PRICING_RULES)
 
-  // Fetch product data
+  // Fetch product data and pricing rules
   useEffect(() => {
-    const fetchProduct = async () => {
+    const loadData = async () => {
       try {
         setLoading(true)
         setError(null)
-        const data = await getProductById(productId)
-        if (!data) {
+
+        const [productData, rulesData] = await Promise.all([
+          getProductById(productId),
+          getPricingRules()
+        ])
+
+        if (!productData) {
           setError('Product not found')
           return
         }
-        setProduct(data)
-        const internalBasePrice = data.internalBasePrice || data.basePrice * 0.5
+
+        setProduct(productData)
+        setPricingRules(rulesData)
+        const internalBasePrice = productData.internalBasePrice || productData.basePrice * 0.5
         setCalculatedPrice(internalBasePrice)
       } catch (err: any) {
-        setError(err.message || 'Failed to load product')
+        setError(err.message || 'Failed to load data')
       } finally {
         setLoading(false)
       }
     }
 
     if (productId) {
-      fetchProduct()
+      loadData()
     }
   }, [productId])
 
@@ -80,10 +94,10 @@ export default function AssessmentWizard({
   useEffect(() => {
     if (product) {
       const internalBasePrice = product.internalBasePrice || product.basePrice * 0.5
-      const newPrice = calculatePrice(internalBasePrice, answers)
+      const newPrice = calculatePrice(internalBasePrice, answers, pricingRules)
       setCalculatedPrice(newPrice)
     }
-  }, [answers, product])
+  }, [answers, product, pricingRules])
 
   // Reset step and answers when category changes
   useEffect(() => {
@@ -112,16 +126,11 @@ export default function AssessmentWizard({
     }
   }
 
-  const handleFinish = () => {
-    // Show OTP modal instead of directly submitting
-    setShowOTPModal(true)
-  }
-
-  const handleOTPVerified = async () => {
+  const submitAssessment = async (addressData?: AddressData) => {
     if (!product) return
 
     try {
-      // Submit assessment after OTP verification
+      // Submit assessment with address data if provided
       const response = await fetch('/api/valuations', {
         method: 'POST',
         headers: {
@@ -137,22 +146,77 @@ export default function AssessmentWizard({
           estimatedValue: calculatedPrice,
           answers,
           status: 'pending',
+          // Include address data if provided
+          ...(addressData && {
+            pickupAddress: `${addressData.address}, ${addressData.landmark ? addressData.landmark + ', ' : ''}${addressData.city}, ${addressData.state} - ${addressData.pincode}`,
+            userName: addressData.name,
+            userPhone: addressData.phone,
+          }),
         }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        // Close modal and show price
-        setShowOTPModal(false)
-        setShowPrice(true)
+        // Calculate deductions for summary
+        const internalBase = product.internalBasePrice || product.basePrice * 0.5
+        const deductions = calculatedPrice - internalBase
+        
+        // Redirect to order summary page with price breakdown and product info
+        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
+        window.location.href = `/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
       } else {
-        alert('Failed to submit assessment. Please try again.')
+        // If pickup request was already created (Telegram notification sent), redirect to success
+        // Otherwise show error (but since pickup request succeeded, we proceed)
+        const internalBase = product.internalBasePrice || product.basePrice * 0.5
+        const deductions = calculatedPrice - internalBase
+        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
+        window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
       }
     } catch (error) {
       console.error('Error submitting assessment:', error)
-      alert('An error occurred. Please try again.')
+      // Even if assessment submission fails, if pickup request was created, show success
+      // Redirect to order summary page
+      const internalBase = product.internalBasePrice || product.basePrice * 0.5
+      const deductions = calculatedPrice - internalBase
+      const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
+      window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
     }
+  }
+
+  const handleFinish = () => {
+    // If user is already authenticated, show price first
+    // Otherwise, show OTP modal for new users
+    if (isAuthenticated && user) {
+      // Get phone number from user if available
+      const userPhone = user.phoneNumber?.replace('+91', '') || ''
+      setPhoneNumber(userPhone)
+      setShowPrice(true)
+      // Don't show order confirmation yet - wait for "Confirm Order" button click
+    } else {
+      // Show OTP modal for new/unauthenticated users
+      setShowOTPModal(true)
+    }
+  }
+
+  const handleOTPVerified = async (verifiedPhoneNumber?: string) => {
+    // After OTP verification, show price first
+    if (verifiedPhoneNumber) {
+      setPhoneNumber(verifiedPhoneNumber.replace('+91', ''))
+    }
+    setShowOTPModal(false)
+    setShowPrice(true)
+    // Don't show order confirmation yet - wait for "Confirm Order" button click
+  }
+
+  const handleConfirmOrder = () => {
+    // Show address popup when "Confirm Order" is clicked
+    setShowOrderConfirmation(true)
+  }
+
+  const handleOrderConfirm = async (addressData: AddressData) => {
+    // Submit assessment with address data
+    await submitAssessment(addressData)
   }
 
   if (loading) {
@@ -190,7 +254,7 @@ export default function AssessmentWizard({
     const urlCategory = category?.toLowerCase()?.trim()
     const productCategory = product?.category?.toLowerCase()?.trim()
     const cat = urlCategory || productCategory || 'cameras'
-    
+
     // Handle variations in category names - check for phone/iphone first
     if (cat.includes('phone') || cat.includes('iphone')) {
       return getPhoneSteps()
@@ -201,7 +265,7 @@ export default function AssessmentWizard({
     } else if (cat.includes('camera')) {
       return getCameraSteps()
     }
-    
+
     // Fallback to exact matches
     if (cat === 'phones' || cat === 'phone' || cat === 'iphone') {
       return getPhoneSteps()
@@ -212,7 +276,7 @@ export default function AssessmentWizard({
     } else if (cat === 'cameras' || cat === 'camera') {
       return getCameraSteps()
     }
-    
+
     return getCameraSteps() // Default to cameras
   }
 
@@ -658,57 +722,94 @@ export default function AssessmentWizard({
           </AnimatePresence>
         </div>
 
-        {/* Price Display - Show after OTP verification */}
-        {showPrice && product && (
-          <div className="bg-gradient-to-br from-brand-blue-700 to-brand-lime-600 rounded-xl p-6 mb-6 text-white shadow-lg">
-            <div className="text-sm opacity-90 mb-1">Current Estimated Value</div>
-            <div className="text-3xl md:text-4xl font-bold">
-              ₹{calculatedPrice.toLocaleString('en-IN')}
+        {/* Price Display - Show after OTP verification or Finish */}
+        {showPrice && !showOrderConfirmation && product && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-700 via-brand-blue-600 to-brand-lime-600 p-8 md:p-10 text-white shadow-2xl"
+          >
+            {/* Decorative background elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+            
+            <div className="relative z-10">
+              <div className="text-center mb-6">
+                <div className="inline-block px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-4">
+                  Your Estimated Trade-In Value
+                </div>
+                <div className="text-5xl md:text-6xl lg:text-7xl font-bold mb-2 tracking-tight">
+                  ₹{calculatedPrice.toLocaleString('en-IN')}
+                </div>
+                <p className="text-white/80 text-sm md:text-base">
+                  Based on your device condition assessment
+                </p>
+              </div>
+              
+              <motion.button
+                onClick={handleConfirmOrder}
+                className="w-full px-8 py-4 bg-white text-brand-blue-900 rounded-xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <CheckCircle className="w-6 h-6" />
+                Confirm Order
+              </motion.button>
             </div>
-            <div className="text-xs opacity-75 mt-2">
-              Base: ₹{(product.internalBasePrice || product.basePrice * 0.5).toLocaleString('en-IN')} | Display: ₹{product.basePrice.toLocaleString('en-IN')}
-            </div>
-          </div>
+          </motion.div>
+        )}
+
+        {/* Order Confirmation Modal - Show when "Confirm Order" is clicked */}
+        {showOrderConfirmation && product && (
+          <OrderConfirmation
+            isOpen={showOrderConfirmation}
+            price={calculatedPrice}
+            productName={product.modelName}
+            phoneNumber={phoneNumber}
+            onConfirm={handleOrderConfirm}
+            onClose={() => setShowOrderConfirmation(false)}
+          />
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between gap-4">
-          <button
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-              currentStep === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
-            }`}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back
-          </button>
-
-          {currentStep < steps.length - 1 ? (
+        {!showOrderConfirmation && (
+          <div className="flex justify-between gap-4">
             <button
-              onClick={() => handleNext(steps.length)}
-              disabled={!canProceed()}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                !canProceed()
+              onClick={handleBack}
+              disabled={currentStep === 0}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${currentStep === 0
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
-              }`}
+                  : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
+                }`}
             >
-              Next
-              <ArrowRight className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" />
+              Back
             </button>
-          ) : (
-            <button
-              onClick={handleFinish}
-              className="px-6 py-3 rounded-lg font-semibold bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg transition-all flex items-center gap-2"
-            >
-              Finish
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          )}
-        </div>
+
+            {currentStep < steps.length - 1 ? (
+              <button
+                onClick={() => handleNext(steps.length)}
+                disabled={!canProceed()}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${!canProceed()
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
+                  }`}
+              >
+                Next
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={handleFinish}
+                className="px-6 py-3 rounded-lg font-semibold bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg transition-all flex items-center gap-2"
+              >
+                Finish
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* OTP Modal */}
@@ -720,5 +821,3 @@ export default function AssessmentWizard({
     </div>
   )
 }
-
-

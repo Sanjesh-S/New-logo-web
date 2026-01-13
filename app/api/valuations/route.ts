@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createValuation, getValuation, updateValuation, getUserValuations } from '@/lib/firebase/database'
+import { getValuation, updateValuation, getUserValuations } from '@/lib/firebase/database'
+import { getFirestoreServer } from '@/lib/firebase/server'
+import { collection, addDoc, Timestamp } from 'firebase/firestore'
+import { valuationSchema, valuationUpdateSchema } from '@/lib/validations/schemas'
+import { validateSchema, validationErrorResponse } from '@/lib/validations'
+import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting (100 requests per minute per IP)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 100, windowMs: 60000 })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Too many requests',
+          message: 'Rate limit exceeded. Please try again later.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+          },
+        }
+      )
+    }
+    
     const body = await request.json()
+    
+    // Validate request body
+    const validation = validateSchema(valuationSchema, body)
+    if (!validation.isValid) {
+      return validationErrorResponse(validation.errors!)
+    }
+    
     const { 
       category, 
       brand, 
@@ -17,15 +48,7 @@ export async function POST(request: NextRequest) {
       userId,
       productId,
       answers // New assessment answers structure
-    } = body
-
-    // Support both old format (condition, usage) and new assessment format (answers)
-    if (!category || !brand || !model) {
-      return NextResponse.json(
-        { error: 'Missing required fields: category, brand, model' },
-        { status: 400 }
-      )
-    }
+    } = validation.data!
 
     // For new assessment flow, extract condition/usage from answers if needed
     let finalCondition = condition
@@ -58,7 +81,11 @@ export async function POST(request: NextRequest) {
     finalCondition = finalCondition || 'good'
     finalUsage = finalUsage || 'moderate'
 
-    const valuationId = await createValuation({
+    // Initialize Firestore for server-side using centralized utility
+    const db = getFirestoreServer()
+    const valuationRef = collection(db, 'valuations')
+    
+    const newValuation = {
       category,
       brand,
       model,
@@ -69,7 +96,16 @@ export async function POST(request: NextRequest) {
       estimatedValue: estimatedValue || 0,
       userId: userId || null,
       status: 'pending',
-    })
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      // Include address data if provided
+      ...(body.pickupAddress && { pickupAddress: body.pickupAddress }),
+      ...(body.userName && { userName: body.userName }),
+      ...(body.userPhone && { userPhone: body.userPhone }),
+    }
+    
+    const docRef = await addDoc(valuationRef, newValuation)
+    const valuationId = docRef.id
 
     return NextResponse.json({ 
       success: true, 
@@ -77,9 +113,12 @@ export async function POST(request: NextRequest) {
       message: 'Valuation created successfully' 
     })
   } catch (error) {
-    console.error('Error creating valuation:', error)
+    logger.error('Error creating valuation', error)
     return NextResponse.json(
-      { error: 'Failed to create valuation' },
+      { 
+        error: 'Failed to create valuation',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     )
   }
@@ -112,7 +151,7 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     )
   } catch (error) {
-    console.error('Error fetching valuation:', error)
+    logger.error('Error fetching valuation', error)
     return NextResponse.json(
       { error: 'Failed to fetch valuation' },
       { status: 500 }
@@ -123,14 +162,14 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, ...updates } = body
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Missing valuation id' },
-        { status: 400 }
-      )
+    
+    // Validate request body
+    const validation = validateSchema(valuationUpdateSchema, body)
+    if (!validation.isValid) {
+      return validationErrorResponse(validation.errors!)
     }
+    
+    const { id, ...updates } = validation.data!
 
     await updateValuation(id, updates)
 
@@ -139,7 +178,7 @@ export async function PATCH(request: NextRequest) {
       message: 'Valuation updated successfully' 
     })
   } catch (error) {
-    console.error('Error updating valuation:', error)
+    logger.error('Error updating valuation', error)
     return NextResponse.json(
       { error: 'Failed to update valuation' },
       { status: 500 }
