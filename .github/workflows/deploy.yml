@@ -32,11 +32,7 @@ jobs:
         run: npm ci
 
       - name: Build Next.js (Static Export)
-        run: |
-          # Temporarily enable static export for GitHub Pages
-          # Note: API routes will not work with static export
-          npm run build
-          npm run export || npx next build && npx next export
+        run: npm run build
         env:
           NODE_ENV: production
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
@@ -53,7 +49,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./out || ./.next/out || ./dist
 
   deploy:
     environment:
