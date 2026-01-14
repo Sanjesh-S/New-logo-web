@@ -29,9 +29,7 @@ export const pickupRequestSchema = z.object({
 
 // Valuation schema - supports both legacy and new assessment format
 export const valuationSchema = z.object({
-  category: z.enum(['cameras', 'phones', 'laptops'], {
-    errorMap: () => ({ message: 'Category must be cameras, phones, or laptops' }),
-  }),
+  category: z.enum(['cameras', 'phones', 'laptops']),
   brand: z.string().min(1, 'Brand is required').max(100),
   model: z.string().min(1, 'Model is required').max(200),
   condition: z.enum(['excellent', 'good', 'fair', 'poor']).optional(),
@@ -42,7 +40,7 @@ export const valuationSchema = z.object({
   estimatedValue: z.number().nonnegative().optional(),
   userId: z.string().optional().nullable(),
   productId: z.string().optional(),
-  answers: z.record(z.any()).optional(), // Assessment answers structure
+  answers: z.record(z.string(), z.any()).optional(), // Assessment answers structure
   pickupAddress: z.string().optional(),
   userName: z.string().optional(),
   userPhone: z.string().optional(),

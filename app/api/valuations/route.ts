@@ -5,6 +5,9 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore'
 import { valuationSchema, valuationUpdateSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { createLogger } from '@/lib/utils/logger'
+
+const logger = createLogger('API:Valuations')
 
 export async function POST(request: NextRequest) {
   try {

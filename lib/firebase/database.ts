@@ -215,7 +215,7 @@ export async function getDevices(
 
   try {
     if (brand) {
-      const baseQuery = [
+      const constraints: any[] = [
         where('category', '==', dbCategory),
         where('brand', '==', brand.trim()),
         orderBy('brand'),
@@ -224,10 +224,10 @@ export async function getDevices(
       ]
       
       if (startAfterDoc) {
-        baseQuery.push(startAfter(startAfterDoc))
+        constraints.push(startAfter(startAfterDoc))
       }
       
-      q = query(devicesRef, ...baseQuery)
+      q = query(devicesRef, ...constraints)
     } else {
       q = query(devicesRef, where('category', '==', dbCategory))
     }
@@ -267,13 +267,23 @@ export async function getDevices(
     }
   } catch (error) {
     console.error('Error querying devices:', error)
-    return []
+    return { data: [], hasMore: false }
   }
 
-  return querySnapshot.docs.map(doc => ({
+  const devices = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   })) as Device[]
+
+  const hasMore = devices.length > limitCount
+  const resultDevices = hasMore ? devices.slice(0, limitCount) : devices
+  const lastDoc = hasMore ? querySnapshot.docs[limitCount - 1] : undefined
+
+  return {
+    data: resultDevices,
+    lastDoc,
+    hasMore,
+  }
 }
 
 // Products helpers (for `products` collection)
@@ -677,7 +687,7 @@ export async function saveProductPricingToCollection(
       // Update existing document
       const existingDoc = querySnapshot.docs[0]
       const docRef = doc(getDb(), 'productPricing', existingDoc.id)
-      await updateDoc(docRef, pricingData)
+      await updateDoc(docRef, pricingData as any)
     } else {
       // Create new document
       await addDoc(productPricingRef, pricingData)

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserValuationsLegacy, type Valuation } from '@/lib/firebase/database'
-import { Package, Calendar, Rupee, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 const statusConfig = {
@@ -128,7 +128,7 @@ export default function OrderHistory() {
                     <div>
                       <p className="text-gray-500 mb-1">Estimated Value</p>
                       <p className="font-semibold text-gray-900 flex items-center gap-1">
-                        <Rupee className="w-4 h-4" />
+                        <IndianRupee className="w-4 h-4" />
                         {valuation.estimatedValue?.toLocaleString('en-IN') || 'N/A'}
                       </p>
                     </div>

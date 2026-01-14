@@ -17,13 +17,13 @@ import { ZodError, ZodSchema } from 'zod'
 export function validateSchema<T>(
   schema: ZodSchema<T>,
   data: unknown
-): { isValid: boolean; data?: T; errors?: ZodError['errors'] } {
+): { isValid: boolean; data?: T; errors?: ZodError['issues'] } {
   try {
     const validatedData = schema.parse(data)
     return { isValid: true, data: validatedData }
   } catch (error) {
     if (error instanceof ZodError) {
-      return { isValid: false, errors: error.errors }
+      return { isValid: false, errors: error.issues }
     }
     throw error
   }
@@ -35,7 +35,7 @@ export function validateSchema<T>(
  * @param errors - Zod validation errors
  * @returns NextResponse with 400 status and error details
  */
-export function validationErrorResponse(errors: ZodError['errors']): NextResponse {
+export function validationErrorResponse(errors: ZodError['issues']): NextResponse {
   const formattedErrors = errors.map((error) => ({
     path: error.path.join('.'),
     message: error.message,

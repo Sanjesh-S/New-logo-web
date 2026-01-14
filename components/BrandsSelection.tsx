@@ -51,7 +51,7 @@ export default function BrandsSelection() {
           const { getDevices } = await import('@/lib/api/client')
           const data = await getDevices({ category })
 
-          const apiDevices = (data.devices || []) as Device[]
+          const apiDevices = (data.devices || []) as unknown as Device[]
           setDevices(apiDevices)
 
           if (apiDevices.length > 0) {

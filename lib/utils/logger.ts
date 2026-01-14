@@ -103,10 +103,14 @@ class Logger {
     const formatted = this.formatMessage('error', message)
     
     if (error instanceof Error) {
-      console.error(formatted, error.message, {
+      const errorData = data ? sanitizeData(data) : {}
+      const errorObj: Record<string, unknown> = {
         stack: error.stack,
-        ...(data ? sanitizeData(data) : {}),
-      })
+      }
+      if (errorData && typeof errorData === 'object') {
+        Object.assign(errorObj, errorData)
+      }
+      console.error(formatted, error.message, errorObj)
     } else if (error !== undefined) {
       console.error(formatted, sanitizeData(error), data ? sanitizeData(data) : '')
     } else {

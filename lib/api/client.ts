@@ -47,13 +47,18 @@ async function callFunction<T>(
     url += `?${params.toString()}`
   }
 
-  const response = await fetch(url, {
+  const fetchOptions: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
     },
-    ...(body && { body: JSON.stringify(body) }),
-  })
+  }
+  
+  if (body) {
+    fetchOptions.body = JSON.stringify(body)
+  }
+  
+  const response = await fetch(url, fetchOptions)
 
   if (!response.ok) {
     const error: ApiError = await response.json().catch(() => ({

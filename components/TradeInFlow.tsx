@@ -75,9 +75,13 @@ export default function TradeInFlow() {
         setLoading(true)
         // Use Firebase directly instead of API routes (for static export)
         const fetchedDevices = await getDevicesFromDb(category)
-        setDevices(fetchedDevices as Device[])
+        // Handle both array and paginated result formats
+        const devicesArray = Array.isArray(fetchedDevices) 
+          ? fetchedDevices 
+          : (fetchedDevices?.data || [])
+        setDevices(devicesArray as Device[])
         const uniqueBrands = Array.from(
-          new Set(fetchedDevices?.map((d) => d.brand) || [])
+          new Set(devicesArray.map((d) => d.brand))
         ).sort() as string[]
         setBrands(uniqueBrands)
       } catch (error) {
@@ -103,8 +107,12 @@ export default function TradeInFlow() {
     try {
       // Use Firebase directly instead of API routes (for static export)
       const fetchedDevices = await getDevicesFromDb(category, brand)
+      // Handle both array and paginated result formats
+      const devicesArray = Array.isArray(fetchedDevices) 
+        ? fetchedDevices 
+        : (fetchedDevices?.data || [])
       const uniqueModels = Array.from(
-        new Set(fetchedDevices?.map((d) => d.model) || [])
+        new Set(devicesArray.map((d) => d.model))
       ).sort() as string[]
       setModels(uniqueModels)
     } catch (error) {

@@ -245,7 +245,7 @@ export default function OrderConfirmation({
           pincode: formData.pincode,
         },
         pickupDate: selectedDate,
-        pickupTime: formData.pickupTime,
+        pickupTime: formData.pickupTime || '',
       })
 
       if (result.success) {
