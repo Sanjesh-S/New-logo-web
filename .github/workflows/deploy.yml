@@ -65,12 +65,15 @@ jobs:
           if [ -d "out" ]; then
             echo "✓ out directory found"
             ls -la out/ | head -10
+            echo "out" > build-output-path.txt
           elif [ -d ".next/out" ]; then
             echo "✓ .next/out directory found"
             ls -la .next/out/ | head -10
+            echo ".next/out" > build-output-path.txt
           elif [ -d "dist" ]; then
             echo "✓ dist directory found"
             ls -la dist/ | head -10
+            echo "dist" > build-output-path.txt
           else
             echo "✗ No build output directory found!"
             echo "Current directory contents:"
@@ -81,10 +84,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: |
-            out
-            .next/out
-            dist
+          path: ${{ github.workspace }}/out
 
   deploy:
     environment:
