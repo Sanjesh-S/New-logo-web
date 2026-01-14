@@ -3,9 +3,10 @@ const isProd = process.env.NODE_ENV === 'production'
 
 const nextConfig = {
   reactStrictMode: true,
-  // Note: Removed 'output: export' because API routes require a server
-  // For static export (GitHub Pages), you would need to move API routes to a separate backend
-  // Recommended deployment: Vercel, Netlify, or any Node.js server
+  // Enable static export for GitHub Pages
+  // ⚠️ WARNING: This disables API routes (/api/*) - they won't work on GitHub Pages
+  // API routes require a server (use Vercel/Netlify for full functionality)
+  output: 'export',
   trailingSlash: true,
   images: {
     // Image optimization requires a server
