@@ -6,13 +6,14 @@ const nextConfig = {
   // Enable static export for GitHub Pages
   // ⚠️ WARNING: This disables API routes (/api/*) - they won't work on GitHub Pages
   // API routes require a server (use Vercel/Netlify for full functionality)
+  // We use Firebase Functions instead of Next.js API routes
   output: 'export',
   trailingSlash: true,
   // Exclude Firebase Functions directory from Next.js build
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Exclude functions directory from webpack compilation
+  // Exclude functions directory and API routes from webpack compilation
   webpack: (config, { isServer }) => {
     config.externals = config.externals || []
     if (!isServer) {
@@ -21,6 +22,9 @@ const nextConfig = {
         fs: false,
       }
     }
+    // Exclude API routes from build (we use Firebase Functions)
+    config.module = config.module || {}
+    config.module.rules = config.module.rules || []
     return config
   },
   images: {

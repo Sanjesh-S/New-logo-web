@@ -33,6 +33,7 @@ jobs:
 
       - name: Build Next.js (Static Export)
         run: npm run build
+        continue-on-error: false
         env:
           NODE_ENV: production
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
@@ -44,14 +45,46 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_FUNCTIONS_URL: ${{ secrets.NEXT_PUBLIC_FUNCTIONS_URL }}
           NEXT_PUBLIC_FUNCTION_REGION: ${{ secrets.NEXT_PUBLIC_FUNCTION_REGION }}
+      
+      - name: Verify build output
+        run: |
+          if [ ! -d "out" ]; then
+            echo "Error: out directory not found!"
+            ls -la
+            exit 1
+          fi
+          echo "Build output verified:"
+          ls -la out/ | head -20
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: List build output
+        run: |
+          echo "Checking for build output..."
+          if [ -d "out" ]; then
+            echo "✓ out directory found"
+            ls -la out/ | head -10
+          elif [ -d ".next/out" ]; then
+            echo "✓ .next/out directory found"
+            ls -la .next/out/ | head -10
+          elif [ -d "dist" ]; then
+            echo "✓ dist directory found"
+            ls -la dist/ | head -10
+          else
+            echo "✗ No build output directory found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out || ./.next/out || ./dist
+          path: |
+            out
+            .next/out
+            dist
 
   deploy:
     environment:
