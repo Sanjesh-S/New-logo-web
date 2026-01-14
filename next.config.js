@@ -8,6 +8,21 @@ const nextConfig = {
   // API routes require a server (use Vercel/Netlify for full functionality)
   output: 'export',
   trailingSlash: true,
+  // Exclude Firebase Functions directory from Next.js build
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  // Exclude functions directory from webpack compilation
+  webpack: (config, { isServer }) => {
+    config.externals = config.externals || []
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      }
+    }
+    return config
+  },
   images: {
     // Image optimization requires a server
     // Uncomment when deploying to Vercel or custom server
