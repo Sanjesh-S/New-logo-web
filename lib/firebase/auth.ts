@@ -131,16 +131,12 @@ export async function sendOTP(
       phoneNumber: phoneNumber
     })
 
-    // Verify API key matches expected value
-    const expectedApiKey = 'AIzaSyC4SqbxwKCJmUBNKt85UwEJgNnep9t7qOY'
-    if (authInstance.app.options.apiKey !== expectedApiKey) {
-      console.error('❌ API KEY MISMATCH!')
-      console.error('Expected:', expectedApiKey)
-      console.error('Got:', authInstance.app.options.apiKey)
-      throw new Error('API key mismatch detected. Please clear browser cache and refresh.')
+    // Verify API key is set (use environment variable, not hardcoded value)
+    if (!authInstance.app.options.apiKey) {
+      throw new Error('Firebase API key is not configured. Please check your environment variables.')
     }
 
-    console.log('✅ API key verified, proceeding with OTP send...')
+    console.log('✅ Firebase Auth initialized, proceeding with OTP send...')
     const confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier)
     console.log('OTP sent successfully')
     return confirmationResult
