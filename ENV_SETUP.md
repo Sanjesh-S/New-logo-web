@@ -16,6 +16,14 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 # API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:3000
 
+# Firebase Functions Configuration (for production)
+# Option 1: Set the full Functions URL
+NEXT_PUBLIC_FUNCTIONS_URL=https://us-central1-your-project-id.cloudfunctions.net
+
+# Option 2: Set project ID and region (Functions URL will be auto-constructed)
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FUNCTION_REGION=us-central1
+
 # Telegram Bot Configuration (optional, for admin notifications)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
@@ -37,10 +45,12 @@ All `NEXT_PUBLIC_FIREBASE_*` variables are **required**. The application will fa
 ## Optional Variables
 
 - `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` - Only needed if using Google Analytics
+- `NEXT_PUBLIC_FUNCTIONS_URL` - Firebase Cloud Functions URL (auto-constructed if not set, using PROJECT_ID and REGION)
+- `NEXT_PUBLIC_FUNCTION_REGION` - Firebase Functions region (default: `us-central1`)
 - `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` - Only needed for Telegram admin notifications
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_WHATSAPP_NUMBER` - Only needed for WhatsApp customer notifications
 - `RESEND_API_KEY` and `FROM_EMAIL` - Only needed for email customer confirmations
-- `NEXT_PUBLIC_API_URL` - Only needed if different from default `http://localhost:3000`
+- `NEXT_PUBLIC_API_URL` - Only needed if different from default `http://localhost:3000` (legacy, for local development)
 
 ## Getting Twilio Configuration
 

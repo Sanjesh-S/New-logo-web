@@ -230,31 +230,25 @@ export default function OrderConfirmation({
     setSubmitting(true)
     try {
       // Save to Firestore and send Telegram notification
-      const response = await fetch('/api/pickup-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const { createPickupRequest } = await import('@/lib/api/client')
+      const result = await createPickupRequest({
+        productName,
+        price,
+        customer: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          landmark: formData.landmark || '',
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
         },
-        body: JSON.stringify({
-          productName,
-          price,
-          customer: {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            landmark: formData.landmark || '',
-            city: formData.city,
-            state: formData.state,
-            pincode: formData.pincode,
-          },
-          pickupDate: selectedDate,
-          pickupTime: formData.pickupTime,
-        }),
+        pickupDate: selectedDate,
+        pickupTime: formData.pickupTime,
       })
 
-      if (response.ok) {
-        const result = await response.json()
+      if (result.success) {
         console.log('Pickup request created successfully:', result)
         // Show success state
         setShowSuccess(true)
@@ -267,16 +261,15 @@ export default function OrderConfirmation({
           })
         }, 1500)
       } else {
-        const error = await response.json()
-        console.error('API Error:', error)
+        console.error('API Error:', result)
         // Show error in a user-friendly way without alert
-        setErrors({ phone: error.error || error.details || 'Failed to confirm pickup. Please try again.' })
+        setErrors({ phone: 'Failed to confirm pickup. Please try again.' })
         setSubmitting(false)
       }
     } catch (error: any) {
       console.error('Error confirming pickup:', error)
       // Show error in a user-friendly way without alert
-      setErrors({ phone: 'Something went wrong. Please try again.' })
+      setErrors({ phone: error.message || 'Something went wrong. Please try again.' })
       setSubmitting(false)
     }
   }

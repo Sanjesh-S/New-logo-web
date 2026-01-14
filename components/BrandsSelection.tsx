@@ -48,27 +48,25 @@ export default function BrandsSelection() {
 
         // First try to fetch from API
         try {
-          const response = await fetch(`/api/devices?category=${category}`)
+          const { getDevices } = await import('@/lib/api/client')
+          const data = await getDevices({ category })
 
-          if (response.ok) {
-            const data = await response.json()
-            const apiDevices = data.devices || []
-            setDevices(apiDevices)
+          const apiDevices = (data.devices || []) as Device[]
+          setDevices(apiDevices)
 
-            if (apiDevices.length > 0) {
-              // Extract unique brands from API
-              const uniqueBrands = Array.from(
-                new Set(apiDevices.map((device: Device) => device.brand))
-              ).sort() as string[]
+          if (apiDevices.length > 0) {
+            // Extract unique brands from API
+            const uniqueBrands = Array.from(
+              new Set(apiDevices.map((device: Device) => device.brand))
+            ).sort() as string[]
 
-              setBrands(uniqueBrands)
-              setFilteredBrands(uniqueBrands)
-              setLoading(false)
-              return
-            }
+            setBrands(uniqueBrands)
+            setFilteredBrands(uniqueBrands)
+            setLoading(false)
+            return
           }
         } catch (apiError) {
-          console.log('API fetch failed, using static brands')
+          console.log('API fetch failed, using static brands', apiError)
         }
 
         // Fallback to static brands if API fails or returns empty

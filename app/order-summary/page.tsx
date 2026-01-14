@@ -64,21 +64,15 @@ function OrderSummaryContent() {
       throw new Error('Valuation ID is required')
     }
 
-    const response = await fetch('/api/pickup/schedule', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        valuationId,
-        pickupDate: date,
-        pickupTime: time,
-      }),
+    const { schedulePickup } = await import('@/lib/api/client')
+    const result = await schedulePickup({
+      valuationId,
+      pickupDate: date,
+      pickupTime: time,
     })
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to schedule pickup')
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to schedule pickup')
     }
 
     setScheduledDate(date)

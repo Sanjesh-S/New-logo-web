@@ -42,6 +42,8 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_FUNCTIONS_URL: ${{ secrets.NEXT_PUBLIC_FUNCTIONS_URL }}
+          NEXT_PUBLIC_FUNCTION_REGION: ${{ secrets.NEXT_PUBLIC_FUNCTION_REGION }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

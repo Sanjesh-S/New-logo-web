@@ -131,33 +131,26 @@ export default function AssessmentWizard({
 
     try {
       // Submit assessment with address data if provided
-      const response = await fetch('/api/valuations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: category || product.category,
-          brand: brand || product.brand,
-          model: model || product.modelName,
-          productId: product.id,
-          basePrice: product.basePrice,
-          internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
-          estimatedValue: calculatedPrice,
-          answers,
-          status: 'pending',
-          // Include address data if provided
-          ...(addressData && {
-            pickupAddress: `${addressData.address}, ${addressData.landmark ? addressData.landmark + ', ' : ''}${addressData.city}, ${addressData.state} - ${addressData.pincode}`,
-            userName: addressData.name,
-            userPhone: addressData.phone,
-          }),
+      const { createValuation } = await import('@/lib/api/client')
+      const data = await createValuation({
+        category: (category || product.category) as 'cameras' | 'phones' | 'laptops',
+        brand: brand || product.brand,
+        model: model || product.modelName,
+        productId: product.id,
+        basePrice: product.basePrice,
+        internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
+        estimatedValue: calculatedPrice,
+        answers,
+        userId: user?.uid || undefined,
+        // Include address data if provided
+        ...(addressData && {
+          pickupAddress: `${addressData.address}, ${addressData.landmark ? addressData.landmark + ', ' : ''}${addressData.city}, ${addressData.state} - ${addressData.pincode}`,
+          userName: addressData.name,
+          userPhone: addressData.phone,
         }),
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (data.success) {
         // Calculate deductions for summary
         const internalBase = product.internalBasePrice || product.basePrice * 0.5
         const deductions = calculatedPrice - internalBase
@@ -166,8 +159,7 @@ export default function AssessmentWizard({
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
         window.location.href = `/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
       } else {
-        // If pickup request was already created (Telegram notification sent), redirect to success
-        // Otherwise show error (but since pickup request succeeded, we proceed)
+        // Fallback: redirect even if there's an error (graceful degradation)
         const internalBase = product.internalBasePrice || product.basePrice * 0.5
         const deductions = calculatedPrice - internalBase
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
@@ -175,8 +167,7 @@ export default function AssessmentWizard({
       }
     } catch (error) {
       console.error('Error submitting assessment:', error)
-      // Even if assessment submission fails, if pickup request was created, show success
-      // Redirect to order summary page
+      // Graceful fallback: redirect to order summary even on error
       const internalBase = product.internalBasePrice || product.basePrice * 0.5
       const deductions = calculatedPrice - internalBase
       const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
