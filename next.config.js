@@ -22,10 +22,17 @@ const nextConfig = {
         fs: false,
       }
     }
-    // Exclude API routes from build (we use Firebase Functions)
-    config.module = config.module || {}
-    config.module.rules = config.module.rules || []
     return config
+  },
+  // Skip API routes during static export (we use Firebase Functions)
+  // This prevents Next.js from trying to statically export API routes
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        'app/api/**/*',
+        'functions/**/*',
+      ],
+    },
   },
   images: {
     // Image optimization requires a server
