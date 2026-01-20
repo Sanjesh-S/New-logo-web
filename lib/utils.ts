@@ -6,30 +6,35 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * BasePath for GitHub Pages deployment
+ * This matches the basePath in next.config.js
+ */
+const BASE_PATH = '/New-logo-web'
+
+/**
  * Get the correct asset path for static exports with basePath
- * Handles both development (no basePath) and production (with basePath)
- * Works in both server and client components
+ * For GitHub Pages deployment, always prepend /New-logo-web
  */
 export function getAssetPath(path: string): string {
-  // In production, Next.js sets basePath to '/New-logo-web' for GitHub Pages
-  // Check if we're in production build
-  const isProduction = process.env.NODE_ENV === 'production'
-  
-  // For client-side, detect from current location
+  // Runtime check: if we're in browser, check the current URL
   if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname
-    if (pathname.startsWith('/New-logo-web')) {
-      return `/New-logo-web${path}`
+    // Always use basePath when on GitHub Pages domain
+    if (window.location.hostname.includes('github.io')) {
+      return `${BASE_PATH}${path}`
     }
-    // If not on GitHub Pages domain, return path as-is
-    return path
+    // Also check if pathname already starts with basePath
+    if (window.location.pathname.startsWith(BASE_PATH)) {
+      return `${BASE_PATH}${path}`
+    }
   }
   
-  // For server-side/build time, use production basePath
-  if (isProduction) {
-    return `/New-logo-web${path}`
+  // Build-time: use basePath in production
+  // This ensures correct paths in the generated HTML
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+    return `${BASE_PATH}${path}`
   }
   
+  // Development: no basePath
   return path
 }
 
