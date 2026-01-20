@@ -52,7 +52,8 @@ if (typeof window !== 'undefined') {
     console.log('Firebase config loaded:', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
-      hasApiKey: !!firebaseConfig.apiKey
+      hasApiKey: !!firebaseConfig.apiKey,
+      apiKeyPrefix: firebaseConfig.apiKey?.substring(0, 20) + '...' // First 20 chars for verification
     })
   }
 }

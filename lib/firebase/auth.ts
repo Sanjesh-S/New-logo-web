@@ -150,7 +150,13 @@ export async function sendOTP(
     })
 
     // Provide more specific error messages
-    if (error.code === 'auth/invalid-app-credential') {
+    if (error.code === 'auth/api-key-not-valid' || error.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key') {
+      console.error('❌ API Key Error Details:')
+      console.error('Current API Key (first 20 chars):', getAuthInstance()?.app?.options?.apiKey?.substring(0, 20))
+      console.error('Project ID:', getAuthInstance()?.app?.options?.projectId)
+      console.error('Auth Domain:', getAuthInstance()?.app?.options?.authDomain)
+      throw new Error('Firebase API key is invalid. Please:\n1. Verify API key in GitHub Secrets matches Firebase Console\n2. Check API key restrictions in Google Cloud Console\n3. Wait for deployment to complete and clear browser cache\n4. Ensure API key has no extra spaces')
+    } else if (error.code === 'auth/invalid-app-credential') {
       throw new Error('Firebase configuration error. Please verify:\n1. API key matches Firebase project\n2. Phone Authentication is enabled\n3. Authorized domains include localhost\n4. Try refreshing the page')
     } else if (error.code === 'auth/too-many-requests') {
       throw new Error('Too many requests. Please wait a moment and try again.')
