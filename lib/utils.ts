@@ -11,17 +11,26 @@ export function cn(...inputs: ClassValue[]) {
  * Works in both server and client components
  */
 export function getAssetPath(path: string): string {
-  // Check if we're in a browser environment
+  // In production, Next.js sets basePath to '/New-logo-web' for GitHub Pages
+  // Check if we're in production build
+  const isProduction = process.env.NODE_ENV === 'production'
+  
+  // For client-side, detect from current location
   if (typeof window !== 'undefined') {
-    // Detect basePath from current location
     const pathname = window.location.pathname
     if (pathname.startsWith('/New-logo-web')) {
       return `/New-logo-web${path}`
     }
+    // If not on GitHub Pages domain, return path as-is
+    return path
   }
-  // For server-side or when basePath is not detected, use environment variable
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
-  return `${basePath}${path}`
+  
+  // For server-side/build time, use production basePath
+  if (isProduction) {
+    return `/New-logo-web${path}`
+  }
+  
+  return path
 }
 
 
