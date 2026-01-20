@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import Image from 'next/image'
 import { User, LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/firebase/auth'
+import { getAssetPath } from '@/lib/utils'
 import OTPLogin from './OTPLogin'
 
 const navLinks = [
@@ -38,13 +38,10 @@ export default function Navigation() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <Image
-                src="/images/worthyten-logo.svg"
+              <img
+                src={getAssetPath("/images/worthyten-logo.svg")}
                 alt="WorthyTEN"
-                width={160}
-                height={60}
                 className="h-10 md:h-12 w-auto object-contain"
-                priority
               />
             </Link>
 

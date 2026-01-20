@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { Phone, Mail, MapPin, Instagram, Facebook, MessageCircle } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 
 const quickLinks = [
     { href: '/', label: 'Home' },
@@ -30,11 +30,9 @@ export default function Footer() {
                     <div className="sm:col-span-2 lg:col-span-1">
                         <Link href="/" className="inline-block mb-4">
                             <div className="bg-white rounded-lg p-2 inline-block">
-                                <Image
-                                    src="/images/worthyten-logo.svg"
+                                <img
+                                    src={getAssetPath("/images/worthyten-logo.svg")}
                                     alt="WorthyTEN"
-                                    width={150}
-                                    height={60}
                                     className="h-10 w-auto object-contain"
                                 />
                             </div>
