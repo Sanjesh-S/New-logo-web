@@ -113,20 +113,23 @@ export default function Footer() {
                         <ul className="space-y-3">
                             <li className="flex items-start gap-3">
                                 <Phone className="w-4 h-4 mt-0.5 text-brand-lime flex-shrink-0" />
-                                <a href="tel:+919999999999" className="text-gray-300 hover:text-white transition-colors text-sm">
-                                    +91 99999 99999
-                                </a>
+                                <div>
+                                    <a href="tel:+919843010746" className="text-gray-300 hover:text-white transition-colors text-sm font-semibold">
+                                        9843010746
+                                    </a>
+                                    <p className="text-gray-400 text-xs mt-1">10AM - 6PM (Mon-Fri)</p>
+                                </div>
                             </li>
                             <li className="flex items-start gap-3">
                                 <Mail className="w-4 h-4 mt-0.5 text-brand-lime flex-shrink-0" />
-                                <a href="mailto:hello@worthyten.com" className="text-gray-300 hover:text-white transition-colors text-sm">
-                                    hello@worthyten.com
+                                <a href="mailto:office@worthyten.com" className="text-gray-300 hover:text-white transition-colors text-sm">
+                                    office@worthyten.com
                                 </a>
                             </li>
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-4 h-4 mt-0.5 text-brand-lime flex-shrink-0" />
                                 <span className="text-gray-300 text-sm">
-                                    New Delhi, India
+                                    Avinashi Rd, opp. to SMS HOTEL, Peelamedu, Masakalipalayam, Coimbatore, Tamil Nadu 641004
                                 </span>
                             </li>
                         </ul>
@@ -139,12 +142,18 @@ export default function Footer() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-gray-400">
                         <p>© {currentYear} WorthyTEN. All rights reserved.</p>
-                        <div className="flex gap-4">
-                            <Link href="/privacy" className="hover:text-white transition-colors">
+                        <div className="flex flex-wrap gap-4">
+                            <Link href="/privacy-policy" className="hover:text-white transition-colors">
                                 Privacy Policy
                             </Link>
-                            <Link href="/terms" className="hover:text-white transition-colors">
-                                Terms of Service
+                            <Link href="/terms-conditions" className="hover:text-white transition-colors">
+                                Terms & Conditions
+                            </Link>
+                            <Link href="/warranty" className="hover:text-white transition-colors">
+                                Warranty Policy
+                            </Link>
+                            <Link href="/return-refund-cancellation-policy" className="hover:text-white transition-colors">
+                                Return / Refund Policy
                             </Link>
                         </div>
                     </div>
