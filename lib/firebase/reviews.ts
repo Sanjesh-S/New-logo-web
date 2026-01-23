@@ -12,16 +12,27 @@ import {
   Timestamp,
   increment,
 } from 'firebase/firestore'
-import { db } from './config'
+import { getDb } from './config'
 import type { Review, ReviewStats, Referral, UserTrustBadge } from '@/lib/types/reviews'
 
+// Re-export types for convenience
+export type { Review, ReviewStats, Referral, UserTrustBadge } from '@/lib/types/reviews'
+
+// Helper function to get db instance
+function getDbInstance() {
+  const db = getDb()
+  if (!db) throw new Error('Firestore not initialized')
+  return db
+}
+
 // Reviews Collection Operations
-export async function createReview(review: Omit<Review, 'id' | 'createdAt' | 'helpfulCount'>): Promise<string> {
+export async function createReview(review: Omit<Review, 'id' | 'createdAt' | 'helpfulCount' | 'status'>): Promise<string> {
+  const db = getDbInstance()
   const reviewsRef = collection(db, 'reviews')
   const newReview = {
     ...review,
     helpfulCount: 0,
-    status: 'pending', // Auto-moderate or set to pending
+    status: 'pending' as const, // Auto-moderate or set to pending
     createdAt: Timestamp.now(),
   }
   const docRef = await addDoc(reviewsRef, newReview)
@@ -29,6 +40,7 @@ export async function createReview(review: Omit<Review, 'id' | 'createdAt' | 'he
 }
 
 export async function getReview(reviewId: string): Promise<Review | null> {
+  const db = getDbInstance()
   const reviewRef = doc(db, 'reviews', reviewId)
   const reviewSnap = await getDoc(reviewRef)
   
@@ -42,6 +54,7 @@ export async function getReviewsByProduct(
   productId: string,
   options: { limit?: number; approvedOnly?: boolean } = {}
 ): Promise<Review[]> {
+  const db = getDbInstance()
   const { limit: limitCount = 50, approvedOnly = true } = options
   const reviewsRef = collection(db, 'reviews')
   
@@ -70,6 +83,7 @@ export async function getReviewsByProduct(
 }
 
 export async function getReviewsByUser(userId: string): Promise<Review[]> {
+  const db = getDbInstance()
   const reviewsRef = collection(db, 'reviews')
   const q = query(
     reviewsRef,
@@ -85,6 +99,7 @@ export async function getReviewsByUser(userId: string): Promise<Review[]> {
 }
 
 export async function getReviewStats(productId: string): Promise<ReviewStats> {
+  const db = getDbInstance()
   const reviewsRef = collection(db, 'reviews')
   const q = query(
     reviewsRef,
@@ -123,6 +138,7 @@ export async function getReviewStats(productId: string): Promise<ReviewStats> {
 }
 
 export async function markReviewHelpful(reviewId: string): Promise<void> {
+  const db = getDbInstance()
   const reviewRef = doc(db, 'reviews', reviewId)
   await updateDoc(reviewRef, {
     helpfulCount: increment(1),
@@ -134,6 +150,7 @@ export async function updateReviewStatus(
   status: Review['status'],
   moderationNotes?: string
 ): Promise<void> {
+  const db = getDbInstance()
   const reviewRef = doc(db, 'reviews', reviewId)
   await updateDoc(reviewRef, {
     status,
@@ -144,6 +161,7 @@ export async function updateReviewStatus(
 
 // Referrals Collection Operations
 export async function createReferral(referrerId: string): Promise<Referral> {
+  const db = getDbInstance()
   const referralsRef = collection(db, 'referrals')
   
   // Generate unique referral code
@@ -161,6 +179,7 @@ export async function createReferral(referrerId: string): Promise<Referral> {
 }
 
 export async function getReferralByCode(referralCode: string): Promise<Referral | null> {
+  const db = getDbInstance()
   const referralsRef = collection(db, 'referrals')
   const q = query(referralsRef, where('referralCode', '==', referralCode), limit(1))
   
@@ -173,6 +192,7 @@ export async function getReferralByCode(referralCode: string): Promise<Referral 
 }
 
 export async function getReferralsByUser(userId: string): Promise<Referral[]> {
+  const db = getDbInstance()
   const referralsRef = collection(db, 'referrals')
   const q = query(
     referralsRef,
@@ -191,6 +211,7 @@ export async function completeReferral(
   referralCode: string,
   referredUserId: string
 ): Promise<void> {
+  const db = getDbInstance()
   const referral = await getReferralByCode(referralCode)
   if (!referral || referral.status !== 'pending') {
     throw new Error('Invalid or already used referral code')
@@ -205,6 +226,7 @@ export async function completeReferral(
 }
 
 export async function rewardReferral(referralId: string, rewardAmount: number): Promise<void> {
+  const db = getDbInstance()
   const referralRef = doc(db, 'referrals', referralId)
   await updateDoc(referralRef, {
     status: 'rewarded',
@@ -223,6 +245,7 @@ function generateReferralCode(userId: string): string {
 
 // Trust Badges Operations
 export async function getUserTrustBadge(userId: string): Promise<UserTrustBadge | null> {
+  const db = getDbInstance()
   const trustBadgesRef = collection(db, 'trustBadges')
   const q = query(trustBadgesRef, where('userId', '==', userId), limit(1))
   
@@ -252,6 +275,7 @@ export async function updateUserTrustBadge(
   userId: string,
   updates: Partial<UserTrustBadge>
 ): Promise<void> {
+  const db = getDbInstance()
   const trustBadgesRef = collection(db, 'trustBadges')
   const q = query(trustBadgesRef, where('userId', '==', userId), limit(1))
   

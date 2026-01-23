@@ -26,6 +26,9 @@ export function generateMetadata(data: SEOData): Metadata {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://worthyten.com'
   const fullUrl = url ? `${siteUrl}${url}` : siteUrl
 
+  // Map 'product' type to 'website' for OpenGraph compatibility
+  const openGraphType = type === 'product' ? 'website' : type
+  
   return {
     title: fullTitle,
     description,
@@ -43,7 +46,7 @@ export function generateMetadata(data: SEOData): Metadata {
           alt: title,
         },
       ],
-      type,
+      type: openGraphType,
       locale: 'en_IN',
     },
     twitter: {

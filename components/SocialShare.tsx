@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Share2, Facebook, Twitter, WhatsApp, Link as LinkIcon, Copy, Check } from 'lucide-react'
+import { Share2, Facebook, Twitter, MessageCircle, Link as LinkIcon, Copy, Check } from 'lucide-react'
 
 interface SocialShareProps {
   url: string
@@ -74,7 +74,7 @@ export default function SocialShare({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {navigator.share && (
+      {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
         <button
           onClick={nativeShare}
           className="p-2 bg-brand-blue-600 text-white rounded-lg hover:bg-brand-blue-700 transition-colors"
@@ -102,7 +102,7 @@ export default function SocialShare({
         className="p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#20BA5A] transition-colors"
         title="Share on WhatsApp"
       >
-        <WhatsApp className="w-5 h-5" />
+        <MessageCircle className="w-5 h-5" />
       </button>
       <button
         onClick={copyLink}
