@@ -29,61 +29,129 @@ const staticBrands: Record<string, string[]> = {
   tablets: ['Apple'],
 }
 
+// Cache configuration
+const CACHE_PREFIX = 'brands_cache_'
+const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+const API_TIMEOUT = 5000 // 5 seconds
+
+interface CacheEntry {
+  brands: string[]
+  timestamp: number
+}
+
+// Client-side cache utilities
+const getCachedBrands = (category: string): string[] | null => {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const cacheKey = `${CACHE_PREFIX}${category}`
+    const cached = sessionStorage.getItem(cacheKey)
+    if (!cached) return null
+
+    const entry: CacheEntry = JSON.parse(cached)
+    const now = Date.now()
+    
+    // Check if cache is still valid
+    if (now - entry.timestamp < CACHE_TTL) {
+      return entry.brands
+    }
+    
+    // Cache expired, remove it
+    sessionStorage.removeItem(cacheKey)
+    return null
+  } catch (error) {
+    console.error('Error reading cache:', error)
+    return null
+  }
+}
+
+const setCachedBrands = (category: string, brands: string[]): void => {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const cacheKey = `${CACHE_PREFIX}${category}`
+    const entry: CacheEntry = {
+      brands,
+      timestamp: Date.now(),
+    }
+    sessionStorage.setItem(cacheKey, JSON.stringify(entry))
+  } catch (error) {
+    console.error('Error setting cache:', error)
+  }
+}
+
+// Timeout promise helper
+const createTimeoutPromise = (ms: number): Promise<never> => {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('API request timeout')), ms)
+  })
+}
+
 export default function BrandsSelection() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const category = searchParams.get('category') || 'cameras'
+  
+  // Initialize with static brands immediately (optimistic UI)
+  const staticBrandsForCategory = staticBrands[category] || []
   const [devices, setDevices] = useState<Device[]>([])
-  const [brands, setBrands] = useState<string[]>([])
-  const [filteredBrands, setFilteredBrands] = useState<string[]>([])
+  const [brands, setBrands] = useState<string[]>(staticBrandsForCategory)
+  const [filteredBrands, setFilteredBrands] = useState<string[]>(staticBrandsForCategory)
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Reset to static brands for new category immediately
+    const currentStaticBrands = staticBrands[category] || []
+    setBrands(currentStaticBrands)
+    setFilteredBrands(currentStaticBrands)
+
     const fetchDevices = async () => {
+      // Check cache first
+      const cachedBrands = getCachedBrands(category)
+      if (cachedBrands && cachedBrands.length > 0) {
+        setBrands(cachedBrands)
+        setFilteredBrands(cachedBrands)
+        // Still fetch in background to update cache, but don't block UI
+      }
+
+      // Fetch API data in background with timeout
       try {
-        setLoading(true)
         setError(null)
+        
+        const { getDevices } = await import('@/lib/api/client')
+        
+        // Race between API call and timeout
+        const apiCall = getDevices({ category })
+        const timeoutPromise = createTimeoutPromise(API_TIMEOUT)
+        
+        const data = await Promise.race([apiCall, timeoutPromise])
 
-        // First try to fetch from API
-        try {
-          const { getDevices } = await import('@/lib/api/client')
-          const data = await getDevices({ category })
+        const apiDevices = (data.devices || []) as unknown as Device[]
 
-          const apiDevices = (data.devices || []) as unknown as Device[]
-          setDevices(apiDevices)
+        if (apiDevices.length > 0) {
+          // Extract unique brands from API
+          const uniqueBrands = Array.from(
+            new Set(apiDevices.map((device: Device) => device.brand))
+          ).sort() as string[]
 
-          if (apiDevices.length > 0) {
-            // Extract unique brands from API
-            const uniqueBrands = Array.from(
-              new Set(apiDevices.map((device: Device) => device.brand))
-            ).sort() as string[]
-
+          // Only update if we got brands from API (better than static/cached)
+          if (uniqueBrands.length > 0) {
+            setDevices(apiDevices)
             setBrands(uniqueBrands)
             setFilteredBrands(uniqueBrands)
-            setLoading(false)
-            return
+            // Cache the successful API response
+            setCachedBrands(category, uniqueBrands)
           }
-        } catch (apiError) {
-          console.log('API fetch failed, using static brands', apiError)
         }
-
-        // Fallback to static brands if API fails or returns empty
-        const fallbackBrands = staticBrands[category] || []
-        setBrands(fallbackBrands)
-        setFilteredBrands(fallbackBrands)
-
-      } catch (err) {
-        // Use static brands as final fallback
-        const fallbackBrands = staticBrands[category] || []
-        setBrands(fallbackBrands)
-        setFilteredBrands(fallbackBrands)
-      } finally {
-        setLoading(false)
+      } catch (apiError) {
+        // API failed or timed out - this is fine, we already have static/cached brands
+        console.log('API fetch failed or timed out, using cached/static brands', apiError)
+        // Don't set error state - we have fallback brands showing
       }
     }
-
+    
+    // Fetch in background
     fetchDevices()
   }, [category])
 
@@ -103,17 +171,6 @@ export default function BrandsSelection() {
   }
 
   const categoryName = categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1)
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading brands...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-lime-50 py-8 md:py-12 px-4 pt-24 md:pt-28">

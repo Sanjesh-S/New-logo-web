@@ -512,6 +512,16 @@ export async function getProductById(productId: string): Promise<Product | null>
   } as Product
 }
 
+/**
+ * Get lenses by brand
+ * Queries products collection for lenses matching the specified brand
+ * Future enhancement: Can filter by camera model compatibility when compatibility data is added
+ */
+export async function getLensesByBrand(brand: string): Promise<Product[]> {
+  // Use existing getProductsByBrand function with 'Lens' category
+  return getProductsByBrand('Lens', brand)
+}
+
 export async function getDevice(brand: string, model: string): Promise<Device | null> {
   const devicesRef = collection(getDb(), 'devices')
   const q = query(

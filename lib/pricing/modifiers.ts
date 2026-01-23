@@ -1,6 +1,9 @@
 import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
 
-export type AnswerMap = Record<string, string | string[]>
+export type AnswerMap = Record<string, string | string[]> & {
+  hasAdditionalLens?: string // yes/no
+  additionalLenses?: string[] // array of lens model names or IDs
+}
 
 /**
  * Calculate final price based on internal base price and user answers
@@ -32,8 +35,10 @@ export function calculatePrice(
   if (answers.autofocusWorking) {
     totalModifier += rules.questions.autofocusWorking[answers.autofocusWorking as 'yes' | 'no'] || 0
   }
-  if (answers.additionalLens) {
-    totalModifier += rules.questions.additionalLens[answers.additionalLens as 'yes' | 'no'] || 0
+  // Check both hasAdditionalLens (new) and additionalLens (legacy) for backward compatibility
+  const additionalLensAnswer = answers.hasAdditionalLens || answers.additionalLens
+  if (additionalLensAnswer) {
+    totalModifier += rules.questions.additionalLens[additionalLensAnswer as 'yes' | 'no'] || 0
   }
 
   // Lens Condition (Single selection)

@@ -21,6 +21,7 @@ import PhoneAccessoryGrid from './questions/PhoneAccessoryGrid'
 import LaptopAccessoryGrid from './questions/LaptopAccessoryGrid'
 import TabletAccessoryGrid from './questions/TabletAccessoryGrid'
 import AgeQuestion from './questions/AgeQuestion'
+import LensSelection from './questions/LensSelection'
 import AssessmentOTPModal from './AssessmentOTPModal'
 import OrderConfirmation, { type AddressData } from './OrderConfirmation'
 
@@ -239,6 +240,17 @@ export default function AssessmentWizard({
   const internalBasePrice = product.internalBasePrice || product.basePrice * 0.5
   const displayPrice = product.basePrice
 
+  // Fixed lens camera detection
+  const FIXED_LENS_KEYWORDS = [
+    'powershot', 'cyber-shot', 'coolpix', 'finepix',
+    'lumix', 'ixus', 'elph', 'point and shoot'
+  ]
+
+  const isFixedLensCamera = (brand: string, model: string): boolean => {
+    const modelLower = model.toLowerCase()
+    return FIXED_LENS_KEYWORDS.some(keyword => modelLower.includes(keyword))
+  }
+
   // Get category-specific steps
   const getSteps = (): Step[] => {
     // Prioritize URL category parameter over product category
@@ -271,92 +283,125 @@ export default function AssessmentWizard({
     return getCameraSteps() // Default to cameras
   }
 
-  const getCameraSteps = (): Step[] => [
-    {
-      id: 'basic-functionality',
-      title: 'Basic Functionality',
-      component: (
-        <div className="space-y-6">
-          <YesNoQuestion
-            question="Does your camera power on and function properly?"
-            helperText="We currently only accept devices that switch on"
-            questionId="powerOn"
-            value={answers.powerOn as string}
-            onChange={(value) => handleAnswer('powerOn', value)}
+  const getCameraSteps = (): Step[] => {
+    const steps: Step[] = [
+      {
+        id: 'basic-functionality',
+        title: 'Basic Functionality',
+        component: (
+          <div className="space-y-6">
+            <YesNoQuestion
+              question="Does your camera power on and function properly?"
+              helperText="We currently only accept devices that switch on"
+              questionId="powerOn"
+              value={answers.powerOn as string}
+              onChange={(value) => handleAnswer('powerOn', value)}
+            />
+            <YesNoQuestion
+              question="Is the camera body free from major damage (cracks, dents, water damage)?"
+              helperText="Check your device's body or buttons condition carefully"
+              questionId="bodyDamage"
+              value={answers.bodyDamage as string}
+              onChange={(value) => handleAnswer('bodyDamage', value)}
+            />
+            <YesNoQuestion
+              question="Is the LCD/Touchscreen working without cracks or display issues?"
+              helperText="Check your device's display condition carefully"
+              questionId="lcdWorking"
+              value={answers.lcdWorking as string}
+              onChange={(value) => handleAnswer('lcdWorking', value)}
+            />
+            <YesNoQuestion
+              question="Is the lens (if included) free from scratches, fungus, or dust?"
+              helperText="Check your lens condition carefully"
+              questionId="lensScratches"
+              value={answers.lensScratches as string}
+              onChange={(value) => handleAnswer('lensScratches', value)}
+            />
+            <YesNoQuestion
+              question="Does autofocus and zoom work properly on your camera/lens?"
+              helperText="Check your device's autofocus and zoom functionality carefully"
+              questionId="autofocusWorking"
+              value={answers.autofocusWorking as string}
+              onChange={(value) => handleAnswer('autofocusWorking', value)}
+            />
+            {/* Only show additional lens question if not a fixed lens camera */}
+            {!isFixedLensCamera(brand, model) && (
+              <YesNoQuestion
+                question="Do you have additional lens?"
+                helperText="Select if you have additional lenses to trade in"
+                questionId="hasAdditionalLens"
+                value={answers.hasAdditionalLens as string}
+                onChange={(value) => handleAnswer('hasAdditionalLens', value)}
+              />
+            )}
+          </div>
+        ),
+        required: true,
+      },
+    ]
+
+    // Add lens selection step if user answered yes to additional lens question
+    if (answers.hasAdditionalLens === 'yes' && !isFixedLensCamera(brand, model)) {
+      steps.push({
+        id: 'additional-lens-selection',
+        title: 'Additional Lens',
+        component: (
+          <LensSelection
+            brand={brand}
+            value={answers.additionalLenses as string[]}
+            onChange={(value) => handleAnswer('additionalLenses', value)}
           />
-          <YesNoQuestion
-            question="Is the camera body free from major damage (cracks, dents, water damage)?"
-            helperText="Check your device's body or buttons condition carefully"
-            questionId="bodyDamage"
-            value={answers.bodyDamage as string}
-            onChange={(value) => handleAnswer('bodyDamage', value)}
+        ),
+      })
+    }
+
+    // Add remaining steps
+    steps.push(
+      {
+        id: 'lens-questions',
+        title: 'Lens Condition',
+        component: (
+          <ConditionGrid
+            answers={answers}
+            onChange={handleAnswer}
           />
-          <YesNoQuestion
-            question="Is the LCD/Touchscreen working without cracks or display issues?"
-            helperText="Check your device's display condition carefully"
-            questionId="lcdWorking"
-            value={answers.lcdWorking as string}
-            onChange={(value) => handleAnswer('lcdWorking', value)}
+        ),
+      },
+      {
+        id: 'functional-issues',
+        title: 'Functional Issues',
+        component: (
+          <IssueGrid
+            value={answers.functionalIssues as string[]}
+            onChange={(value) => handleAnswer('functionalIssues', value)}
           />
-          <YesNoQuestion
-            question="Is the lens (if included) free from scratches, fungus, or dust?"
-            helperText="Check your lens condition carefully"
-            questionId="lensScratches"
-            value={answers.lensScratches as string}
-            onChange={(value) => handleAnswer('lensScratches', value)}
+        ),
+      },
+      {
+        id: 'accessories',
+        title: 'Accessories',
+        component: (
+          <AccessoryGrid
+            value={answers.accessories as string[]}
+            onChange={(value) => handleAnswer('accessories', value)}
           />
-          <YesNoQuestion
-            question="Does autofocus and zoom work properly on your camera/lens?"
-            helperText="Check your device's autofocus and zoom functionality carefully"
-            questionId="autofocusWorking"
-            value={answers.autofocusWorking as string}
-            onChange={(value) => handleAnswer('autofocusWorking', value)}
+        ),
+      },
+      {
+        id: 'age',
+        title: 'Device Age',
+        component: (
+          <AgeQuestion
+            value={answers.age as string}
+            onChange={(value) => handleAnswer('age', value)}
           />
-        </div>
-      ),
-      required: true,
-    },
-    {
-      id: 'lens-questions',
-      title: 'Lens Condition',
-      component: (
-        <ConditionGrid
-          answers={answers}
-          onChange={handleAnswer}
-        />
-      ),
-    },
-    {
-      id: 'functional-issues',
-      title: 'Functional Issues',
-      component: (
-        <IssueGrid
-          value={answers.functionalIssues as string[]}
-          onChange={(value) => handleAnswer('functionalIssues', value)}
-        />
-      ),
-    },
-    {
-      id: 'accessories',
-      title: 'Accessories',
-      component: (
-        <AccessoryGrid
-          value={answers.accessories as string[]}
-          onChange={(value) => handleAnswer('accessories', value)}
-        />
-      ),
-    },
-    {
-      id: 'age',
-      title: 'Device Age',
-      component: (
-        <AgeQuestion
-          value={answers.age as string}
-          onChange={(value) => handleAnswer('age', value)}
-        />
-      ),
-    },
-  ]
+        ),
+      }
+    )
+
+    return steps
+  }
 
   const getPhoneSteps = (): Step[] => [
     {
@@ -658,7 +703,12 @@ export default function AssessmentWizard({
         const cat = (category?.toLowerCase() || product.category?.toLowerCase() || 'cameras').trim()
         // Handle variations in category names
         if (cat === 'cameras' || cat === 'camera') {
-          return answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.lensScratches && answers.autofocusWorking
+          const basicAnswers = answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.lensScratches && answers.autofocusWorking
+          // If not fixed lens camera, also require hasAdditionalLens answer (yes or no)
+          if (!isFixedLensCamera(brand, model)) {
+            return basicAnswers && (answers.hasAdditionalLens === 'yes' || answers.hasAdditionalLens === 'no')
+          }
+          return basicAnswers
         } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
           return answers.powerOn && answers.lcdWorking && answers.bodyDamage && answers.batteryHealth && answers.biometricWorking && answers.cameraWorking && answers.waterDamage
         } else if (cat === 'tablets' || cat === 'tablet' || cat.includes('tablet')) {
@@ -667,6 +717,11 @@ export default function AssessmentWizard({
           return answers.powerOn && answers.screenCondition && answers.keyboardWorking && answers.bodyDamage && answers.batteryCycleCount && answers.portsWorking && answers.chargingWorking
         }
       }
+    }
+    // For lens selection step, at least one lens should be selected if user answered yes
+    if (step.id === 'additional-lens-selection') {
+      const additionalLenses = answers.additionalLenses as string[] | undefined
+      return additionalLenses && additionalLenses.length > 0
     }
     return true
   }

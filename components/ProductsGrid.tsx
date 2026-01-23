@@ -3,10 +3,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Search, AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import type { Product } from '@/lib/firebase/database'
 import { getProductsByBrand } from '@/lib/firebase/database'
 import ProductCard from './ProductCard'
+import EnhancedSearch from './EnhancedSearch'
 
 interface ProductsGridProps {
   category: string
@@ -17,7 +18,7 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
 
   const fetchProducts = async () => {
     try {
@@ -40,73 +41,10 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, brand])
 
-  // Natural sorting function for model names (e.g., 80D, 90D, 100D)
-  const naturalSort = (a: Product, b: Product) => {
-    const modelA = a.modelName.toLowerCase()
-    const modelB = b.modelName.toLowerCase()
-    
-    // Extract numeric parts and text parts for comparison
-    const extractParts = (str: string) => {
-      const parts: Array<{ type: 'number' | 'text', value: number | string }> = []
-      const regex = /(\d+)|([^\d]+)/g
-      let match
-      while ((match = regex.exec(str)) !== null) {
-        if (match[1]) {
-          parts.push({ type: 'number', value: parseInt(match[1], 10) })
-        } else if (match[2]) {
-          parts.push({ type: 'text', value: match[2] })
-        }
-      }
-      return parts
-    }
-    
-    const partsA = extractParts(modelA)
-    const partsB = extractParts(modelB)
-    
-    // Compare parts
-    const minLength = Math.min(partsA.length, partsB.length)
-    for (let i = 0; i < minLength; i++) {
-      const partA = partsA[i]
-      const partB = partsB[i]
-      
-      // If types differ, text comes after number
-      if (partA.type !== partB.type) {
-        return partA.type === 'number' ? -1 : 1
-      }
-      
-      // Compare values
-      if (partA.type === 'number' && partB.type === 'number') {
-        if (partA.value !== partB.value) {
-          return (partA.value as number) - (partB.value as number)
-        }
-      } else {
-        const textA = partA.value as string
-        const textB = partB.value as string
-        if (textA !== textB) {
-          return textA.localeCompare(textB)
-        }
-      }
-    }
-    
-    // If all parts match up to minLength, shorter string comes first
-    return partsA.length - partsB.length
-  }
-
-  // Filter and sort products based on search query
-  const filteredProducts = useMemo(() => {
-    let result = products
-    
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      result = products.filter((product) =>
-        product.modelName.toLowerCase().includes(query)
-      )
-    }
-    
-    // Sort products naturally
-    return [...result].sort(naturalSort)
-  }, [products, searchQuery])
+  // Initialize filtered products with all products
+  useEffect(() => {
+    setFilteredProducts(products)
+  }, [products])
 
   if (loading) {
     return (
@@ -163,41 +101,27 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
 
   return (
     <section className="pb-16">
-      {/* Search Bar */}
-      <div className="mb-8 md:mb-10 max-w-2xl mx-auto">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for a model"
-            className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-lime focus:ring-4 focus:ring-brand-lime/20 text-gray-900 shadow-sm transition-all text-base"
-          />
-        </div>
-        {searchQuery && (
-          <p className="mt-3 text-sm text-gray-600 text-center">
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found
-          </p>
-        )}
+      {/* Enhanced Search */}
+      <div className="mb-8 md:mb-10">
+        <EnhancedSearch
+          products={products}
+          onFilteredProductsChange={setFilteredProducts}
+          placeholder={`Search ${brand} devices...`}
+          showSuggestions={true}
+          showFilters={true}
+          showSort={true}
+        />
       </div>
 
       {/* Products Grid */}
       {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <h2 className="text-xl font-semibold text-brand-blue-900 mb-2">
-            No products match your search
+            No products found
           </h2>
           <p className="text-gray-600 mb-4">
-            Try adjusting your search terms.
+            Try adjusting your search or filters.
           </p>
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            className="px-5 py-2 rounded-lg bg-white border-2 border-gray-200 text-brand-blue-900 font-semibold hover:border-brand-lime hover:bg-gray-50 transition-colors"
-          >
-            Clear search
-          </button>
         </div>
       ) : (
         <motion.div

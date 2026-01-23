@@ -23,6 +23,18 @@ export default function AdminLayout({
                                     >
                                         Products
                                     </Link>
+                                    <Link
+                                        href="/admin/pricing"
+                                        className="text-gray-900 hover:text-brand-lime px-3 py-2 rounded-md text-sm font-medium"
+                                    >
+                                        Pricing
+                                    </Link>
+                                    <Link
+                                        href="/admin/analytics"
+                                        className="text-gray-900 hover:text-brand-lime px-3 py-2 rounded-md text-sm font-medium"
+                                    >
+                                        Analytics
+                                    </Link>
                                 </div>
                             </div>
                         </div>

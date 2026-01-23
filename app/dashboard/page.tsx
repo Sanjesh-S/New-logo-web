@@ -5,14 +5,15 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
-import { Package, MapPin, Settings, User, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Package, MapPin, Settings, User, Clock, CheckCircle, XCircle, AlertCircle, Gift } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import OrderHistory from '@/components/Dashboard/OrderHistory'
 import ActiveOrders from '@/components/Dashboard/ActiveOrders'
 import AddressBook from '@/components/Dashboard/AddressBook'
 import AccountSettings from '@/components/Dashboard/AccountSettings'
+import ReferralProgram from '@/components/ReferralProgram'
 
-type Tab = 'orders' | 'active' | 'addresses' | 'settings'
+type Tab = 'orders' | 'active' | 'addresses' | 'settings' | 'referral'
 
 function DashboardContent() {
   const { user, isAuthenticated, loading } = useAuth()
@@ -44,6 +45,7 @@ function DashboardContent() {
     { id: 'orders' as Tab, label: 'Order History', icon: Package },
     { id: 'active' as Tab, label: 'Active Orders', icon: Clock },
     { id: 'addresses' as Tab, label: 'Saved Addresses', icon: MapPin },
+    { id: 'referral' as Tab, label: 'Referral Program', icon: Gift },
     { id: 'settings' as Tab, label: 'Account Settings', icon: Settings },
   ]
 
@@ -100,6 +102,7 @@ function DashboardContent() {
               {activeTab === 'orders' && <OrderHistory />}
               {activeTab === 'active' && <ActiveOrders />}
               {activeTab === 'addresses' && <AddressBook />}
+              {activeTab === 'referral' && <ReferralProgram />}
               {activeTab === 'settings' && <AccountSettings />}
             </Suspense>
           </div>

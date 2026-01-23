@@ -6,6 +6,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
 import { getProductById, type Product } from '@/lib/firebase/database'
+import ReviewsSection from './ReviewsSection'
+import SocialShare from './SocialShare'
 
 interface ProductDetailProps {
   productId: string
@@ -189,8 +191,33 @@ export default function ProductDetail({
                 <CheckCircle className="w-3 h-3 text-brand-lime" />
                 <span>100% Secure & Verified Process</span>
               </div>
+
+              {/* Social Share */}
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">Share this product:</p>
+                <SocialShare
+                  url={`/product?id=${product.id}&category=${category || product.category}&brand=${brand || product.brand}`}
+                  title={`Sell ${product.modelName} - Get up to ${displayPrice}`}
+                  description={`Trade in your ${product.brand} ${product.modelName} and get the best price`}
+                />
+              </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* Reviews Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-8"
+        >
+          <ReviewsSection
+            productId={product.id}
+            productName={product.modelName}
+            brand={product.brand}
+            category={product.category}
+          />
         </motion.div>
       </div>
     </div>
