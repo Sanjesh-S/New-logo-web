@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
 import { Phone, ArrowRight, CheckCircle, X } from 'lucide-react'
 import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
+import { getAssetPath } from '@/lib/utils'
 
 interface OTPLoginProps {
   onSuccess?: () => void
@@ -244,14 +244,11 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
               transition={{ delay: 0.2 }}
               className="w-full max-w-md"
             >
-              <div className="relative w-full aspect-square max-h-[350px] md:max-h-[400px]">
-                <Image
-                  src="/images/login-illustration-2.png"
+              <div className="relative w-full aspect-square max-h-[350px] md:max-h-[400px] flex items-center justify-center">
+                <img
+                  src={getAssetPath("/images/login-illustration-2.png")}
                   alt="Secure login illustration"
-                  fill
-                  sizes="(max-width: 768px) 350px, 400px"
-                  className="object-contain"
-                  priority
+                  className="w-full h-full object-contain"
                 />
               </div>
             </motion.div>
