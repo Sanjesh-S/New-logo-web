@@ -246,7 +246,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
             >
               <div className="relative w-full aspect-square max-h-[350px] md:max-h-[400px] flex items-center justify-center">
                 <img
-                  src={getAssetPath("/images/login-illustration-2.png")}
+                  src={getAssetPath("/images/login-illustration-2.webp")}
                   alt="Secure login illustration"
                   className="w-full h-full object-contain"
                 />
