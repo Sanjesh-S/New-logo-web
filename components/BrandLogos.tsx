@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { getBrandLogo } from '@/lib/utils/brandLogos'
 
 // Brands organized by category
 const allBrands = [
@@ -47,16 +48,27 @@ export default function BrandLogos() {
                     className="flex gap-8 items-center whitespace-nowrap"
                 >
                     {/* Duplicate brands for seamless loop */}
-                    {[...uniqueBrands, ...uniqueBrands].map((brand, index) => (
-                        <div
-                            key={`${brand}-${index}`}
-                            className="flex-shrink-0 px-8 py-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-brand-lime transition-colors"
-                        >
-                            <span className="text-2xl font-bold text-gray-500 hover:text-brand-blue-900 transition-colors">
-                                {brand}
-                            </span>
-                        </div>
-                    ))}
+                    {[...uniqueBrands, ...uniqueBrands].map((brand, index) => {
+                        const logoPath = getBrandLogo(brand)
+                        return (
+                            <div
+                                key={`${brand}-${index}`}
+                                className="flex-shrink-0 px-8 py-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-brand-lime transition-colors flex items-center justify-center h-20"
+                            >
+                                {logoPath ? (
+                                    <img
+                                        src={logoPath}
+                                        alt={`${brand} logo`}
+                                        className="h-12 w-auto object-contain max-w-[120px]"
+                                    />
+                                ) : (
+                                    <span className="text-2xl font-bold text-gray-500 hover:text-brand-blue-900 transition-colors">
+                                        {brand}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    })}
                 </motion.div>
             </div>
         </section>

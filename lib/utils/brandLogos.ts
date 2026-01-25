@@ -10,9 +10,8 @@ const brandLogoMap: Record<string, string> = {
   'Gopro': getAssetPath('/images/brands/gopro.webp'),
   'Nikon': getAssetPath('/images/brands/nikon.webp'),
   'Sony': getAssetPath('/images/brands/sony.webp'),
-  // Add more brand logos here as they become available
-  // 'Apple': getAssetPath('/images/brands/apple.webp'),
-  // 'Samsung': getAssetPath('/images/brands/samsung.webp'),
+  'Apple': getAssetPath('/images/brands/apple.webp'),
+  'Samsung': getAssetPath('/images/brands/samsung.webp'),
 }
 
 /**
