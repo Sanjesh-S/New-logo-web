@@ -35,7 +35,8 @@ export interface Valuation {
   createdAt: Timestamp | Date
   updatedAt: Timestamp | Date
   pickupAddress?: string
-  pickupDate?: Date
+  pickupDate?: Date | Timestamp
+  pickupTime?: string
   paymentMethod?: string
 }
 

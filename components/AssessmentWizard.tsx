@@ -108,6 +108,11 @@ export default function AssessmentWizard({
     }
   }, [category, product?.category])
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentStep])
+
   const handleAnswer = (questionId: string, value: string | string[]) => {
     setAnswers((prev) => ({
       ...prev,
@@ -360,7 +365,7 @@ export default function AssessmentWizard({
     steps.push(
       {
         id: 'lens-questions',
-        title: 'Lens Condition',
+        title: 'Device Conditions',
         component: (
           <ConditionGrid
             answers={answers}
@@ -738,14 +743,6 @@ export default function AssessmentWizard({
             <div className="text-sm text-gray-600">
               Step {currentStep + 1} of {steps.length}
             </div>
-          </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-brand-blue-600 to-brand-lime"
-              initial={{ width: 0 }}
-              animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
           </div>
         </div>
 

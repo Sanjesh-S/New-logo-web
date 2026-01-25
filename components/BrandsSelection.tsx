@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Search, ArrowLeft, Sparkles } from 'lucide-react'
+import { Search, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { getBrandLogo } from '@/lib/utils/brandLogos'
 
@@ -203,21 +203,11 @@ export default function BrandsSelection() {
             </Link>
           </motion.div>
 
-          <div className="flex items-center gap-3 mb-4">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="w-12 h-12 bg-gradient-to-br from-brand-blue-500 to-brand-lime rounded-xl flex items-center justify-center shadow-lg"
-            >
-              <Sparkles className="w-6 h-6 text-white" />
-            </motion.div>
-            <div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-brand-blue-900 via-brand-blue-700 to-brand-blue-900 bg-clip-text text-transparent">
-                Select {categoryName} Brand
-              </h1>
-              <p className="text-gray-600 text-lg md:text-xl mt-2">Choose the brand of your device to continue</p>
-            </div>
+          <div className="mb-4">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-brand-blue-900">
+              Select {categoryName} Brand
+            </h1>
+            <p className="text-gray-600 text-lg md:text-xl mt-2">Choose the brand of your device to continue</p>
           </div>
         </motion.div>
 

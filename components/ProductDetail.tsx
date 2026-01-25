@@ -6,7 +6,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
 import { getProductById, type Product } from '@/lib/firebase/database'
-import ReviewsSection from './ReviewsSection'
 import SocialShare from './SocialShare'
 
 interface ProductDetailProps {
@@ -203,21 +202,6 @@ export default function ProductDetail({
               </div>
             </div>
           </div>
-        </motion.div>
-
-        {/* Reviews Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-8"
-        >
-          <ReviewsSection
-            productId={product.id}
-            productName={product.modelName}
-            brand={product.brand}
-            category={product.category}
-          />
         </motion.div>
       </div>
     </div>

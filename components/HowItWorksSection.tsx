@@ -14,7 +14,7 @@ const steps = [
   },
   {
     id: 2,
-    title: 'Get Quote',
+    title: 'Check Price',
     description: 'Answer quick questions and see your instant valuation',
     icon: ClipboardCheck,
     gradient: 'from-cyan-500 to-lime-500',

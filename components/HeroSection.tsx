@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Check, Camera, Smartphone, Laptop, Tablet, TrendingUp, Users, Star } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Check, Camera, Smartphone, Laptop, Tablet, TrendingUp, Users, Star, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { getAllProducts, type Product } from '@/lib/firebase/database'
 
 const categories = [
   { id: 'cameras', name: 'Camera / DSLR', icon: Camera, active: true },
@@ -51,14 +52,79 @@ function AnimatedCounter({ value, suffix }: { value: number; suffix: string }) {
 
 export default function HeroSection() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<Product[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch products for suggestions
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const allProducts = await getAllProducts()
+        setProducts(allProducts)
+      } catch (error) {
+        console.error('Error fetching products:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
+
+  // Generate suggestions based on search query
+  useEffect(() => {
+    if (searchQuery.trim().length > 0 && products.length > 0) {
+      const query = searchQuery.toLowerCase().trim()
+      const filtered = products
+        .filter((product) => {
+          const modelMatch = product.modelName?.toLowerCase().includes(query)
+          const brandMatch = product.brand?.toLowerCase().includes(query)
+          return modelMatch || brandMatch
+        })
+        .slice(0, 5) // Limit to 5 suggestions
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [searchQuery, products])
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    setShowSuggestions(false)
     if (searchQuery.trim()) {
-      router.push(`/trade-in?search=${encodeURIComponent(searchQuery)}`)
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
     } else {
-      router.push('/trade-in')
+      router.push('/search')
+    }
+  }
+
+  const handleSuggestionClick = (product: Product) => {
+    setSearchQuery(product.modelName || '')
+    setShowSuggestions(false)
+    router.push(`/search?q=${encodeURIComponent(product.modelName || '')}`)
+  }
+
+  const handleInputFocus = () => {
+    if (suggestions.length > 0) {
+      setShowSuggestions(true)
     }
   }
 
@@ -96,17 +162,69 @@ export default function HeroSection() {
               Get Instant Price. Doorstep Pickup. Same-Day Payment.
             </p>
 
-            {/* Search Bar */}
+            {/* Search Bar with Suggestions */}
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 mt-8">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div ref={searchRef} className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setShowSuggestions(false)
+                      inputRef.current?.focus()
+                    }}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
                 <input
+                  ref={inputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={handleInputFocus}
                   placeholder="Search your device (e.g. Canon EOS 90D)"
-                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-lime focus:ring-4 focus:ring-brand-lime/20 text-gray-900 shadow-sm transition-all"
+                  className="w-full pl-12 pr-10 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-lime focus:ring-4 focus:ring-brand-lime/20 text-gray-900 shadow-sm transition-all"
                 />
+                
+                {/* Suggestions Dropdown */}
+                <AnimatePresence>
+                  {showSuggestions && suggestions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 max-h-80 overflow-y-auto"
+                    >
+                      {suggestions.map((product, index) => (
+                        <motion.button
+                          key={product.id}
+                          type="button"
+                          onClick={() => handleSuggestionClick(product)}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-3 group"
+                        >
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-brand-lime/20 transition-colors">
+                            <Search className="w-4 h-4 text-gray-400 group-hover:text-brand-lime" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 truncate">
+                              {product.modelName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {product.brand} {product.category && `• ${product.category}`}
+                            </div>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <button
                 type="submit"

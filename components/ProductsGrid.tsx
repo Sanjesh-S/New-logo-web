@@ -108,8 +108,8 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
           onFilteredProductsChange={setFilteredProducts}
           placeholder={`Search ${brand} devices...`}
           showSuggestions={true}
-          showFilters={true}
-          showSort={true}
+          showFilters={false}
+          showSort={false}
         />
       </div>
 

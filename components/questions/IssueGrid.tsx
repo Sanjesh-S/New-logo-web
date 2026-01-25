@@ -36,6 +36,9 @@ export default function IssueGrid({ value = [], onChange }: IssueGridProps) {
 
   const isSelected = (issueId: string) => value.includes(issueId)
 
+  const regularIssues = issues.filter((issue) => issue.id !== 'noIssues')
+  const noIssuesOption = issues.find((issue) => issue.id === 'noIssues')
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">
@@ -43,7 +46,7 @@ export default function IssueGrid({ value = [], onChange }: IssueGridProps) {
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {issues.map((issue) => {
+        {regularIssues.map((issue) => {
           const Icon = issue.icon
           return (
             <motion.button
@@ -65,6 +68,27 @@ export default function IssueGrid({ value = [], onChange }: IssueGridProps) {
           )
         })}
       </div>
+
+      {/* No Functional Issues - Full Width */}
+      {noIssuesOption && (
+        <div className="mt-4">
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => handleToggle(noIssuesOption.id)}
+            className={`w-full p-4 rounded-xl border-2 transition-all ${
+              isSelected(noIssuesOption.id)
+                ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-3">
+              <noIssuesOption.icon className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium">{noIssuesOption.label}</span>
+            </div>
+          </motion.button>
+        </div>
+      )}
     </div>
   )
 }

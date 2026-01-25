@@ -363,14 +363,6 @@ export default function TradeInFlow() {
               Step {currentStep} of {totalSteps}
             </div>
           </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-brand-blue-600 to-brand-lime"
-              initial={{ width: 0 }}
-              animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
         </div>
 
         {/* Current Step Content */}

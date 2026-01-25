@@ -68,14 +68,14 @@ export default function ProductCard({
           )}
         </div>
 
-        {/* Get Quote Button */}
+        {/* Check Price Button */}
         <Link href={productDetailUrl}>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="w-full py-2.5 px-4 bg-brand-blue-900 text-white rounded-lg font-semibold text-sm hover:bg-brand-blue-800 transition-colors shadow-sm"
           >
-            Get Quote
+            Check Price
           </motion.button>
         </Link>
       </div>

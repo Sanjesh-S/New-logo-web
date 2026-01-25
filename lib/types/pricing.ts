@@ -49,10 +49,8 @@ export interface PricingRules {
         adapter: number
         battery: number
         box: number
-        bag: number
         cable: number
         tripod: number
-        manual: number
     }
     age: {
         lessThan3Months: number
@@ -108,10 +106,8 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         adapter: 500,
         battery: 800,
         box: 1000,
-        bag: 600,
         cable: 400,
         tripod: 2000,
-        manual: 300,
     },
     age: {
         lessThan3Months: 0,
