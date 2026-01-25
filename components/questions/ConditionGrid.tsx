@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { CheckCircle, AlertCircle, XCircle, Camera, Target, Snowflake, Minus } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 import type { AnswerMap } from '@/lib/pricing/modifiers'
 
 interface ConditionGridProps {
@@ -10,6 +11,43 @@ interface ConditionGridProps {
 }
 
 export default function ConditionGrid({ answers, onChange }: ConditionGridProps) {
+  const getDisplayConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'excellent': getAssetPath('/images/conditions/excellent.webp'),
+      'good': getAssetPath('/images/conditions/good.webp'),
+      'fair': getAssetPath('/images/conditions/fair.webp'),
+      'cracked': getAssetPath('/images/conditions/broken.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
+  const getErrorConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'noErrors': getAssetPath('/images/conditions/no-error.webp'),
+      'frequentErrors': getAssetPath('/images/conditions/frequent-error.webp'),
+      'withoutLensError': getAssetPath('/images/conditions/without-lens-error.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
+  const getBodyConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'good': getAssetPath('/images/conditions/body-good.webp'),
+      'fair': getAssetPath('/images/conditions/body-fair.webp'),
+      'poor': getAssetPath('/images/conditions/body-heavy-damage.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
+  const getLensConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'good': getAssetPath('/images/conditions/lens-good.webp'),
+      'fungus': getAssetPath('/images/conditions/lens-fungus.webp'),
+      'scratches': getAssetPath('/images/conditions/lens-scratches.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
   const getIcon = (condition: string, category?: string) => {
     // Lens Condition icons
     if (category === 'lens') {
@@ -62,24 +100,35 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
             { id: 'good', label: 'Good - Minor scratches' },
             { id: 'fair', label: 'Fair - Visible scratches' },
             { id: 'cracked', label: 'Cracked/Broken Display' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('displayCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.displayCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                {getIcon(option.id)}
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getDisplayConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('displayCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.displayCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    getIcon(option.id)
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 
@@ -94,24 +143,35 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
             { id: 'good', label: 'Good - Minor wear' },
             { id: 'fair', label: 'Fair - Visible scratches/dents' },
             { id: 'poor', label: 'Poor - Heavy damage' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('bodyCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.bodyCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                <Camera className="w-5 h-5" />
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getBodyConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('bodyCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.bodyCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    <Camera className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 
@@ -126,24 +186,35 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
             { id: 'minorErrors', label: 'Minor Errors (occasionally)', icon: 'warning' },
             { id: 'frequentErrors', label: 'Frequent Error Messages', icon: 'error' },
             { id: 'withoutLensError', label: 'Without Lens Error Condition', icon: 'lens' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('errorCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.errorCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                {getIcon(option.id, 'error')}
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getErrorConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('errorCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.errorCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    getIcon(option.id, 'error')
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 
@@ -158,24 +229,35 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
             { id: 'autofocusIssue', label: 'Auto Focus/ Manual Focus Issue', icon: 'target' },
             { id: 'fungus', label: 'Fungus issue', icon: 'fungus' },
             { id: 'scratches', label: 'Scratches', icon: 'scratches' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('lensCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.lensCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                {getIcon(option.id, 'lens')}
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getLensConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('lensCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.lensCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    getIcon(option.id, 'lens')
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
     </div>

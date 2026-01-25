@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { CheckCircle, AlertCircle, XCircle, Keyboard } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 import type { AnswerMap } from '@/lib/pricing/modifiers'
 
 interface LaptopConditionGridProps {
@@ -10,6 +11,25 @@ interface LaptopConditionGridProps {
 }
 
 export default function LaptopConditionGrid({ answers, onChange }: LaptopConditionGridProps) {
+  const getLaptopBodyConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'mint': getAssetPath('/images/conditions/laptop-body-mint.webp'),
+      'light': getAssetPath('/images/conditions/laptop-body-light.webp'),
+      'moderate': getAssetPath('/images/conditions/laptop-body-moderate.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
+  const getLaptopKeyboardConditionImage = (condition: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'allKeysPerfect': getAssetPath('/images/conditions/laptop-keyboard-perfect.webp'),
+      'keyShine': getAssetPath('/images/conditions/laptop-keyboard-shine.webp'),
+      'stickyKeys': getAssetPath('/images/conditions/laptop-keyboard-loose.webp'),
+      'brokenKeys': getAssetPath('/images/conditions/laptop-keyboard-missing.webp'),
+    }
+    return imageMap[condition] || null
+  }
+
   const getIcon = (condition: string) => {
     if (condition === 'perfect' || condition === 'mint' || condition === 'allKeysPerfect') {
       return <CheckCircle className="w-5 h-5" />
@@ -65,24 +85,35 @@ export default function LaptopConditionGrid({ answers, onChange }: LaptopConditi
             { id: 'light', label: 'Light wear' },
             { id: 'moderate', label: 'Moderate scratches/dents' },
             { id: 'heavy', label: 'Heavy damage/dents' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('bodyCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.bodyCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                {getIcon(option.id)}
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getLaptopBodyConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('bodyCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.bodyCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    getIcon(option.id)
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 
@@ -97,24 +128,35 @@ export default function LaptopConditionGrid({ answers, onChange }: LaptopConditi
             { id: 'keyShine', label: 'Key shine/wear' },
             { id: 'stickyKeys', label: 'Some sticky/loose keys' },
             { id: 'brokenKeys', label: 'Broken/missing keys' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('keyboardCondition', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.keyboardCondition === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">
-                <Keyboard className="w-5 h-5" />
-              </div>
-              <div className="text-sm font-medium">{option.label}</div>
-            </motion.button>
-          ))}
+          ].map((option) => {
+            const imagePath = getLaptopKeyboardConditionImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onChange('keyboardCondition', option.id)}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  answers.keyboardCondition === option.id
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                }`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imagePath ? (
+                    <img
+                      src={imagePath}
+                      alt={option.label}
+                      className="w-20 h-20 object-contain"
+                    />
+                  ) : (
+                    <Keyboard className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="text-xs font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
     </div>

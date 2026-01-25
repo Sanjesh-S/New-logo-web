@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Zap, Box, Cable, FileText, Briefcase, Mouse } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 
 interface LaptopAccessoryGridProps {
   value?: string[]
@@ -18,6 +19,16 @@ const laptopAccessories = [
 ]
 
 export default function LaptopAccessoryGrid({ value = [], onChange }: LaptopAccessoryGridProps) {
+  const getLaptopAccessoryImage = (accessoryId: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'charger': getAssetPath('/images/conditions/laptop-accessory-charger.webp'),
+      'box': getAssetPath('/images/conditions/laptop-accessory-box.webp'),
+      'cable': getAssetPath('/images/conditions/laptop-accessory-cable.webp'),
+      'bag': getAssetPath('/images/conditions/laptop-accessory-bag.webp'),
+    }
+    return imageMap[accessoryId] || null
+  }
+
   const handleToggle = (accessoryId: string) => {
     if (value.includes(accessoryId)) {
       onChange(value.filter((id) => id !== accessoryId))
@@ -45,6 +56,7 @@ export default function LaptopAccessoryGrid({ value = [], onChange }: LaptopAcce
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {laptopAccessories.map((accessory) => {
           const Icon = accessory.icon
+          const imagePath = getLaptopAccessoryImage(accessory.id)
           return (
             <motion.button
               key={accessory.id}
@@ -57,8 +69,16 @@ export default function LaptopAccessoryGrid({ value = [], onChange }: LaptopAcce
                   : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
               }`}
             >
-              <Icon className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-sm font-medium">{accessory.label}</div>
+              {imagePath ? (
+                <img
+                  src={imagePath}
+                  alt={accessory.label}
+                  className="w-16 h-16 mx-auto mb-2 object-contain"
+                />
+              ) : (
+                <Icon className="w-12 h-12 mx-auto mb-2" />
+              )}
+              <div className="text-xs font-medium">{accessory.label}</div>
             </motion.button>
           )
         })}

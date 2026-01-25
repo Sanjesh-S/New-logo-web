@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Zap, Battery, Box, ShoppingBag, Cable, Camera, FileText } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 
 interface AccessoryGridProps {
   value?: string[]
@@ -19,6 +20,15 @@ const accessories = [
 ]
 
 export default function AccessoryGrid({ value = [], onChange }: AccessoryGridProps) {
+  const getAccessoryImage = (accessoryId: string): string | null => {
+    const imageMap: Record<string, string> = {
+      'battery': getAssetPath('/images/conditions/accessory-battery.webp'),
+      'box': getAssetPath('/images/conditions/accessory-box.webp'),
+      'tripod': getAssetPath('/images/conditions/accessory-tripod.webp'),
+    }
+    return imageMap[accessoryId] || null
+  }
+
   const handleToggle = (accessoryId: string) => {
     if (value.includes(accessoryId)) {
       onChange(value.filter((id) => id !== accessoryId))
@@ -46,6 +56,7 @@ export default function AccessoryGrid({ value = [], onChange }: AccessoryGridPro
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {accessories.map((accessory) => {
           const Icon = accessory.icon
+          const imagePath = getAccessoryImage(accessory.id)
           return (
             <motion.button
               key={accessory.id}
@@ -58,8 +69,16 @@ export default function AccessoryGrid({ value = [], onChange }: AccessoryGridPro
                   : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
               }`}
             >
-              <Icon className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-sm font-medium">{accessory.label}</div>
+              {imagePath ? (
+                <img
+                  src={imagePath}
+                  alt={accessory.label}
+                  className="w-16 h-16 mx-auto mb-2 object-contain"
+                />
+              ) : (
+                <Icon className="w-12 h-12 mx-auto mb-2" />
+              )}
+              <div className="text-xs font-medium">{accessory.label}</div>
             </motion.button>
           )
         })}

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Search, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { getBrandLogo } from '@/lib/utils/brandLogos'
 
 interface Device {
   id: string
@@ -235,23 +236,43 @@ export default function BrandsSelection() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
           >
-            {filteredBrands.map((brand, index) => (
-              <motion.button
-                key={brand}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index, duration: 0.3 }}
-                onClick={() => handleBrandClick(brand)}
-                className="p-6 md:p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-brand-lime hover:shadow-lg transition-all text-center group"
-              >
-                <div className="text-2xl md:text-3xl font-bold text-brand-blue-900 group-hover:text-brand-lime transition-colors mb-2">
-                  {brand}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {brand}
-                </div>
-              </motion.button>
-            ))}
+            {filteredBrands.map((brand, index) => {
+              const logoPath = getBrandLogo(brand)
+              return (
+                <motion.button
+                  key={brand}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 * index, duration: 0.3 }}
+                  onClick={() => handleBrandClick(brand)}
+                  className="p-6 md:p-8 bg-white border-2 border-gray-200 rounded-2xl hover:border-brand-lime hover:shadow-lg transition-all text-center group flex flex-col items-center justify-center min-h-[140px] md:min-h-[160px]"
+                >
+                  {logoPath ? (
+                    <div className="w-full flex flex-col items-center justify-center gap-3 flex-1">
+                      <div className="relative w-full max-w-[100px] h-20 md:h-24 flex items-center justify-center">
+                        <img
+                          src={logoPath}
+                          alt={`${brand} logo`}
+                          className="max-w-full max-h-full w-auto h-auto object-contain"
+                        />
+                      </div>
+                      <div className="text-sm text-gray-500 font-medium">
+                        {brand}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full flex flex-col items-center justify-center gap-2 flex-1">
+                      <div className="text-2xl md:text-3xl font-bold text-brand-blue-900 group-hover:text-brand-lime transition-colors">
+                        {brand}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {brand}
+                      </div>
+                    </div>
+                  )}
+                </motion.button>
+              )
+            })}
           </motion.div>
         ) : (
           <motion.div
