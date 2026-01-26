@@ -1,0 +1,104 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-functions:
+    runs-on: ubuntu-latest
+    environment: github-pages  # Use github-pages environment to access environment secrets
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Sync Secrets from GitHub to Firebase
+        run: |
+          echo "🔄 Syncing secrets from GitHub to Firebase Secret Manager..."
+          PROJECT_ID="worthyten-otp-a925d"
+          
+          # Function to sync a secret
+          sync_secret() {
+            local SECRET_NAME=$1
+            local SECRET_VALUE=$2
+            if [ -n "$SECRET_VALUE" ]; then
+              # Try to add new version, if secret doesn't exist, create it
+              echo "$SECRET_VALUE" | gcloud secrets versions add $SECRET_NAME --data-file=- --project=$PROJECT_ID 2>/dev/null || \
+              (echo "$SECRET_VALUE" | gcloud secrets create $SECRET_NAME --data-file=- --project=$PROJECT_ID --replication-policy="automatic" && echo "Created new secret: $SECRET_NAME")
+              echo "✅ $SECRET_NAME synced"
+            else
+              echo "⚠️  $SECRET_NAME not found in GitHub secrets, skipping..."
+            fi
+          }
+          
+          # Sync all secrets from GitHub
+          sync_secret "TELEGRAM_BOT_TOKEN" "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          sync_secret "TELEGRAM_CHAT_ID" "${{ secrets.TELEGRAM_CHAT_ID }}"
+          sync_secret "TWILIO_ACCOUNT_SID" "${{ secrets.TWILIO_ACCOUNT_SID }}"
+          sync_secret "TWILIO_AUTH_TOKEN" "${{ secrets.TWILIO_AUTH_TOKEN }}"
+          sync_secret "TWILIO_WHATSAPP_NUMBER" "${{ secrets.TWILIO_WHATSAPP_NUMBER }}"
+          
+          if [ -n "${{ secrets.WHATSAPP_CONTENT_SID }}" ]; then
+            sync_secret "WHATSAPP_CONTENT_SID" "${{ secrets.WHATSAPP_CONTENT_SID }}"
+          fi
+          
+          echo "✅ All secrets synced from GitHub to Firebase!"
+
+      - name: Grant Secrets Access to Functions
+        run: |
+          echo "🔐 Granting secrets access to Firebase Functions..."
+          PROJECT_ID="worthyten-otp-a925d"
+          SERVICE_ACCOUNT="${PROJECT_ID}@appspot.gserviceaccount.com"
+          
+          for SECRET in TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_WHATSAPP_NUMBER; do
+            gcloud secrets add-iam-policy-binding $SECRET \
+              --member="serviceAccount:${SERVICE_ACCOUNT}" \
+              --role="roles/secretmanager.secretAccessor" \
+              --project=$PROJECT_ID 2>/dev/null && echo "✅ Access granted for $SECRET" || echo "ℹ️  Access already exists for $SECRET"
+          done
+          
+          if [ -n "${{ secrets.WHATSAPP_CONTENT_SID }}" ]; then
+            gcloud secrets add-iam-policy-binding WHATSAPP_CONTENT_SID \
+              --member="serviceAccount:${SERVICE_ACCOUNT}" \
+              --role="roles/secretmanager.secretAccessor" \
+              --project=$PROJECT_ID 2>/dev/null && echo "✅ Access granted for WHATSAPP_CONTENT_SID" || echo "ℹ️  Access already exists"
+          fi
+          
+          echo "✅ All secrets access configured!"
+
+      - name: Install dependencies
+        working-directory: ./functions
+        run: npm ci
+
+      - name: Build functions
+        working-directory: ./functions
+        run: npm run build
+
+      - name: Deploy Firebase Functions
+        run: firebase deploy --only functions --project worthyten-otp-a925d

@@ -90,32 +90,57 @@ export async function POST(request: NextRequest) {
 
     // Send Telegram notification to admin (via Firebase Function)
     try {
-      await fetch(`${functionsUrl}/telegramNotify`, {
+      const telegramResponse = await fetch(`${functionsUrl}/telegramNotify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notificationData),
-      }).catch((error) => {
-        logger.warn('Failed to send Telegram notification via Firebase Function', { error })
       })
+      
+      if (!telegramResponse.ok) {
+        const errorText = await telegramResponse.text()
+        logger.error('Telegram notification failed', {
+          status: telegramResponse.status,
+          statusText: telegramResponse.statusText,
+          error: errorText,
+          requestId,
+        })
+      } else {
+        logger.info('Telegram notification sent successfully', { requestId })
+      }
     } catch (telegramError) {
       logger.error('Error sending Telegram notification', {
         error: telegramError instanceof Error ? telegramError.message : String(telegramError),
         requestId,
+        functionsUrl,
       })
       // Don't fail the request if Telegram fails
     }
 
     // Send WhatsApp notification to customer (via Firebase Function)
     try {
-      await fetch(`${functionsUrl}/whatsappNotify`, {
+      const whatsappResponse = await fetch(`${functionsUrl}/whatsappNotify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notificationData),
-      }).catch((error) => {
-        logger.warn('Failed to send WhatsApp notification via Firebase Function', { error })
       })
+      
+      if (!whatsappResponse.ok) {
+        const errorText = await whatsappResponse.text()
+        logger.error('WhatsApp notification failed', {
+          status: whatsappResponse.status,
+          statusText: whatsappResponse.statusText,
+          error: errorText,
+          requestId,
+        })
+      } else {
+        logger.info('WhatsApp notification sent successfully', { requestId })
+      }
     } catch (whatsappError) {
-      logger.warn('Error sending WhatsApp notification', whatsappError)
+      logger.error('Error sending WhatsApp notification', {
+        error: whatsappError instanceof Error ? whatsappError.message : String(whatsappError),
+        requestId,
+        functionsUrl,
+      })
       // Don't fail the request if WhatsApp fails
     }
 
