@@ -11,9 +11,10 @@ export async function sendTelegramNotification(req: Request, res: Response): Pro
   try {
     const { productName, price, customer, pickupDate, pickupTime, requestId } = req.body
 
-    // Telegram Bot Configuration - Use provided bot token and chat ID
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
+    // Telegram Bot Configuration - Use secrets from Firebase Functions
+    // Secrets are automatically available as environment variables when using defineSecret
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       logger.warn('Telegram bot credentials not configured', {

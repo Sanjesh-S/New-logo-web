@@ -3,107 +3,62 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:Telegram')
 
+/**
+ * Get Firebase Functions URL
+ */
+function getFunctionsUrl(): string {
+  // Use environment variable if set
+  if (process.env.NEXT_PUBLIC_FUNCTIONS_URL) {
+    return process.env.NEXT_PUBLIC_FUNCTIONS_URL
+  }
+  
+  // Construct URL from Firebase project ID
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  const region = process.env.NEXT_PUBLIC_FUNCTION_REGION || 'us-central1'
+  
+  if (!projectId) {
+    throw new Error('NEXT_PUBLIC_FIREBASE_PROJECT_ID or NEXT_PUBLIC_FUNCTIONS_URL is required')
+  }
+  
+  return `https://${region}-${projectId}.cloudfunctions.net`
+}
+
+/**
+ * Telegram Notification API Route
+ * 
+ * This route acts as a proxy to Firebase Cloud Functions.
+ * All notification logic is handled by Firebase Functions to ensure
+ * server-side secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) are secure.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { productName, price, customer, pickupDate, pickupTime, requestId } = body
-
-    logger.info('Telegram notification request received', {
-      productName,
-      requestId,
-      hasCustomer: !!customer,
+    
+    logger.info('Telegram notification request received, forwarding to Firebase Function', {
+      requestId: body.requestId,
+      hasCustomer: !!body.customer,
     })
 
-    // Telegram Bot Configuration - Use provided bot token and chat ID
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
-
-    logger.info('Telegram bot configuration', {
-      hasToken: !!TELEGRAM_BOT_TOKEN,
-      hasChatId: !!TELEGRAM_CHAT_ID,
-      chatId: TELEGRAM_CHAT_ID,
-    })
-
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-      logger.warn('Telegram bot credentials not configured', {
-        hasToken: !!TELEGRAM_BOT_TOKEN,
-        hasChatId: !!TELEGRAM_CHAT_ID,
-      })
-      return NextResponse.json(
-        { error: 'Telegram bot not configured. Notification skipped.' },
-        { status: 200 } // Return 200 so it doesn't fail the request
-      )
-    }
-
-    // Format pickup date - Match the format: "Wednesday, Jan 14 at 06:00 AM - 08:00 AM"
-    const date = new Date(pickupDate)
-    const formattedDate = date.toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      month: 'short', 
-      day: 'numeric' 
+    // Forward request to Firebase Cloud Function
+    const functionsUrl = getFunctionsUrl()
+    const functionUrl = `${functionsUrl}/telegramNotify`
+    
+    logger.info('Calling Firebase Function', {
+      functionUrl: functionUrl.replace(/\/([^/]+)$/, '/***'), // Mask function name in logs
     })
     
-    // Format time slot (assuming pickupTime is like "06:00 AM - 08:00 AM" or just "06:00 AM")
-    let timeSlot = pickupTime
-    if (!pickupTime.includes('-')) {
-      // If only start time provided, create a 2-hour slot
-      const [time, period] = pickupTime.split(' ')
-      const [hours, minutes] = time.split(':')
-      let endHour = parseInt(hours)
-      if (period === 'PM' && endHour !== 12) endHour += 12
-      if (period === 'AM' && endHour === 12) endHour = 0
-      endHour = (endHour + 2) % 24
-      const endPeriod = endHour >= 12 ? 'PM' : 'AM'
-      const displayEndHour = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour)
-      timeSlot = `${pickupTime} - ${displayEndHour}:${minutes} ${endPeriod}`
-    }
-    
-    // Combine date and time slot in the exact format from image
-    const pickupSlot = `${formattedDate} at ${timeSlot}`
-
-    // Format address
-    const fullAddress = `${customer.address}${customer.landmark ? `, ${customer.landmark}` : ''}, ${customer.city}, ${customer.state} - ${customer.pincode}`
-
-    // Format message to match the exact format from the image
-    // Using HTML parse mode for clickable email link
-    const message = `🔔 <b>New Pickup Request</b>
-
-📦 Device: ${productName}
-💰 Price: ₹${price.toLocaleString('en-IN')}
-👤 Customer Details:
-• Name: ${customer.name}
-• Phone: ${customer.phone}
-• Email: <a href="mailto:${customer.email}">${customer.email}</a>
-📍 Address: ${fullAddress}
-📅 Pickup Slot: ${pickupSlot}
-🆔 Request ID: ${requestId}
-Status: Pending`
-
-    // Send message to Telegram
-    const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
-    
-    logger.info('Sending Telegram message', {
-      url: telegramApiUrl.replace(TELEGRAM_BOT_TOKEN, '***'),
-      chatId: TELEGRAM_CHAT_ID,
-      messageLength: message.length,
-    })
-    
-    const response = await fetch(telegramApiUrl, {
+    const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: 'HTML', // Use HTML for clickable email links
-      }),
+      body: JSON.stringify(body),
     })
 
     const responseData = await response.json().catch(() => ({}))
     
     if (!response.ok) {
-      logger.error('Telegram API error', {
+      logger.error('Firebase Function error', {
         status: response.status,
         statusText: response.statusText,
         error: responseData,
@@ -117,13 +72,12 @@ Status: Pending`
       )
     }
 
-    logger.info('Telegram notification sent successfully', {
-      requestId,
-      messageId: responseData.result?.message_id,
+    logger.info('Telegram notification sent successfully via Firebase Function', {
+      requestId: body.requestId,
     })
-    return NextResponse.json({ success: true, messageId: responseData.result?.message_id })
+    return NextResponse.json(responseData)
   } catch (error) {
-    logger.error('Error sending Telegram notification', error)
+    logger.error('Error forwarding Telegram notification to Firebase Function', error)
     return NextResponse.json(
       { error: 'Failed to send notification' },
       { status: 200 } // Return 200 so it doesn't fail the request

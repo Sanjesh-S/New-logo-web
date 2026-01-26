@@ -5,6 +5,7 @@
  */
 
 import * as functions from 'firebase-functions'
+import { defineSecret } from 'firebase-functions/params'
 import { calculatePrice } from './calculate'
 import { createValuation, getValuation, updateValuation } from './valuations'
 import { createPickupRequest, schedulePickup as schedulePickupHandler } from './pickup'
@@ -12,6 +13,15 @@ import { getDevices } from './devices'
 import { sendTelegramNotification } from './notifications/telegram'
 import { sendWhatsAppNotification } from './notifications/whatsapp'
 import { sendEmailConfirmation } from './notifications/email'
+
+// Define secrets for Firebase Functions
+const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN')
+const telegramChatId = defineSecret('TELEGRAM_CHAT_ID')
+const twilioAccountSid = defineSecret('TWILIO_ACCOUNT_SID')
+const twilioAuthToken = defineSecret('TWILIO_AUTH_TOKEN')
+const twilioWhatsAppNumber = defineSecret('TWILIO_WHATSAPP_NUMBER')
+// WHATSAPP_CONTENT_SID is optional - only define if it exists in Secret Manager
+// const whatsappContentSid = defineSecret('WHATSAPP_CONTENT_SID')
 
 // Calculate API
 export const calculate = functions.https.onRequest(async (req, res) => {
@@ -67,22 +77,24 @@ export const valuations = functions.https.onRequest(async (req, res) => {
 })
 
 // Pickup Requests API
-export const pickupRequests = functions.https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*')
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.set('Access-Control-Allow-Headers', 'Content-Type')
+export const pickupRequests = functions
+  .runWith({ secrets: [telegramBotToken, telegramChatId, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber] })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*')
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.set('Access-Control-Allow-Headers', 'Content-Type')
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('')
-    return
-  }
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('')
+      return
+    }
 
-  if (req.method === 'POST') {
-    await createPickupRequest(req, res)
-  } else {
-    res.status(405).json({ error: 'Method not allowed' })
-  }
-})
+    if (req.method === 'POST') {
+      await createPickupRequest(req, res)
+    } else {
+      res.status(405).json({ error: 'Method not allowed' })
+    }
+  })
 
 // Pickup Schedule API
 export const schedulePickup = functions.https.onRequest(async (req, res) => {
@@ -121,40 +133,44 @@ export const devices = functions.https.onRequest(async (req, res) => {
 })
 
 // Telegram Notification API
-export const telegramNotify = functions.https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*')
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.set('Access-Control-Allow-Headers', 'Content-Type')
+export const telegramNotify = functions
+  .runWith({ secrets: [telegramBotToken, telegramChatId] })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*')
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.set('Access-Control-Allow-Headers', 'Content-Type')
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('')
-    return
-  }
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('')
+      return
+    }
 
-  if (req.method === 'POST') {
-    await sendTelegramNotification(req, res)
-  } else {
-    res.status(405).json({ error: 'Method not allowed' })
-  }
-})
+    if (req.method === 'POST') {
+      await sendTelegramNotification(req, res)
+    } else {
+      res.status(405).json({ error: 'Method not allowed' })
+    }
+  })
 
 // WhatsApp Notification API
-export const whatsappNotify = functions.https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*')
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.set('Access-Control-Allow-Headers', 'Content-Type')
+export const whatsappNotify = functions
+  .runWith({ secrets: [twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber] })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*')
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.set('Access-Control-Allow-Headers', 'Content-Type')
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('')
-    return
-  }
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('')
+      return
+    }
 
-  if (req.method === 'POST') {
-    await sendWhatsAppNotification(req, res)
-  } else {
-    res.status(405).json({ error: 'Method not allowed' })
-  }
-})
+    if (req.method === 'POST') {
+      await sendWhatsAppNotification(req, res)
+    } else {
+      res.status(405).json({ error: 'Method not allowed' })
+    }
+  })
 
 // Email Confirmation API
 export const emailConfirm = functions.https.onRequest(async (req, res) => {

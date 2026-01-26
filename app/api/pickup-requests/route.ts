@@ -61,143 +61,73 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     })
 
-    // Send Telegram notification to admin - Call Telegram API directly
-    try {
-      // Telegram Bot Configuration
-      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
-      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
+    // Send notifications via Firebase Functions
+    // All notification logic is handled by Firebase Functions to ensure server-side secrets are secure
+    const requestId = docRef.id
+    const notificationData = {
+      productName,
+      price,
+      customer,
+      pickupDate,
+      pickupTime,
+      requestId,
+    }
 
-      if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-        // Format pickup date - Match the format: "Wednesday, Jan 14 at 06:00 AM - 08:00 AM"
-        const date = new Date(pickupDate)
-        const formattedDate = date.toLocaleDateString('en-IN', {
-          weekday: 'long',
-          month: 'short',
-          day: 'numeric',
-        })
-        
-        // Format time slot
-        let timeSlot = pickupTime
-        if (!pickupTime.includes('-')) {
-          const [time, period] = pickupTime.split(' ')
-          const [hours, minutes] = time.split(':')
-          let endHour = parseInt(hours)
-          if (period === 'PM' && endHour !== 12) endHour += 12
-          if (period === 'AM' && endHour === 12) endHour = 0
-          endHour = (endHour + 2) % 24
-          const endPeriod = endHour >= 12 ? 'PM' : 'AM'
-          const displayEndHour = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour)
-          timeSlot = `${pickupTime} - ${displayEndHour}:${minutes} ${endPeriod}`
-        }
-        
-        const pickupSlot = `${formattedDate} at ${timeSlot}`
-        const fullAddress = `${customer.address}${customer.landmark ? `, ${customer.landmark}` : ''}, ${customer.city}, ${customer.state} - ${customer.pincode}`
-
-        const message = `🔔 <b>New Pickup Request</b>
-
-📦 Device: ${productName}
-💰 Price: ₹${price.toLocaleString('en-IN')}
-👤 Customer Details:
-• Name: ${customer.name}
-• Phone: ${customer.phone}
-• Email: <a href="mailto:${customer.email}">${customer.email}</a>
-📍 Address: ${fullAddress}
-📅 Pickup Slot: ${pickupSlot}
-🆔 Request ID: ${docRef.id}
-Status: Pending`
-
-        const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
-        
-        const telegramResponse = await fetch(telegramApiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
-            text: message,
-            parse_mode: 'HTML',
-          }),
-        })
-
-        const responseData = await telegramResponse.json().catch(() => ({}))
-        
-        if (!telegramResponse.ok) {
-          logger.error('Telegram API error', {
-            status: telegramResponse.status,
-            error: responseData,
-            requestId: docRef.id,
-          })
-        } else {
-          logger.info('Telegram notification sent successfully', {
-            requestId: docRef.id,
-            messageId: responseData.result?.message_id,
-          })
-        }
-      } else {
-        logger.warn('Telegram bot credentials not configured')
+    // Get Firebase Functions URL
+    function getFunctionsUrl(): string {
+      if (process.env.NEXT_PUBLIC_FUNCTIONS_URL) {
+        return process.env.NEXT_PUBLIC_FUNCTIONS_URL
       }
+      const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      const region = process.env.NEXT_PUBLIC_FUNCTION_REGION || 'us-central1'
+      if (!projectId) {
+        throw new Error('NEXT_PUBLIC_FIREBASE_PROJECT_ID or NEXT_PUBLIC_FUNCTIONS_URL is required')
+      }
+      return `https://${region}-${projectId}.cloudfunctions.net`
+    }
+
+    const functionsUrl = getFunctionsUrl()
+
+    // Send Telegram notification to admin (via Firebase Function)
+    try {
+      await fetch(`${functionsUrl}/telegramNotify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData),
+      }).catch((error) => {
+        logger.warn('Failed to send Telegram notification via Firebase Function', { error })
+      })
     } catch (telegramError) {
       logger.error('Error sending Telegram notification', {
         error: telegramError instanceof Error ? telegramError.message : String(telegramError),
-        requestId: docRef.id,
+        requestId,
       })
       // Don't fail the request if Telegram fails
     }
 
-    // Send WhatsApp notification to customer
+    // Send WhatsApp notification to customer (via Firebase Function)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-      
-      const whatsappResponse = await fetch(`${baseUrl}/api/whatsapp/notify`, {
+      await fetch(`${functionsUrl}/whatsappNotify`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          productName,
-          price,
-          customer,
-          pickupDate,
-          pickupTime,
-          requestId: docRef.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData),
+      }).catch((error) => {
+        logger.warn('Failed to send WhatsApp notification via Firebase Function', { error })
       })
-
-      if (!whatsappResponse.ok) {
-        const errorText = await whatsappResponse.text()
-        logger.warn('Failed to send WhatsApp notification', { errorText })
-      } else {
-        logger.debug('WhatsApp notification sent successfully')
-      }
     } catch (whatsappError) {
       logger.warn('Error sending WhatsApp notification', whatsappError)
       // Don't fail the request if WhatsApp fails
     }
 
-    // Send email confirmation to customer
+    // Send email confirmation to customer (via Firebase Function)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-      
-      const emailResponse = await fetch(`${baseUrl}/api/email/confirm`, {
+      await fetch(`${functionsUrl}/emailConfirm`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          productName,
-          price,
-          customer,
-          pickupDate,
-          pickupTime,
-          requestId: docRef.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData),
+      }).catch((error) => {
+        logger.warn('Failed to send email confirmation via Firebase Function', { error })
       })
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text()
-        logger.warn('Failed to send email confirmation', { errorText })
-      } else {
-        logger.debug('Email confirmation sent successfully')
-      }
     } catch (emailError) {
       logger.warn('Error sending email confirmation', emailError)
       // Don't fail the request if email fails

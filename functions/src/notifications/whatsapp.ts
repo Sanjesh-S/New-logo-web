@@ -11,10 +11,11 @@ export async function sendWhatsAppNotification(req: Request, res: Response): Pro
   try {
     const { productName, price, customer, pickupDate, pickupTime, requestId } = req.body
 
-    // Twilio Configuration - Use provided credentials
-    const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || 'ACbfb8f7ec2babdb65904df53965039ff3'
-    const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '08d1368c1aaf9489469ae9c5d87a8f'
-    const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || '+919843010869'
+    // Twilio Configuration - Use secrets from Firebase Functions
+    // Secrets are automatically available as environment variables when using defineSecret
+    const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID
+    const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
+    const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER
     const WHATSAPP_CONTENT_SID = process.env.WHATSAPP_CONTENT_SID
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_NUMBER) {

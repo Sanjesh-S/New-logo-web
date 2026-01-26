@@ -77,8 +77,8 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
     // Send Telegram notification directly
     try {
       // Telegram Bot Configuration - Use provided bot token and chat ID
-      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
-      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
+      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID
 
       if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
         // Format pickup date - Match the format: "Wednesday, Jan 14 at 06:00 AM - 08:00 AM"
