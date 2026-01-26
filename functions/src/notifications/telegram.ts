@@ -11,9 +11,9 @@ export async function sendTelegramNotification(req: Request, res: Response): Pro
   try {
     const { productName, price, customer, pickupDate, pickupTime, requestId } = req.body
 
-    // Telegram Bot Configuration
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID
+    // Telegram Bot Configuration - Use provided bot token and chat ID
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       logger.warn('Telegram bot credentials not configured', {
@@ -24,34 +24,48 @@ export async function sendTelegramNotification(req: Request, res: Response): Pro
       return
     }
 
-    // Format pickup date
+    // Format pickup date - Match the format: "Wednesday, Jan 14 at 06:00 AM - 08:00 AM"
     const date = new Date(pickupDate)
-    const formattedDate = date.toLocaleDateString('en-US', {
+    const formattedDate = date.toLocaleDateString('en-IN', {
       weekday: 'long',
       month: 'short',
       day: 'numeric',
     })
+    
+    // Format time slot (assuming pickupTime is like "06:00 AM - 08:00 AM" or just "06:00 AM")
+    let timeSlot = pickupTime
+    if (!pickupTime.includes('-')) {
+      // If only start time provided, create a 2-hour slot
+      const [time, period] = pickupTime.split(' ')
+      const [hours, minutes] = time.split(':')
+      let endHour = parseInt(hours)
+      if (period === 'PM' && endHour !== 12) endHour += 12
+      if (period === 'AM' && endHour === 12) endHour = 0
+      endHour = (endHour + 2) % 24
+      const endPeriod = endHour >= 12 ? 'PM' : 'AM'
+      const displayEndHour = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour)
+      timeSlot = `${pickupTime} - ${displayEndHour}:${minutes} ${endPeriod}`
+    }
+    
+    // Combine date and time slot in the exact format from image
+    const pickupSlot = `${formattedDate} at ${timeSlot}`
 
-    // Format message
-    const message = `🔔 *New Pickup Request*
+    // Format address
+    const fullAddress = `${customer.address}${customer.landmark ? `, ${customer.landmark}` : ''}, ${customer.city}, ${customer.state} - ${customer.pincode}`
 
-📦 *Device:* ${productName}
-💰 *Price:* ₹${price.toLocaleString('en-IN')}
+    // Format message to match the exact format from the image
+    // Using HTML parse mode for clickable email link
+    const message = `🔔 <b>New Pickup Request</b>
 
-👤 *Customer Details:*
+📦 Device: ${productName}
+💰 Price: ₹${price.toLocaleString('en-IN')}
+👤 Customer Details:
 • Name: ${customer.name}
 • Phone: ${customer.phone}
-• Email: ${customer.email}
-
-📍 *Address:*
-${customer.address}${customer.landmark ? ` (Near: ${customer.landmark})` : ''}
-${customer.city}, ${customer.state} - ${customer.pincode}
-
-📅 *Pickup Slot:*
-${formattedDate} at ${pickupTime}
-
-🆔 *Request ID:* ${requestId}
-
+• Email: <a href="mailto:${customer.email}">${customer.email}</a>
+📍 Address: ${fullAddress}
+📅 Pickup Slot: ${pickupSlot}
+🆔 Request ID: ${requestId}
 Status: Pending`
 
     // Send message to Telegram
@@ -65,7 +79,7 @@ Status: Pending`
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML', // Use HTML for clickable email links
       }),
     })
 

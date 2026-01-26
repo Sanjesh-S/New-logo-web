@@ -176,6 +176,7 @@ export async function updateValuation(id: string, updates: {
 
 /**
  * Create a pickup request
+ * Uses Next.js API route to ensure Telegram notifications work
  */
 export async function createPickupRequest(data: {
   productName: string
@@ -193,13 +194,27 @@ export async function createPickupRequest(data: {
   pickupDate: string
   pickupTime: string
 }) {
-  return callFunction<{
+  // Use Next.js API route instead of Firebase Function to ensure Telegram notifications work
+  const response = await fetch('/api/pickup-requests', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      error: 'Unknown error',
+      message: `HTTP ${response.status}: ${response.statusText}`,
+    }))
+    throw new Error(error.message || error.error || 'Failed to create pickup request')
+  }
+
+  return response.json() as Promise<{
     success: boolean
     id: string
-  }>('pickupRequests', {
-    method: 'POST',
-    body: data,
-  })
+  }>
 }
 
 /**

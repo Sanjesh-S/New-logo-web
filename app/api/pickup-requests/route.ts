@@ -61,34 +61,85 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     })
 
-    // Send Telegram notification to admin
+    // Send Telegram notification to admin - Call Telegram API directly
     try {
-      // For server-side, use localhost or environment variable
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-      
-      const telegramResponse = await fetch(`${baseUrl}/api/telegram/notify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          productName,
-          price,
-          customer,
-          pickupDate,
-          pickupTime,
-          requestId: docRef.id,
-        }),
-      })
+      // Telegram Bot Configuration
+      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8588484467:AAGgyZn5TNgz1LgmM0M5hQ_ZeQPk6JEzs6A'
+      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6493761091'
 
-      if (!telegramResponse.ok) {
-        const errorText = await telegramResponse.text()
-        logger.warn('Failed to send Telegram notification', { errorText })
+      if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+        // Format pickup date - Match the format: "Wednesday, Jan 14 at 06:00 AM - 08:00 AM"
+        const date = new Date(pickupDate)
+        const formattedDate = date.toLocaleDateString('en-IN', {
+          weekday: 'long',
+          month: 'short',
+          day: 'numeric',
+        })
+        
+        // Format time slot
+        let timeSlot = pickupTime
+        if (!pickupTime.includes('-')) {
+          const [time, period] = pickupTime.split(' ')
+          const [hours, minutes] = time.split(':')
+          let endHour = parseInt(hours)
+          if (period === 'PM' && endHour !== 12) endHour += 12
+          if (period === 'AM' && endHour === 12) endHour = 0
+          endHour = (endHour + 2) % 24
+          const endPeriod = endHour >= 12 ? 'PM' : 'AM'
+          const displayEndHour = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour)
+          timeSlot = `${pickupTime} - ${displayEndHour}:${minutes} ${endPeriod}`
+        }
+        
+        const pickupSlot = `${formattedDate} at ${timeSlot}`
+        const fullAddress = `${customer.address}${customer.landmark ? `, ${customer.landmark}` : ''}, ${customer.city}, ${customer.state} - ${customer.pincode}`
+
+        const message = `🔔 <b>New Pickup Request</b>
+
+📦 Device: ${productName}
+💰 Price: ₹${price.toLocaleString('en-IN')}
+👤 Customer Details:
+• Name: ${customer.name}
+• Phone: ${customer.phone}
+• Email: <a href="mailto:${customer.email}">${customer.email}</a>
+📍 Address: ${fullAddress}
+📅 Pickup Slot: ${pickupSlot}
+🆔 Request ID: ${docRef.id}
+Status: Pending`
+
+        const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
+        
+        const telegramResponse = await fetch(telegramApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            parse_mode: 'HTML',
+          }),
+        })
+
+        const responseData = await telegramResponse.json().catch(() => ({}))
+        
+        if (!telegramResponse.ok) {
+          logger.error('Telegram API error', {
+            status: telegramResponse.status,
+            error: responseData,
+            requestId: docRef.id,
+          })
+        } else {
+          logger.info('Telegram notification sent successfully', {
+            requestId: docRef.id,
+            messageId: responseData.result?.message_id,
+          })
+        }
       } else {
-        logger.debug('Telegram notification sent successfully')
+        logger.warn('Telegram bot credentials not configured')
       }
     } catch (telegramError) {
-      logger.warn('Error sending Telegram notification', telegramError)
+      logger.error('Error sending Telegram notification', {
+        error: telegramError instanceof Error ? telegramError.message : String(telegramError),
+        requestId: docRef.id,
+      })
       // Don't fail the request if Telegram fails
     }
 
