@@ -59,12 +59,12 @@ export default function ReferralProgram() {
     if (!referral) return
 
     const referralLink = `${window.location.origin}?ref=${referral.referralCode}`
-    const text = `Join WorthyTEN and get the best prices for your devices! Use my referral code: ${referral.referralCode}`
+    const text = `Join WorthyTen and get the best prices for your devices! Use my referral code: ${referral.referralCode}`
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join WorthyTEN',
+          title: 'Join WorthyTen',
           text,
           url: referralLink,
         })

@@ -10,7 +10,7 @@ const testimonials = [
         name: 'Rajesh Kumar',
         location: 'Chennai, TN',
         rating: 5,
-        text: 'Sold my Canon 5D Mark IV here. Got the best price and payment was instant. Highly recommend WorthyTEN!',
+        text: 'Sold my Canon 5D Mark IV here. Got the best price and payment was instant. Highly recommend WorthyTen!',
         device: 'Canon EOS 5D Mark IV',
         amount: '₹85,000',
     },

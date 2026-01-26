@@ -151,7 +151,7 @@ export default function HeroSection() {
               India's #1 Device Trade-In Platform
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-brand-blue-900 leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-brand-blue-900 leading-tight">
               Trade-In Your <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue-600 to-brand-lime">
                 Camera & Gadgets

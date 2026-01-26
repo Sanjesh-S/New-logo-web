@@ -18,7 +18,7 @@ export function generateMetadata(data: SEOData): Metadata {
     image,
     url,
     type = 'website',
-    siteName = 'WorthyTEN',
+    siteName = 'WorthyTen',
   } = data
 
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`
@@ -99,7 +99,7 @@ export function generateStructuredData(data: {
     case 'Organization':
       return {
         ...baseStructuredData,
-        name: data.name || 'WorthyTEN',
+        name: data.name || 'WorthyTen',
         url: data.url || 'https://worthyten.com',
         logo: data.logo || 'https://worthyten.com/images/worthyten-logo.png',
         contactPoint: {
@@ -112,7 +112,7 @@ export function generateStructuredData(data: {
     case 'WebSite':
       return {
         ...baseStructuredData,
-        name: data.name || 'WorthyTEN',
+        name: data.name || 'WorthyTen',
         url: data.url || 'https://worthyten.com',
         potentialAction: {
           '@type': 'SearchAction',

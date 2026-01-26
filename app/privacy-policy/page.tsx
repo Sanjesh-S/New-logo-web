@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - WorthyTEN',
-  description: 'Privacy Policy for WorthyTEN - Learn how we collect, use, and protect your personal data.',
+  title: 'Privacy Policy - WorthyTen',
+  description: 'Privacy Policy for WorthyTen - Learn how we collect, use, and protect your personal data.',
 }
 
 export default function PrivacyPolicyPage() {

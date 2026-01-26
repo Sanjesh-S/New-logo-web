@@ -40,7 +40,7 @@ export default function Navigation() {
             <Link href="/" className="flex items-center">
               <img
                 src={getAssetPath("/images/worthyten-logo.svg")}
-                alt="WorthyTEN"
+                alt="WorthyTen"
                 className="h-10 md:h-12 w-auto object-contain"
               />
             </Link>

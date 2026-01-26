@@ -8,33 +8,33 @@ const trustPoints = [
     icon: Zap,
     title: 'Instant Valuation',
     description: 'Get your device value in seconds',
-    gradient: 'from-yellow-400 via-brand-lime to-emerald-400',
-    bgGradient: 'from-yellow-50 via-lime-50 to-emerald-50',
-    glow: 'shadow-yellow-200/50',
+    gradient: 'from-brand-blue-500 via-brand-blue-600 to-brand-lime',
+    bgGradient: 'from-brand-blue-50 via-brand-lime-50 to-brand-blue-50',
+    glow: 'shadow-brand-blue-200/50',
   },
   {
     icon: Shield,
     title: 'Safe & Secure',
     description: 'Your data is protected',
-    gradient: 'from-blue-500 via-indigo-500 to-purple-500',
-    bgGradient: 'from-blue-50 via-indigo-50 to-purple-50',
-    glow: 'shadow-blue-200/50',
+    gradient: 'from-brand-blue-600 via-brand-blue-700 to-brand-lime',
+    bgGradient: 'from-brand-blue-50 via-brand-lime-50 to-brand-blue-50',
+    glow: 'shadow-brand-blue-200/50',
   },
   {
     icon: Package,
     title: 'Free Pickup',
     description: 'We collect from your doorstep',
-    gradient: 'from-brand-lime via-green-400 to-emerald-500',
-    bgGradient: 'from-lime-50 via-green-50 to-emerald-50',
-    glow: 'shadow-lime-200/50',
+    gradient: 'from-brand-lime via-brand-lime-400 to-brand-blue-500',
+    bgGradient: 'from-brand-lime-50 via-brand-blue-50 to-brand-lime-50',
+    glow: 'shadow-brand-lime-200/50',
   },
   {
     icon: CheckCircle,
     title: 'Transparent Pricing',
     description: 'No hidden charges',
-    gradient: 'from-cyan-400 via-brand-blue-500 to-brand-lime',
-    bgGradient: 'from-cyan-50 via-blue-50 to-lime-50',
-    glow: 'shadow-cyan-200/50',
+    gradient: 'from-brand-blue-500 via-brand-lime to-brand-blue-600',
+    bgGradient: 'from-brand-blue-50 via-brand-lime-50 to-brand-blue-50',
+    glow: 'shadow-brand-lime-200/50',
   },
 ]
 
@@ -112,7 +112,11 @@ export default function TrustSection() {
                       <Icon className="w-10 h-10 text-white" />
                     </div>
                     {/* Decorative circle */}
-                    <div className={`absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br ${point.gradient} rounded-full opacity-60 blur-sm`} />
+                    {point.title === 'Safe & Secure' ? (
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-brand-lime rounded-full opacity-60 blur-sm" />
+                    ) : (
+                      <div className={`absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br ${point.gradient} rounded-full opacity-60 blur-sm`} />
+                    )}
                   </motion.div>
 
                   <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 mb-3 group-hover:text-brand-blue-700 transition-colors">

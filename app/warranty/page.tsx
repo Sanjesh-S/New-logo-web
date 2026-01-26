@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Warranty Policy - WorthyTEN',
-  description: 'Warranty Policy and Terms & Conditions for WorthyTEN products.',
+  title: 'Warranty Policy - WorthyTen',
+  description: 'Warranty Policy and Terms & Conditions for WorthyTen products.',
 }
 
 export default function WarrantyPage() {

@@ -147,7 +147,7 @@ export default function ProductDetail({
                 </p>
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <Users className="w-3 h-3 text-brand-lime" />
-                  <span>3250+ already sold on WorthyTEN</span>
+                  <span>3250+ already sold on WorthyTen</span>
                 </div>
               </div>
 

@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Return / Refund / Cancellation Policy - WorthyTEN',
-  description: 'Return, Refund, and Cancellation Policy for WorthyTEN purchases.',
+  title: 'Return / Refund / Cancellation Policy - WorthyTen',
+  description: 'Return, Refund, and Cancellation Policy for WorthyTen purchases.',
 }
 
 export default function ReturnRefundCancellationPolicyPage() {

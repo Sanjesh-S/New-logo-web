@@ -32,13 +32,13 @@ export default function Footer() {
                             <div className="bg-white rounded-lg p-2 inline-block">
                                 <img
                                     src={getAssetPath("/images/worthyten-logo.svg")}
-                                    alt="WorthyTEN"
+                                    alt="WorthyTen"
                                     className="h-10 w-auto object-contain"
                                 />
                             </div>
                         </Link>
                         <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                            India's trusted platform for trading in your cameras, phones, and gadgets. Get instant quotes and same-day payment.
+                            India's trusted platform for trading your cameras, phones, and gadgets. Get instant pickup and same day payment.
                         </p>
 
                         {/* Social Links */}
@@ -141,7 +141,7 @@ export default function Footer() {
             <div className="border-t border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-gray-400">
-                        <p>© {currentYear} WorthyTEN. All rights reserved.</p>
+                        <p>© {currentYear} WorthyTen. All rights reserved.</p>
                         <div className="flex flex-wrap gap-4">
                             <Link href="/privacy-policy" className="hover:text-white transition-colors">
                                 Privacy Policy

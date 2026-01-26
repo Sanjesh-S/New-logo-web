@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Terms & Conditions - WorthyTEN',
-  description: 'Terms and Conditions for using WorthyTEN platform for trading in devices.',
+  title: 'Terms & Conditions - WorthyTen',
+  description: 'Terms and Conditions for using WorthyTen platform for trading in devices.',
 }
 
 export default function TermsConditionsPage() {
