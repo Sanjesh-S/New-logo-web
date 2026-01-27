@@ -206,7 +206,7 @@ export default function PricingCalculator() {
         }))
     }
 
-    const handleConditionUpdate = (conditionType: 'displayCondition' | 'bodyCondition' | 'lensCondition' | 'errorCondition' | 'bodyPhysicalCondition' | 'lcdDisplayCondition' | 'rubberGripsCondition' | 'sensorViewfinderCondition' | 'errorCodesCondition', key: string, value: number) => {
+    const handleConditionUpdate = (conditionType: 'displayCondition' | 'bodyCondition' | 'lensCondition' | 'errorCondition' | 'bodyPhysicalCondition' | 'lcdDisplayCondition' | 'rubberGripsCondition' | 'sensorViewfinderCondition' | 'errorCodesCondition' | 'fungusDustCondition' | 'focusFunctionality' | 'rubberRingCondition' | 'lensErrorStatus', key: string, value: number) => {
         setPricingRules(prev => ({
             ...prev,
             [conditionType]: {
@@ -391,7 +391,7 @@ export default function PricingCalculator() {
                                         <label className="block text-xs text-gray-600 mb-1">Yes Value (₹)</label>
                                         <input
                                             type="number"
-                                            value={pricingRules.questions[question.key].yes}
+                                            value={pricingRules.questions[question.key]?.yes || 0}
                                             onChange={(e) => handleQuestionUpdate(question.key, 'yes', parseInt(e.target.value) || 0)}
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
                                         />
@@ -400,7 +400,7 @@ export default function PricingCalculator() {
                                         <label className="block text-xs text-gray-600 mb-1">No Value (₹)</label>
                                         <input
                                             type="number"
-                                            value={pricingRules.questions[question.key].no}
+                                            value={pricingRules.questions[question.key]?.no || 0}
                                             onChange={(e) => handleQuestionUpdate(question.key, 'no', parseInt(e.target.value) || 0)}
                                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
                                         />
@@ -611,8 +611,157 @@ export default function PricingCalculator() {
                 </div>
             )}
 
-            {/* Functional Issues Deductions */}
-            {selectedProduct && (
+            {/* Lens Condition - Camera Only */}
+            {selectedProduct && showLensCondition && (
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Lens Condition Pricing (₹)
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-6">
+                        Configure pricing modifiers for lens condition questions. Negative values deduct from price, positive values add to price.
+                    </p>
+
+                    {/* Has Lens to Sell */}
+                    <div className="mb-6">
+                        <h4 className="font-medium text-gray-800 mb-3">Do you have a lens to sell?</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 border rounded-lg bg-gray-50">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Yes</label>
+                                <input
+                                    type="number"
+                                    value={pricingRules.questions.hasLensToSell?.yes || 0}
+                                    onChange={(e) => handleQuestionUpdate('hasLensToSell', 'yes', parseInt(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                />
+                            </div>
+                            <div className="p-4 border rounded-lg bg-gray-50">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">No</label>
+                                <input
+                                    type="number"
+                                    value={pricingRules.questions.hasLensToSell?.no || 0}
+                                    onChange={(e) => handleQuestionUpdate('hasLensToSell', 'no', parseInt(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Fungus/Dust Condition */}
+                    <div className="mb-6">
+                        <h4 className="font-medium text-gray-800 mb-3">Fungus/Dust Condition</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.fungusDustCondition || {}).map(([key, value]) => (
+                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                                        {key === 'clean' ? 'Clean / Good Condition' : key === 'minorFungus' ? 'Minor Fungus or Dust' : 'Major Fungus or Dust'}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={value}
+                                        onChange={(e) => {
+                                            setPricingRules(prev => ({
+                                                ...prev,
+                                                fungusDustCondition: {
+                                                    ...prev.fungusDustCondition,
+                                                    [key]: parseInt(e.target.value) || 0
+                                                }
+                                            }))
+                                        }}
+                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Focus Functionality */}
+                    <div className="mb-6">
+                        <h4 className="font-medium text-gray-800 mb-3">Focus Functionality</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.focusFunctionality || {}).map(([key, value]) => (
+                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                                        {key === 'goodFocus' ? 'Good (AF & MF work)' : key === 'afIssue' ? 'AF Issue Only' : 'MF Issue Only'}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={value}
+                                        onChange={(e) => {
+                                            setPricingRules(prev => ({
+                                                ...prev,
+                                                focusFunctionality: {
+                                                    ...prev.focusFunctionality,
+                                                    [key]: parseInt(e.target.value) || 0
+                                                }
+                                            }))
+                                        }}
+                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Rubber Ring Condition */}
+                    <div className="mb-6">
+                        <h4 className="font-medium text-gray-800 mb-3">Rubber Ring Condition</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.rubberRingCondition || {}).map(([key, value]) => (
+                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                                        {key === 'goodRubber' ? 'Good Condition' : key === 'minorRubber' ? 'Minor Wear/Damage' : 'Major Damage'}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={value}
+                                        onChange={(e) => {
+                                            setPricingRules(prev => ({
+                                                ...prev,
+                                                rubberRingCondition: {
+                                                    ...prev.rubberRingCondition,
+                                                    [key]: parseInt(e.target.value) || 0
+                                                }
+                                            }))
+                                        }}
+                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Error Status */}
+                    <div>
+                        <h4 className="font-medium text-gray-800 mb-3">Error Status</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.lensErrorStatus || {}).map(([key, value]) => (
+                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                                        {key === 'noErrors' ? 'No Errors' : key === 'occasionalErrors' ? 'Occasional Errors' : 'Frequent Errors'}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={value}
+                                        onChange={(e) => {
+                                            setPricingRules(prev => ({
+                                                ...prev,
+                                                lensErrorStatus: {
+                                                    ...prev.lensErrorStatus,
+                                                    [key]: parseInt(e.target.value) || 0
+                                                }
+                                            }))
+                                        }}
+                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Functional Issues Deductions - For non-camera devices */}
+            {selectedProduct && !showLensCondition && (
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         Functional Issues Deductions (₹)

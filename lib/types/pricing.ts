@@ -12,6 +12,7 @@ export interface PricingRules {
         flashWorking: YesNoPrice
         memoryCardSlotWorking: YesNoPrice
         speakerWorking: YesNoPrice
+        hasLensToSell?: YesNoPrice
         // Legacy fields for backward compatibility
         bodyDamage?: YesNoPrice
         lcdWorking?: YesNoPrice
@@ -69,6 +70,27 @@ export interface PricingRules {
         intermittent: number
         persistent: number
     }
+    // Lens Condition (Camera-specific)
+    fungusDustCondition: {
+        clean: number
+        minorFungus: number
+        majorFungus: number
+    }
+    focusFunctionality: {
+        goodFocus: number
+        afIssue: number
+        mfIssue: number
+    }
+    rubberRingCondition: {
+        goodRubber: number
+        minorRubber: number
+        majorRubber: number
+    }
+    lensErrorStatus: {
+        noErrors: number
+        occasionalErrors: number
+        frequentErrors: number
+    }
     functionalIssues: {
         batteryIssue: number
         flashlightIssue: number
@@ -79,11 +101,11 @@ export interface PricingRules {
         noIssues: number
     }
     accessories: {
-        adapter: number
         battery: number
+        charger: number
         box: number
-        cable: number
-        tripod: number
+        bill: number
+        warrantyCard: number
     }
     age: {
         lessThan3Months: number
@@ -115,6 +137,7 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         flashWorking: { yes: 0, no: -1000 },
         memoryCardSlotWorking: { yes: 0, no: -1500 },
         speakerWorking: { yes: 0, no: -800 },
+        hasLensToSell: { yes: 0, no: -2000 },
         // Legacy fields for backward compatibility
         bodyDamage: { yes: -2000, no: 0 },
         lcdWorking: { yes: 0, no: -3000 },
@@ -172,6 +195,27 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         intermittent: -2000,
         persistent: -5000,
     },
+    // Lens Condition (Camera-specific) - Fallback values only
+    fungusDustCondition: {
+        clean: 0,
+        minorFungus: -2000,
+        majorFungus: -5000,
+    },
+    focusFunctionality: {
+        goodFocus: 0,
+        afIssue: -3000,
+        mfIssue: -2000,
+    },
+    rubberRingCondition: {
+        goodRubber: 0,
+        minorRubber: -800,
+        majorRubber: -1500,
+    },
+    lensErrorStatus: {
+        noErrors: 0,
+        occasionalErrors: -2000,
+        frequentErrors: -5000,
+    },
     functionalIssues: {
         batteryIssue: -2000,
         flashlightIssue: -1000,
@@ -182,11 +226,11 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         noIssues: 0,
     },
     accessories: {
-        adapter: 500,
         battery: 800,
+        charger: 500,
         box: 1000,
-        cable: 400,
-        tripod: 2000,
+        bill: 300,
+        warrantyCard: 400,
     },
     age: {
         lessThan3Months: 0,

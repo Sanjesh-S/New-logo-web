@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Zap, Battery, Box, Cable, Camera, X } from 'lucide-react'
+import { Battery, Zap, Box, FileText, ShieldCheck, X } from 'lucide-react'
 import { getAssetPath } from '@/lib/utils'
 
 interface AccessoryGridProps {
@@ -11,11 +11,11 @@ interface AccessoryGridProps {
 }
 
 const accessories = [
-  { id: 'adapter', label: 'Original Adapter', icon: Zap },
   { id: 'battery', label: 'Original Battery', icon: Battery },
-  { id: 'box', label: 'Original Box', icon: Box },
-  { id: 'cable', label: 'Original Cable', icon: Cable },
-  { id: 'tripod', label: 'Original Tripod', icon: Camera },
+  { id: 'charger', label: 'Original Charger', icon: Zap },
+  { id: 'box', label: 'Box', icon: Box },
+  { id: 'bill', label: 'Bill', icon: FileText },
+  { id: 'warrantyCard', label: 'Warranty Card', icon: ShieldCheck },
 ]
 
 export default function AccessoryGrid({ value = [], onChange }: AccessoryGridProps) {
@@ -34,7 +34,6 @@ export default function AccessoryGrid({ value = [], onChange }: AccessoryGridPro
     const imageMap: Record<string, string> = {
       'battery': getAssetPath('/images/conditions/accessory-battery.webp'),
       'box': getAssetPath('/images/conditions/accessory-box.webp'),
-      'tripod': getAssetPath('/images/conditions/accessory-tripod.webp'),
     }
     return imageMap[accessoryId] || null
   }

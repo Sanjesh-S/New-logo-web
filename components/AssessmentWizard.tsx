@@ -17,6 +17,7 @@ import IssueGrid from './questions/IssueGrid'
 import PhoneIssueGrid from './questions/PhoneIssueGrid'
 import LaptopIssueGrid from './questions/LaptopIssueGrid'
 import TabletIssueGrid from './questions/TabletIssueGrid'
+import LensConditionGrid from './questions/LensConditionGrid'
 import AccessoryGrid from './questions/AccessoryGrid'
 import PhoneAccessoryGrid from './questions/PhoneAccessoryGrid'
 import LaptopAccessoryGrid from './questions/LaptopAccessoryGrid'
@@ -401,12 +402,12 @@ export default function AssessmentWizard({
         required: true,
       },
       {
-        id: 'functional-issues',
-        title: 'Functional Issues',
+        id: 'lens-condition',
+        title: 'Lens Condition',
         component: (
-          <IssueGrid
-            value={answers.functionalIssues as string[]}
-            onChange={(value) => handleAnswer('functionalIssues', value)}
+          <LensConditionGrid
+            answers={answers}
+            onChange={handleAnswer}
           />
         ),
       },

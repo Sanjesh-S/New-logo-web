@@ -3,6 +3,11 @@ import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
 export type AnswerMap = Record<string, string | string[]> & {
   hasAdditionalLens?: string // yes/no
   additionalLenses?: string[] // array of lens model names or IDs
+  hasLensToSell?: string // yes/no
+  fungusDustCondition?: string | string[] // single or multiple selections
+  focusFunctionality?: string | string[] // single or multiple selections
+  rubberRingCondition?: string | string[] // single or multiple selections
+  lensErrorStatus?: string | string[] // single or multiple selections
 }
 
 /**
@@ -105,6 +110,44 @@ export function calculatePrice(
   }
   if (answers.errorCodesCondition && rules.errorCodesCondition) {
     totalModifier += rules.errorCodesCondition[answers.errorCodesCondition as keyof typeof rules.errorCodesCondition] || 0
+  }
+
+  // Lens Condition Questions (Camera-specific)
+  // Has Lens to Sell (Yes/No)
+  if (answers.hasLensToSell && rules.questions.hasLensToSell) {
+    totalModifier += rules.questions.hasLensToSell[answers.hasLensToSell as 'yes' | 'no'] || 0
+  }
+
+  // Fungus/Dust Condition (Multiple selection - additive)
+  if (answers.fungusDustCondition && rules.fungusDustCondition) {
+    const conditions = Array.isArray(answers.fungusDustCondition) ? answers.fungusDustCondition : [answers.fungusDustCondition]
+    conditions.forEach((condition) => {
+      totalModifier += rules.fungusDustCondition[condition as keyof typeof rules.fungusDustCondition] || 0
+    })
+  }
+
+  // Focus Functionality (Multiple selection - additive)
+  if (answers.focusFunctionality && rules.focusFunctionality) {
+    const functionalities = Array.isArray(answers.focusFunctionality) ? answers.focusFunctionality : [answers.focusFunctionality]
+    functionalities.forEach((functionality) => {
+      totalModifier += rules.focusFunctionality[functionality as keyof typeof rules.focusFunctionality] || 0
+    })
+  }
+
+  // Rubber Ring Condition (Multiple selection - additive)
+  if (answers.rubberRingCondition && rules.rubberRingCondition) {
+    const conditions = Array.isArray(answers.rubberRingCondition) ? answers.rubberRingCondition : [answers.rubberRingCondition]
+    conditions.forEach((condition) => {
+      totalModifier += rules.rubberRingCondition[condition as keyof typeof rules.rubberRingCondition] || 0
+    })
+  }
+
+  // Lens Error Status (Multiple selection - additive)
+  if (answers.lensErrorStatus && rules.lensErrorStatus) {
+    const errors = Array.isArray(answers.lensErrorStatus) ? answers.lensErrorStatus : [answers.lensErrorStatus]
+    errors.forEach((error) => {
+      totalModifier += rules.lensErrorStatus[error as keyof typeof rules.lensErrorStatus] || 0
+    })
   }
 
   // Functional Issues (Multiple selection - but "No Issues" overrides)
