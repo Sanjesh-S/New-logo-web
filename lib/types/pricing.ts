@@ -6,11 +6,18 @@ export interface YesNoPrice {
 export interface PricingRules {
     questions: {
         powerOn: YesNoPrice
-        bodyDamage: YesNoPrice
-        lcdWorking: YesNoPrice
-        lensScratches: YesNoPrice
-        autofocusWorking: YesNoPrice
-        additionalLens: YesNoPrice
+        cameraFunction: YesNoPrice
+        buttonsWorking: YesNoPrice
+        waterDamage: YesNoPrice
+        flashWorking: YesNoPrice
+        memoryCardSlotWorking: YesNoPrice
+        speakerWorking: YesNoPrice
+        // Legacy fields for backward compatibility
+        bodyDamage?: YesNoPrice
+        lcdWorking?: YesNoPrice
+        lensScratches?: YesNoPrice
+        autofocusWorking?: YesNoPrice
+        additionalLens?: YesNoPrice
     }
     lensCondition: {
         withoutLens: number
@@ -36,6 +43,32 @@ export interface PricingRules {
         minorErrors: number
         frequentErrors: number
     }
+    // New Body Conditions (Camera-specific)
+    bodyPhysicalCondition: {
+        likeNew: number
+        average: number
+        worn: number
+    }
+    lcdDisplayCondition: {
+        good: number
+        fair: number
+        poor: number
+    }
+    rubberGripsCondition: {
+        good: number
+        fair: number
+        poor: number
+    }
+    sensorViewfinderCondition: {
+        clean: number
+        minor: number
+        major: number
+    }
+    errorCodesCondition: {
+        none: number
+        intermittent: number
+        persistent: number
+    }
     functionalIssues: {
         batteryIssue: number
         flashlightIssue: number
@@ -59,10 +92,30 @@ export interface PricingRules {
     }
 }
 
-// Default values mirroring existing modifiers.ts
+/**
+ * DEFAULT_PRICING_RULES - Fallback pricing rules only
+ * 
+ * ⚠️ IMPORTANT: These are ONLY used as a last-resort fallback when:
+ * 1. Product-specific pricing rules don't exist in Firebase
+ * 2. Global pricing rules don't exist in Firebase
+ * 3. There's an error loading pricing from Firebase
+ * 
+ * All actual pricing should be set through the admin dashboard and stored in Firebase:
+ * - Product-specific: `productPricing` collection (preferred) or `products.pricingRules`
+ * - Global defaults: `settings/pricing` document
+ * 
+ * These hardcoded values should NOT be used for production pricing.
+ */
 export const DEFAULT_PRICING_RULES: PricingRules = {
     questions: {
         powerOn: { yes: 0, no: -5000 },
+        cameraFunction: { yes: 0, no: -3000 },
+        buttonsWorking: { yes: 0, no: -1500 },
+        waterDamage: { yes: 0, no: -5000 },
+        flashWorking: { yes: 0, no: -1000 },
+        memoryCardSlotWorking: { yes: 0, no: -1500 },
+        speakerWorking: { yes: 0, no: -800 },
+        // Legacy fields for backward compatibility
         bodyDamage: { yes: -2000, no: 0 },
         lcdWorking: { yes: 0, no: -3000 },
         lensScratches: { yes: -1500, no: 0 },
@@ -92,6 +145,32 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         noErrors: 0,
         minorErrors: -2000,
         frequentErrors: -5000,
+    },
+    // New Body Conditions (Camera-specific) - Fallback values only
+    bodyPhysicalCondition: {
+        likeNew: 0,
+        average: -1500,
+        worn: -3000,
+    },
+    lcdDisplayCondition: {
+        good: 0,
+        fair: -2000,
+        poor: -5000,
+    },
+    rubberGripsCondition: {
+        good: 0,
+        fair: -800,
+        poor: -1500,
+    },
+    sensorViewfinderCondition: {
+        clean: 0,
+        minor: -2000,
+        major: -4000,
+    },
+    errorCodesCondition: {
+        none: 0,
+        intermittent: -2000,
+        persistent: -5000,
     },
     functionalIssues: {
         batteryIssue: -2000,

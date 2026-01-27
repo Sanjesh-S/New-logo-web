@@ -100,7 +100,7 @@ export default function PricingConfig() {
         })
     }
 
-    const updateNestedCondition = (category: 'lensCondition' | 'displayCondition' | 'bodyCondition' | 'errorCondition', subCategory: string, value: number) => {
+    const updateNestedCondition = (category: 'lensCondition' | 'displayCondition' | 'bodyCondition' | 'errorCondition' | 'bodyPhysicalCondition' | 'lcdDisplayCondition' | 'rubberGripsCondition' | 'sensorViewfinderCondition' | 'errorCodesCondition', subCategory: string, value: number) => {
         if (!editRules) return
         setEditRules({
             ...editRules,
@@ -320,6 +320,96 @@ export default function PricingConfig() {
                                     ))}
                                 </div>
                             </div>
+                        )}
+
+                        {/* New Body Conditions - Camera Only */}
+                        {(isCategory('camera')) && (
+                            <>
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-4">Body Physical Condition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(editRules.bodyPhysicalCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => updateNestedCondition('bodyPhysicalCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-4">LCD Display Condition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(editRules.lcdDisplayCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => updateNestedCondition('lcdDisplayCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-4">Rubber Grips Condition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(editRules.rubberGripsCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => updateNestedCondition('rubberGripsCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-4">Sensor/Viewfinder Condition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(editRules.sensorViewfinderCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => updateNestedCondition('sensorViewfinderCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-4">Error Codes Condition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(editRules.errorCodesCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => updateNestedCondition('errorCodesCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
                 )}

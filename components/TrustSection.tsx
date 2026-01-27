@@ -66,7 +66,7 @@ export default function TrustSection() {
               Trusted Service
             </span>
           </motion.div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-brand-blue-900 mb-4 bg-gradient-to-r from-brand-blue-900 via-brand-blue-700 to-brand-blue-900 bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-brand-blue-900 mb-4 bg-gradient-to-r from-brand-blue-900 via-brand-lime to-brand-blue-900 bg-clip-text text-transparent">
             Why Choose Us?
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
@@ -108,7 +108,16 @@ export default function TrustSection() {
                     transition={{ duration: 0.5 }}
                     className="relative mb-6"
                   >
-                    <div className={`w-20 h-20 bg-gradient-to-br ${point.gradient} rounded-2xl flex items-center justify-center shadow-xl ${point.glow} group-hover:shadow-2xl transition-shadow duration-300`}>
+                    <div 
+                      className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-xl ${point.glow} group-hover:shadow-2xl transition-shadow duration-300 ${
+                        point.title === 'Safe & Secure' 
+                          ? '' 
+                          : `bg-gradient-to-br ${point.gradient}`
+                      }`}
+                      style={point.title === 'Safe & Secure' ? {
+                        background: 'linear-gradient(135deg, rgb(132, 204, 22) 0%, rgb(37, 99, 235) 30%, rgb(29, 78, 216) 70%, rgb(132, 204, 22) 100%)'
+                      } : undefined}
+                    >
                       <Icon className="w-10 h-10 text-white" />
                     </div>
                     {/* Decorative circle */}

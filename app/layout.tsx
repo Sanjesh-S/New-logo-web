@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: "WorthyTen - Know Your Device's Worth in Seconds",
   description: 'Trade in your cameras, phones, and laptops. Get instant valuation and free doorstep pickup.',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
 }
 
 export default function RootLayout({

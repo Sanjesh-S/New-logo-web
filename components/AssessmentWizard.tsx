@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
-import { getProductById, type Product, getPricingRules } from '@/lib/firebase/database'
+import { getProductById, type Product, getPricingRules, getProductPricingFromCollection } from '@/lib/firebase/database'
 import { calculatePrice, type AnswerMap } from '@/lib/pricing/modifiers'
 import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
 import { useAuth } from '@/contexts/AuthContext'
 import YesNoQuestion from './questions/YesNoQuestion'
 import SingleSelectQuestion from './questions/SingleSelectQuestion'
 import ConditionGrid from './questions/ConditionGrid'
+import BodyConditionsGrid from './questions/BodyConditionsGrid'
 import DeviceConditionGrid from './questions/DeviceConditionGrid'
 import LaptopConditionGrid from './questions/LaptopConditionGrid'
 import IssueGrid from './questions/IssueGrid'
@@ -65,10 +66,8 @@ export default function AssessmentWizard({
         setLoading(true)
         setError(null)
 
-        const [productData, rulesData] = await Promise.all([
-          getProductById(productId),
-          getPricingRules()
-        ])
+        // Load product data first
+        const productData = await getProductById(productId)
 
         if (!productData) {
           setError('Product not found')
@@ -76,7 +75,30 @@ export default function AssessmentWizard({
         }
 
         setProduct(productData)
-        setPricingRules(rulesData)
+
+        // Load pricing rules with priority: product-specific > global > default
+        let rulesToUse: PricingRules = DEFAULT_PRICING_RULES
+
+        try {
+          // First try: Load from productPricing collection (preferred storage)
+          const productPricingData = await getProductPricingFromCollection(productId)
+          if (productPricingData?.pricingRules) {
+            rulesToUse = productPricingData.pricingRules
+          } else if (productData.pricingRules) {
+            // Second try: Load from product document's pricingRules field
+            rulesToUse = productData.pricingRules
+          } else {
+            // Third try: Load global pricing rules from Firebase
+            const globalRules = await getPricingRules()
+            rulesToUse = globalRules
+          }
+        } catch (rulesError) {
+          console.warn('Error loading pricing rules, using defaults:', rulesError)
+          // Fallback to DEFAULT_PRICING_RULES if all else fails
+          rulesToUse = DEFAULT_PRICING_RULES
+        }
+
+        setPricingRules(rulesToUse)
         const internalBasePrice = productData.internalBasePrice || productData.basePrice * 0.5
         setCalculatedPrice(internalBasePrice)
       } catch (err: any) {
@@ -296,50 +318,54 @@ export default function AssessmentWizard({
         component: (
           <div className="space-y-6">
             <YesNoQuestion
-              question="Does your camera power on and function properly?"
-              helperText="We currently only accept devices that switch on"
+              question="Does the camera power on?"
+              helperText="Ensure the device turns on without being plugged into a charger."
               questionId="powerOn"
               value={answers.powerOn as string}
               onChange={(value) => handleAnswer('powerOn', value)}
             />
             <YesNoQuestion
-              question="Is the camera body free from major damage (cracks, dents, water damage)?"
-              helperText="Check your device's body or buttons condition carefully"
-              questionId="bodyDamage"
-              value={answers.bodyDamage as string}
-              onChange={(value) => handleAnswer('bodyDamage', value)}
+              question="Does the camera function properly (photo/video)?"
+              helperText="Test that the shutter fires and video records without glitches."
+              questionId="cameraFunction"
+              value={answers.cameraFunction as string}
+              onChange={(value) => handleAnswer('cameraFunction', value)}
             />
             <YesNoQuestion
-              question="Is the LCD/Touchscreen working without cracks or display issues?"
-              helperText="Check your device's display condition carefully"
-              questionId="lcdWorking"
-              value={answers.lcdWorking as string}
-              onChange={(value) => handleAnswer('lcdWorking', value)}
+              question="Are all buttons working properly?"
+              helperText="Press every dial and button to confirm they respond immediately."
+              questionId="buttonsWorking"
+              value={answers.buttonsWorking as string}
+              onChange={(value) => handleAnswer('buttonsWorking', value)}
             />
             <YesNoQuestion
-              question="Is the lens (if included) free from scratches, fungus, or dust?"
-              helperText="Check your lens condition carefully"
-              questionId="lensScratches"
-              value={answers.lensScratches as string}
-              onChange={(value) => handleAnswer('lensScratches', value)}
+              question="Is the device free from water damage?"
+              helperText="Check for fog inside the lens or red indicators in the battery slot."
+              questionId="waterDamage"
+              value={answers.waterDamage as string}
+              onChange={(value) => handleAnswer('waterDamage', value)}
             />
             <YesNoQuestion
-              question="Does autofocus and zoom work properly on your camera/lens?"
-              helperText="Check your device's autofocus and zoom functionality carefully"
-              questionId="autofocusWorking"
-              value={answers.autofocusWorking as string}
-              onChange={(value) => handleAnswer('autofocusWorking', value)}
+              question="Is the flash working properly?"
+              helperText="Test the pop-up flash or hot shoe connection."
+              questionId="flashWorking"
+              value={answers.flashWorking as string}
+              onChange={(value) => handleAnswer('flashWorking', value)}
             />
-            {/* Only show additional lens question if not a fixed lens camera */}
-            {!isFixedLensCamera(brand, model) && (
-              <YesNoQuestion
-                question="Do you have additional lens?"
-                helperText="Select if you have additional lenses to trade in"
-                questionId="hasAdditionalLens"
-                value={answers.hasAdditionalLens as string}
-                onChange={(value) => handleAnswer('hasAdditionalLens', value)}
-              />
-            )}
+            <YesNoQuestion
+              question="Is the memory card slot working properly?"
+              helperText="Insert a card and confirm the camera can save an image."
+              questionId="memoryCardSlotWorking"
+              value={answers.memoryCardSlotWorking as string}
+              onChange={(value) => handleAnswer('memoryCardSlotWorking', value)}
+            />
+            <YesNoQuestion
+              question="Is the speaker working properly?"
+              helperText="Record a short video and play it back to test sound."
+              questionId="speakerWorking"
+              value={answers.speakerWorking as string}
+              onChange={(value) => handleAnswer('speakerWorking', value)}
+            />
           </div>
         ),
         required: true,
@@ -364,14 +390,15 @@ export default function AssessmentWizard({
     // Add remaining steps
     steps.push(
       {
-        id: 'lens-questions',
-        title: 'Device Conditions',
+        id: 'body-conditions',
+        title: 'Body Conditions',
         component: (
-          <ConditionGrid
+          <BodyConditionsGrid
             answers={answers}
             onChange={handleAnswer}
           />
         ),
+        required: true,
       },
       {
         id: 'functional-issues',
@@ -708,11 +735,14 @@ export default function AssessmentWizard({
         const cat = (category?.toLowerCase() || product.category?.toLowerCase() || 'cameras').trim()
         // Handle variations in category names
         if (cat === 'cameras' || cat === 'camera') {
-          const basicAnswers = answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.lensScratches && answers.autofocusWorking
-          // If not fixed lens camera, also require hasAdditionalLens answer (yes or no)
-          if (!isFixedLensCamera(brand, model)) {
-            return basicAnswers && (answers.hasAdditionalLens === 'yes' || answers.hasAdditionalLens === 'no')
-          }
+          const basicAnswers =
+            answers.powerOn &&
+            answers.cameraFunction &&
+            answers.buttonsWorking &&
+            answers.waterDamage &&
+            answers.flashWorking &&
+            answers.memoryCardSlotWorking &&
+            answers.speakerWorking
           return basicAnswers
         } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
           return answers.powerOn && answers.lcdWorking && answers.bodyDamage && answers.batteryHealth && answers.biometricWorking && answers.cameraWorking && answers.waterDamage
@@ -720,6 +750,17 @@ export default function AssessmentWizard({
           return answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.batteryWorking && answers.cameraWorking
         } else if (cat === 'laptops' || cat === 'laptop' || cat.includes('laptop')) {
           return answers.powerOn && answers.screenCondition && answers.keyboardWorking && answers.bodyDamage && answers.batteryCycleCount && answers.portsWorking && answers.chargingWorking
+        }
+      }
+      // Check if body conditions step is complete (for cameras)
+      if (step.id === 'body-conditions') {
+        const cat = (category?.toLowerCase() || product.category?.toLowerCase() || 'cameras').trim()
+        if (cat === 'cameras' || cat === 'camera') {
+          return answers.bodyPhysicalCondition &&
+            answers.lcdDisplayCondition &&
+            answers.rubberGripsCondition &&
+            answers.sensorViewfinderCondition &&
+            answers.errorCodesCondition
         }
       }
     }

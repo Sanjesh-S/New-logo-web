@@ -152,11 +152,13 @@ export default function PricingCalculator() {
 
         if (isCamera) {
             return [
-                { key: 'powerOn', label: 'Device powers on and functions properly?' },
-                { key: 'bodyDamage', label: 'Body free from major damage?' },
-                { key: 'lcdWorking', label: 'Screen/Display working properly?' },
-                { key: 'lensScratches', label: 'Lens free from scratches?' },
-                { key: 'autofocusWorking', label: 'Autofocus working properly?' },
+                { key: 'powerOn', label: 'Does the camera power on?' },
+                { key: 'cameraFunction', label: 'Does the camera function properly (photo/video)?' },
+                { key: 'buttonsWorking', label: 'Are all buttons working properly?' },
+                { key: 'waterDamage', label: 'Is the device free from water damage?' },
+                { key: 'flashWorking', label: 'Is the flash working properly?' },
+                { key: 'memoryCardSlotWorking', label: 'Is the memory card slot working properly?' },
+                { key: 'speakerWorking', label: 'Is the speaker working properly?' },
             ]
         } else if (isPhone) {
             return [
@@ -204,7 +206,7 @@ export default function PricingCalculator() {
         }))
     }
 
-    const handleConditionUpdate = (conditionType: 'displayCondition' | 'bodyCondition' | 'lensCondition' | 'errorCondition', key: string, value: number) => {
+    const handleConditionUpdate = (conditionType: 'displayCondition' | 'bodyCondition' | 'lensCondition' | 'errorCondition' | 'bodyPhysicalCondition' | 'lcdDisplayCondition' | 'rubberGripsCondition' | 'sensorViewfinderCondition' | 'errorCodesCondition', key: string, value: number) => {
         setPricingRules(prev => ({
             ...prev,
             [conditionType]: {
@@ -504,6 +506,106 @@ export default function PricingCalculator() {
                                     ))}
                                 </div>
                             </div>
+                        )}
+
+                        {/* New Body Conditions - Camera Only */}
+                        {showErrorCondition && (
+                            <>
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-3">Body Physical Condition</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(pricingRules.bodyPhysicalCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => handleConditionUpdate('bodyPhysicalCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-3">LCD Display Condition</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(pricingRules.lcdDisplayCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => handleConditionUpdate('lcdDisplayCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-3">Rubber Grips Condition</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(pricingRules.rubberGripsCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => handleConditionUpdate('rubberGripsCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-3">Sensor/Viewfinder Condition</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(pricingRules.sensorViewfinderCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => handleConditionUpdate('sensorViewfinderCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-medium text-gray-800 mb-3">Error Codes Condition</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.entries(pricingRules.errorCodesCondition || {}).map(([key, value]) => (
+                                            <div key={key}>
+                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
+                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={value}
+                                                    onChange={(e) => handleConditionUpdate('errorCodesCondition', key, parseInt(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

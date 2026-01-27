@@ -19,25 +19,47 @@ export function calculatePrice(
 ): number {
   let totalModifier = 0
 
-  // Basic Functionality Questions (Yes/No)
-  if (answers.powerOn) {
+  // Basic Functionality Questions (Yes/No) - Camera questions
+  // All pricing values should come from Firebase (product-specific or global rules)
+  // DEFAULT_PRICING_RULES is only used as a last-resort fallback
+  if (answers.powerOn && rules.questions.powerOn) {
     totalModifier += rules.questions.powerOn[answers.powerOn as 'yes' | 'no'] || 0
   }
-  if (answers.bodyDamage) {
+  if (answers.cameraFunction && rules.questions.cameraFunction) {
+    totalModifier += (rules.questions.cameraFunction[answers.cameraFunction as 'yes' | 'no'] || 0)
+  }
+  if (answers.buttonsWorking && rules.questions.buttonsWorking) {
+    totalModifier += (rules.questions.buttonsWorking[answers.buttonsWorking as 'yes' | 'no'] || 0)
+  }
+  if (answers.waterDamage && rules.questions.waterDamage) {
+    totalModifier += (rules.questions.waterDamage[answers.waterDamage as 'yes' | 'no'] || 0)
+  }
+  if (answers.flashWorking && rules.questions.flashWorking) {
+    totalModifier += (rules.questions.flashWorking[answers.flashWorking as 'yes' | 'no'] || 0)
+  }
+  if (answers.memoryCardSlotWorking && rules.questions.memoryCardSlotWorking) {
+    totalModifier += (rules.questions.memoryCardSlotWorking[answers.memoryCardSlotWorking as 'yes' | 'no'] || 0)
+  }
+  if (answers.speakerWorking && rules.questions.speakerWorking) {
+    totalModifier += (rules.questions.speakerWorking[answers.speakerWorking as 'yes' | 'no'] || 0)
+  }
+  
+  // Legacy fields for backward compatibility (phones, laptops, tablets)
+  if (answers.bodyDamage && rules.questions.bodyDamage) {
     totalModifier += rules.questions.bodyDamage[answers.bodyDamage as 'yes' | 'no'] || 0
   }
-  if (answers.lcdWorking) {
+  if (answers.lcdWorking && rules.questions.lcdWorking) {
     totalModifier += rules.questions.lcdWorking[answers.lcdWorking as 'yes' | 'no'] || 0
   }
-  if (answers.lensScratches) {
+  if (answers.lensScratches && rules.questions.lensScratches) {
     totalModifier += rules.questions.lensScratches[answers.lensScratches as 'yes' | 'no'] || 0
   }
-  if (answers.autofocusWorking) {
+  if (answers.autofocusWorking && rules.questions.autofocusWorking) {
     totalModifier += rules.questions.autofocusWorking[answers.autofocusWorking as 'yes' | 'no'] || 0
   }
   // Check both hasAdditionalLens (new) and additionalLens (legacy) for backward compatibility
   const additionalLensAnswer = answers.hasAdditionalLens || answers.additionalLens
-  if (additionalLensAnswer) {
+  if (additionalLensAnswer && rules.questions.additionalLens) {
     totalModifier += rules.questions.additionalLens[additionalLensAnswer as 'yes' | 'no'] || 0
   }
 
@@ -66,6 +88,23 @@ export function calculatePrice(
 
   if (answers.errorCondition) {
     totalModifier += rules.errorCondition[answers.errorCondition as keyof typeof rules.errorCondition] || 0
+  }
+
+  // New Body Conditions (Camera-specific)
+  if (answers.bodyPhysicalCondition && rules.bodyPhysicalCondition) {
+    totalModifier += rules.bodyPhysicalCondition[answers.bodyPhysicalCondition as keyof typeof rules.bodyPhysicalCondition] || 0
+  }
+  if (answers.lcdDisplayCondition && rules.lcdDisplayCondition) {
+    totalModifier += rules.lcdDisplayCondition[answers.lcdDisplayCondition as keyof typeof rules.lcdDisplayCondition] || 0
+  }
+  if (answers.rubberGripsCondition && rules.rubberGripsCondition) {
+    totalModifier += rules.rubberGripsCondition[answers.rubberGripsCondition as keyof typeof rules.rubberGripsCondition] || 0
+  }
+  if (answers.sensorViewfinderCondition && rules.sensorViewfinderCondition) {
+    totalModifier += rules.sensorViewfinderCondition[answers.sensorViewfinderCondition as keyof typeof rules.sensorViewfinderCondition] || 0
+  }
+  if (answers.errorCodesCondition && rules.errorCodesCondition) {
+    totalModifier += rules.errorCodesCondition[answers.errorCodesCondition as keyof typeof rules.errorCodesCondition] || 0
   }
 
   // Functional Issues (Multiple selection - but "No Issues" overrides)
