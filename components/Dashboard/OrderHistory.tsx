@@ -7,7 +7,9 @@ import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type Pi
 import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle, Truck } from 'lucide-react'
 import Link from 'next/link'
 
-const statusConfig = {
+type StatusType = 'pending' | 'approved' | 'completed' | 'rejected'
+
+const statusConfig: Record<StatusType, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200', label: 'Pending' },
   approved: { icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-200', label: 'Approved' },
   completed: { icon: CheckCircle, color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'Completed' },
@@ -148,7 +150,7 @@ export default function OrderHistory() {
 
       <div className="space-y-3">
         {orders.map((order, index) => {
-          const status = order.status || 'pending'
+          const status = (order.status || 'pending') as StatusType
           const StatusIcon = statusConfig[status]?.icon || Clock
           const statusStyle = statusConfig[status] || statusConfig.pending
 
