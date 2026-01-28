@@ -25,6 +25,7 @@ export const pickupRequestSchema = z.object({
   customer: customerSchema,
   pickupDate: z.string().min(1, 'Pickup date is required'),
   pickupTime: z.string().min(1, 'Pickup time is required'),
+  userId: z.string().optional().nullable(),
 })
 
 // Valuation schema - supports both legacy and new assessment format

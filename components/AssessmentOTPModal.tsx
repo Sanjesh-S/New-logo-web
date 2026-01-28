@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import Link from 'next/link'
 import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 
@@ -18,6 +19,7 @@ export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: Asse
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -29,6 +31,7 @@ export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: Asse
       setPhoneNumber('')
       setOtp(['', '', '', '', '', ''])
       setError('')
+      setAgreedToTerms(false)
       setConfirmationResult(null)
       
       // Setup reCAPTCHA when modal opens (with a small delay to ensure DOM and Firebase are ready)
@@ -337,12 +340,39 @@ export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: Asse
                     </motion.div>
                   )}
 
+                  {/* Terms and Conditions Checkbox */}
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="agree-terms-assessment"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer accent-cyan-500"
+                      style={{ accentColor: '#06b6d4' }}
+                    />
+                    <label htmlFor="agree-terms-assessment" className="text-sm text-gray-700 cursor-pointer leading-relaxed">
+                      I agree to the{' '}
+                      <Link href="/terms-conditions" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                        Terms and Conditions
+                      </Link>
+                      {' '}&{' '}
+                      <Link href="/privacy-policy" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </label>
+                  </div>
+
                   <motion.button
                     type="submit"
-                    disabled={loading || phoneNumber.length !== 10}
-                    className="w-full py-4 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    whileHover={{ scale: loading ? 1 : 1.02 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                    disabled={loading || phoneNumber.length !== 10 || !agreedToTerms}
+                    className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                      agreedToTerms && phoneNumber.length === 10 && !loading
+                        ? 'bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg'
+                        : 'bg-gray-300 text-gray-700 cursor-not-allowed'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    whileHover={agreedToTerms && phoneNumber.length === 10 && !loading ? { scale: 1.02 } : {}}
+                    whileTap={agreedToTerms && phoneNumber.length === 10 && !loading ? { scale: 0.98 } : {}}
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

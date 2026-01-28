@@ -6,16 +6,23 @@ import { getAssetPath } from '@/lib/utils'
 
 const quickLinks = [
     { href: '/', label: 'Home' },
-    { href: '/trade-in', label: 'Trade In' },
+    { href: '#trade-in', label: 'Trade In' },
     { href: '#how-it-works', label: 'How It Works' },
     { href: '#faq', label: 'FAQ' },
 ]
 
 const categories = [
-    { href: '/trade-in?category=cameras', label: 'Cameras & DSLR' },
-    { href: '/trade-in?category=phones', label: 'Phones' },
-    { href: '/trade-in?category=laptops', label: 'Laptops' },
-    { href: '/trade-in?category=tablets', label: 'Tablets' },
+    { href: '/brands?category=cameras', label: 'Cameras & DSLR' },
+    { href: '/brands?category=phones', label: 'Phones' },
+    { href: '/brands?category=laptops', label: 'Laptops' },
+    { href: '/brands?category=tablets', label: 'Tablets' },
+]
+
+const policies = [
+    { href: '/privacy-policy', label: 'Privacy Policy' },
+    { href: '/terms-conditions', label: 'Terms & Conditions' },
+    { href: '/warranty', label: 'Warranty Policy' },
+    { href: '/return-refund-cancellation-policy', label: 'Return / Refund / Cancellation Policy' },
 ]
 
 export default function Footer() {
@@ -25,7 +32,7 @@ export default function Footer() {
         <footer className="bg-white text-gray-900">
             {/* Main Footer */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-8">
                     {/* Company Info */}
                     <div className="sm:col-span-2 lg:col-span-1">
                         <Link href="/" className="inline-block mb-4">
@@ -42,22 +49,22 @@ export default function Footer() {
                         {/* Social Links */}
                         <div className="flex gap-3">
                             <a
-                                href="https://wa.me/919999999999"
+                                href="https://api.whatsapp.com/send/?phone=919843010705"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 bg-gray-100 hover:bg-brand-blue-900 rounded-lg flex items-center justify-center transition-colors"
                                 aria-label="WhatsApp"
                             >
-                                <MessageCircle className="w-5 h-5 text-gray-700" />
+                                <MessageCircle className="w-5 h-5 text-blue-600 hover:text-green-600 transition-colors" />
                             </a>
                             <a
-                                href="https://instagram.com/worthyten"
+                                href="https://www.instagram.com/worthytenofficial/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 bg-gray-100 hover:bg-brand-blue-900 rounded-lg flex items-center justify-center transition-colors"
                                 aria-label="Instagram"
                             >
-                                <Instagram className="w-5 h-5 text-gray-700" />
+                                <Instagram className="w-5 h-5 text-blue-600 hover:text-green-600 transition-colors" />
                             </a>
                             <a
                                 href="https://facebook.com/worthyten"
@@ -66,7 +73,7 @@ export default function Footer() {
                                 className="w-10 h-10 bg-gray-100 hover:bg-brand-blue-900 rounded-lg flex items-center justify-center transition-colors"
                                 aria-label="Facebook"
                             >
-                                <Facebook className="w-5 h-5 text-gray-700" />
+                                <Facebook className="w-5 h-5 text-blue-600 hover:text-green-600 transition-colors" />
                             </a>
                         </div>
                     </div>
@@ -75,16 +82,37 @@ export default function Footer() {
                     <div>
                         <h3 className="text-lg font-semibold mb-4 text-brand-blue-900">Quick Links</h3>
                         <ul className="space-y-2">
-                            {quickLinks.map((link) => (
-                                <li key={link.href}>
-                                    <Link
-                                        href={link.href}
-                                        className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm"
-                                    >
-                                        {link.label}
-                                    </Link>
-                                </li>
-                            ))}
+                            {quickLinks.map((link) => {
+                                if (link.href.startsWith('#')) {
+                                    return (
+                                        <li key={link.href}>
+                                            <a
+                                                href={link.href}
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    const element = document.querySelector(link.href)
+                                                    if (element) {
+                                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                                    }
+                                                }}
+                                                className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm cursor-pointer"
+                                            >
+                                                {link.label}
+                                            </a>
+                                        </li>
+                                    )
+                                }
+                                return (
+                                    <li key={link.href}>
+                                        <Link
+                                            href={link.href}
+                                            className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm"
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    </li>
+                                )
+                            })}
                         </ul>
                     </div>
 
@@ -92,7 +120,45 @@ export default function Footer() {
                     <div>
                         <h3 className="text-lg font-semibold mb-4 text-brand-blue-900">Categories</h3>
                         <ul className="space-y-2">
-                            {categories.map((link) => (
+                            {categories.map((link, index) => {
+                                if (link.href.startsWith('#')) {
+                                    return (
+                                        <li key={`category-${index}-${link.label}`}>
+                                            <a
+                                                href={link.href}
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    const element = document.querySelector(link.href)
+                                                    if (element) {
+                                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                                    }
+                                                }}
+                                                className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm cursor-pointer"
+                                            >
+                                                {link.label}
+                                            </a>
+                                        </li>
+                                    )
+                                }
+                                return (
+                                    <li key={`category-${index}-${link.label}`}>
+                                        <Link
+                                            href={link.href}
+                                            className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm"
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    </li>
+                                )
+                            })}
+                        </ul>
+                    </div>
+
+                    {/* Policy */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-4 text-brand-blue-900">Policy</h3>
+                        <ul className="space-y-2">
+                            {policies.map((link) => (
                                 <li key={link.href}>
                                     <Link
                                         href={link.href}
@@ -112,8 +178,8 @@ export default function Footer() {
                             <li className="flex items-start gap-3">
                                 <Phone className="w-4 h-4 mt-0.5 text-brand-blue-900 flex-shrink-0" />
                                 <div>
-                                    <a href="tel:+919843010746" className="text-brand-blue-900 hover:text-brand-blue-700 transition-colors text-sm font-semibold">
-                                        9843010746
+                                    <a href="tel:+919843010705" className="text-brand-blue-900 hover:text-brand-blue-700 transition-colors text-sm font-semibold">
+                                        9843010705
                                     </a>
                                     <p className="text-gray-500 text-xs mt-1">10AM - 6PM (Mon-Fri)</p>
                                 </div>
@@ -138,22 +204,8 @@ export default function Footer() {
             {/* Bottom Bar */}
             <div className="border-t border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-gray-600">
+                    <div className="flex flex-col sm:flex-row justify-center items-center text-sm text-gray-600">
                         <p>© {currentYear} WorthyTen. All rights reserved.</p>
-                        <div className="flex flex-wrap gap-4">
-                            <Link href="/privacy-policy" className="hover:text-brand-blue-900 transition-colors">
-                                Privacy Policy
-                            </Link>
-                            <Link href="/terms-conditions" className="hover:text-brand-blue-900 transition-colors">
-                                Terms & Conditions
-                            </Link>
-                            <Link href="/warranty" className="hover:text-brand-blue-900 transition-colors">
-                                Warranty Policy
-                            </Link>
-                            <Link href="/return-refund-cancellation-policy" className="hover:text-brand-blue-900 transition-colors">
-                                Return / Refund Policy
-                            </Link>
-                        </div>
                     </div>
                 </div>
             </div>

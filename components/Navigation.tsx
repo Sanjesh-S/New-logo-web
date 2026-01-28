@@ -11,7 +11,7 @@ import OTPLogin from './OTPLogin'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/trade-in', label: 'Trade In' },
+  { href: '#trade-in', label: 'Trade In' },
   { href: '#how-it-works', label: 'How It Works' },
   { href: '#faq', label: 'FAQ' },
 ]
@@ -47,15 +47,35 @@ export default function Navigation() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                if (link.href.startsWith('#')) {
+                  return (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        const element = document.querySelector(link.href)
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                      }}
+                      className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium cursor-pointer"
+                    >
+                      {link.label}
+                    </a>
+                  )
+                }
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
 
               {isAuthenticated ? (
                 <div className="relative">
@@ -132,16 +152,37 @@ export default function Navigation() {
               className="md:hidden bg-white border-t border-gray-200 overflow-hidden"
             >
               <div className="px-4 py-4 space-y-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {navLinks.map((link) => {
+                  if (link.href.startsWith('#')) {
+                    return (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setMobileMenuOpen(false)
+                          const element = document.querySelector(link.href)
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        }}
+                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors cursor-pointer"
+                      >
+                        {link.label}
+                      </a>
+                    )
+                  }
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )
+                })}
 
                 <div className="pt-2 border-t border-gray-200">
                   {isAuthenticated ? (

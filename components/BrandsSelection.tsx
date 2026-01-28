@@ -24,7 +24,7 @@ const categoryNames: Record<string, string> = {
 
 // Static brands data for each category
 const staticBrands: Record<string, string[]> = {
-  cameras: ['Canon', 'Fujifilm', 'GoPro', 'Nikon', 'Sony'],
+  cameras: ['Canon', 'Fujifilm', 'GoPro', 'Sony', 'Nikon'],
   phones: ['Apple', 'Samsung'],
   laptops: ['Apple'],
   tablets: ['Apple'],

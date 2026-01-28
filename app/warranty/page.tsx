@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
+import Navigation from '@/components/Navigation'
 
 export const metadata: Metadata = {
   title: 'Warranty Policy - WorthyTen',
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
 
 export default function WarrantyPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="pt-20 pb-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
           <h1 className="text-4xl font-bold text-brand-blue-900 mb-8">Warranty Policy</h1>
@@ -56,7 +59,7 @@ export default function WarrantyPage() {
                 <li>No Cash/Card Refund shall be made under any circumstances.</li>
                 <li>Warranty does not cover for Replaced products.</li>
                 <li>Customer must provide Proof of Purchase(Invoice) including Warranty Card to avail the warranty of the product.</li>
-                <li><strong>Please Note:</strong> – In WorthyTen Warranty Period Repairs can take up to 90 Working Days, For Support Call-9843010746 (10.00am-6.00pm, Monday-Friday). However, we always endeavour to get your Product Repaired within reasonable time frame.</li>
+                <li><strong>Please Note:</strong> – In WorthyTen Warranty Period Repairs can take up to 90 Working Days, For Support Call-9843010705 (10.00am-6.00pm, Monday-Friday). However, we always endeavour to get your Product Repaired within reasonable time frame.</li>
                 <li>For Brand warranty Period Repair timing will be Decided by the Brand service center only.</li>
                 <li>The WorthyTen Warranty does not cover Physical Damage, Fire, Water damage and Electrical Disturbances, Liquid damage or any damage caused by Rooting Jailbreaking a device and only covers software faults arising in the course of normal use.</li>
                 <li>Software issues unrelated to the repair, Tampering with internal hardware does not include within warranty.</li>
@@ -70,6 +73,7 @@ export default function WarrantyPage() {
             </section>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

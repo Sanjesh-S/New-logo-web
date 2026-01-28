@@ -7,10 +7,10 @@ import { getBrandLogo } from '@/lib/utils/brandLogos'
 const allBrands = [
     // DSLR/Camera brands
     { name: 'Canon', category: 'cameras' },
-    { name: 'Nikon', category: 'cameras' },
-    { name: 'Sony', category: 'cameras' },
     { name: 'Fujifilm', category: 'cameras' },
     { name: 'GoPro', category: 'cameras' },
+    { name: 'Sony', category: 'cameras' },
+    { name: 'Nikon', category: 'cameras' },
     // Phone brands
     { name: 'Apple', category: 'phones' },
     { name: 'Samsung', category: 'phones' },

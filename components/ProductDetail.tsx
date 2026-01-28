@@ -6,7 +6,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
 import { getProductById, type Product } from '@/lib/firebase/database'
-import SocialShare from './SocialShare'
 
 interface ProductDetailProps {
   productId: string
@@ -191,15 +190,6 @@ export default function ProductDetail({
                 <span>100% Secure & Verified Process</span>
               </div>
 
-              {/* Social Share */}
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">Share this product:</p>
-                <SocialShare
-                  url={`/product?id=${product.id}&category=${category || product.category}&brand=${brand || product.brand}`}
-                  title={`Sell ${product.modelName} - Get up to ${displayPrice}`}
-                  description={`Trade in your ${product.brand} ${product.modelName} and get the best price`}
-                />
-              </div>
             </div>
           </div>
         </motion.div>

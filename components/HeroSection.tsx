@@ -316,10 +316,11 @@ export default function HeroSection() {
 
         {/* Category Cards at Bottom */}
         <motion.div
+          id="trade-in"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 md:mt-16"
+          className="mt-12 md:mt-16 scroll-mt-20"
         >
           <p className="text-center text-gray-500 mb-6 font-medium">Select a category to get started</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

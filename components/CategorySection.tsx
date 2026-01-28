@@ -1,13 +1,13 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Camera, Smartphone, Laptop, ArrowRight } from 'lucide-react'
+import { Camera, Smartphone, Laptop, Tablet, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 const categories = [
   {
     id: 'cameras',
-    name: 'Cameras',
+    name: 'Camera / DSLR',
     icon: Camera,
     description: 'Canon, Nikon, Sony, Fujifilm',
     color: 'from-brand-blue-600 to-brand-lime',
@@ -16,7 +16,7 @@ const categories = [
   },
   {
     id: 'phones',
-    name: 'Phones',
+    name: 'Phone',
     icon: Smartphone,
     description: 'Coming Soon',
     color: 'from-brand-lime to-brand-lime-400',
@@ -25,10 +25,19 @@ const categories = [
   },
   {
     id: 'laptops',
-    name: 'Laptops',
+    name: 'Laptop',
     icon: Laptop,
     description: 'Coming Soon',
     color: 'from-brand-blue-500 to-brand-lime-500',
+    bgColor: 'bg-brand-blue-500/10',
+    available: false,
+  },
+  {
+    id: 'tablets',
+    name: 'Tablet',
+    icon: Tablet,
+    description: 'Coming Soon',
+    color: 'from-brand-blue-600 to-brand-lime-400',
     bgColor: 'bg-brand-blue-500/10',
     available: false,
   },
@@ -46,14 +55,11 @@ export default function CategorySection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-blue-900 mb-2 md:mb-4">
-            What Do You Want to Trade?
-          </h2>
-          <p className="text-lg md:text-xl text-gray-600">
             Select a category to get started
-          </p>
+          </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
           {categories.map((category, index) => {
             const Icon = category.icon
 
@@ -66,7 +72,7 @@ export default function CategorySection() {
                 transition={{ delay: index * 0.1, duration: 0.4 }}
               >
                 {category.available ? (
-                  <Link href="/trade-in?category=cameras">
+                  <Link href={`/trade-in?category=${category.id}`}>
                     <div className="relative h-48 md:h-56 bg-white rounded-xl border-2 border-gray-200 hover:border-brand-lime transition-all cursor-pointer shadow-sm hover:shadow-md">
                       <div className="h-full flex flex-col items-center justify-center p-6">
                         <div className={`w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4`}>

@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { getUserValuationsLegacy, type Valuation } from '@/lib/firebase/database'
-import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type PickupRequest } from '@/lib/firebase/database'
+import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle, Truck } from 'lucide-react'
 import Link from 'next/link'
 
 const statusConfig = {
@@ -14,21 +14,76 @@ const statusConfig = {
   rejected: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Rejected' },
 }
 
+interface OrderItem {
+  id: string
+  type: 'valuation' | 'pickup'
+  brand?: string
+  model?: string
+  productName?: string
+  category?: string
+  estimatedValue?: number
+  price?: number
+  condition?: string
+  status?: string
+  createdAt?: Date | any
+}
+
 export default function OrderHistory() {
   const { user } = useAuth()
-  const [valuations, setValuations] = useState<Valuation[]>([])
+  const [orders, setOrders] = useState<OrderItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchValuations = async () => {
+    const fetchOrders = async () => {
       if (!user?.uid) return
 
       try {
         setLoading(true)
         setError(null)
-        const data = await getUserValuationsLegacy(user.uid)
-        setValuations(data)
+        
+        // Fetch both valuations and pickup requests
+        const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
+        const [valuations, pickupRequests] = await Promise.all([
+          getUserValuationsLegacy(user.uid).catch(() => []),
+          getUserPickupRequests(user.uid, userPhone).catch(() => []),
+        ])
+
+        // Combine and sort by date
+        const allOrders: OrderItem[] = [
+          ...valuations.map(v => ({
+            id: v.id || '',
+            type: 'valuation' as const,
+            brand: v.brand,
+            model: v.model,
+            category: v.category,
+            estimatedValue: v.estimatedValue,
+            condition: v.condition,
+            status: v.status,
+            createdAt: v.createdAt,
+          })),
+          ...pickupRequests.map(pr => ({
+            id: pr.id,
+            type: 'pickup' as const,
+            productName: pr.productName,
+            price: pr.price,
+            status: pr.status || 'pending',
+            createdAt: pr.createdAt,
+          })),
+        ]
+
+        // Sort by date (newest first)
+        allOrders.sort((a, b) => {
+          const aDate = a.createdAt instanceof Date 
+            ? a.createdAt.getTime() 
+            : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+          const bDate = b.createdAt instanceof Date 
+            ? b.createdAt.getTime() 
+            : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+          return bDate - aDate
+        })
+
+        setOrders(allOrders)
       } catch (err: any) {
         setError(err.message || 'Failed to load order history')
       } finally {
@@ -36,7 +91,7 @@ export default function OrderHistory() {
       }
     }
 
-    fetchValuations()
+    fetchOrders()
   }, [user?.uid])
 
   if (loading) {
@@ -62,7 +117,7 @@ export default function OrderHistory() {
     )
   }
 
-  if (valuations.length === 0) {
+  if (orders.length === 0) {
     return (
       <div className="text-center py-12">
         <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -88,18 +143,18 @@ export default function OrderHistory() {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">Order History</h2>
-        <span className="text-sm text-gray-500">{valuations.length} {valuations.length === 1 ? 'order' : 'orders'}</span>
+        <span className="text-sm text-gray-500">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
       </div>
 
       <div className="space-y-3">
-        {valuations.map((valuation, index) => {
-          const status = valuation.status || 'pending'
+        {orders.map((order, index) => {
+          const status = order.status || 'pending'
           const StatusIcon = statusConfig[status]?.icon || Clock
           const statusStyle = statusConfig[status] || statusConfig.pending
 
           return (
             <motion.div
-              key={valuation.id || index}
+              key={order.id || index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
@@ -110,9 +165,23 @@ export default function OrderHistory() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">
-                        {valuation.brand} {valuation.model}
+                        {order.type === 'pickup' ? (
+                          <>
+                            {order.productName}
+                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-brand-blue-600">
+                              <Truck className="w-3 h-3" />
+                              Pickup Request
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {order.brand} {order.model}
+                          </>
+                        )}
                       </h3>
-                      <p className="text-sm text-gray-500 capitalize">{valuation.category}</p>
+                      {order.type === 'valuation' && (
+                        <p className="text-sm text-gray-500 capitalize">{order.category}</p>
+                      )}
                     </div>
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-semibold ${statusStyle.color}`}>
                       <StatusIcon className="w-4 h-4" />
@@ -123,33 +192,35 @@ export default function OrderHistory() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500 mb-1">Order ID</p>
-                      <p className="font-mono text-xs text-gray-900">{valuation.id?.substring(0, 8)}...</p>
+                      <p className="font-mono text-xs text-gray-900">{order.id?.substring(0, 8)}...</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 mb-1">Estimated Value</p>
+                      <p className="text-gray-500 mb-1">{order.type === 'pickup' ? 'Price' : 'Estimated Value'}</p>
                       <p className="font-semibold text-gray-900 flex items-center gap-1">
                         <IndianRupee className="w-4 h-4" />
-                        {valuation.estimatedValue?.toLocaleString('en-IN') || 'N/A'}
+                        {(order.type === 'pickup' ? order.price : order.estimatedValue)?.toLocaleString('en-IN') || 'N/A'}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-gray-500 mb-1">Condition</p>
-                      <p className="text-gray-900 capitalize">{valuation.condition || 'N/A'}</p>
-                    </div>
+                    {order.type === 'valuation' && (
+                      <div>
+                        <p className="text-gray-500 mb-1">Condition</p>
+                        <p className="text-gray-900 capitalize">{order.condition || 'N/A'}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-gray-500 mb-1">Date</p>
                       <p className="text-gray-900 flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {formatDate(valuation.createdAt)}
+                        {formatDate(order.createdAt)}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex sm:flex-col gap-2">
-                  {valuation.id && (
+                  {order.id && order.type === 'valuation' && (
                     <Link
-                      href={`/order-summary?id=${valuation.id}`}
+                      href={`/order-summary?id=${order.id}`}
                       className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
                     >
                       View Details

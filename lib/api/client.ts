@@ -193,6 +193,7 @@ export async function createPickupRequest(data: {
   }
   pickupDate: string
   pickupTime: string
+  userId?: string | null
 }) {
   // Use Firebase Function - notifications are handled server-side in Firebase Functions
   return callFunction<{

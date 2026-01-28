@@ -18,7 +18,7 @@ type Tab = 'orders' | 'active' | 'addresses' | 'settings' | 'referral'
 function DashboardContent() {
   const { user, isAuthenticated, loading } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<Tab>('orders')
+  const [activeTab, setActiveTab] = useState<Tab>('active')
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -42,10 +42,10 @@ function DashboardContent() {
   }
 
   const tabs = [
-    { id: 'orders' as Tab, label: 'Order History', icon: Package },
     { id: 'active' as Tab, label: 'Active Orders', icon: Clock },
     { id: 'addresses' as Tab, label: 'Saved Addresses', icon: MapPin },
     { id: 'referral' as Tab, label: 'Referral Program', icon: Gift },
+    { id: 'orders' as Tab, label: 'Order History', icon: Package },
     { id: 'settings' as Tab, label: 'Account Settings', icon: Settings },
   ]
 

@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
-import Link from 'next/link'
 
 export default function CTASection() {
   return (
@@ -51,15 +50,24 @@ export default function CTASection() {
           transition={{ delay: 0.3 }}
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
-          <Link href="/trade-in">
+          <a 
+            href="#trade-in"
+            onClick={(e) => {
+              e.preventDefault()
+              const element = document.querySelector('#trade-in')
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            }}
+          >
             <button className="px-8 md:px-12 py-4 md:py-5 bg-brand-lime text-brand-blue-900 text-lg md:text-xl font-bold rounded-xl hover:bg-brand-lime-400 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center gap-3 justify-center">
               Get Your Quote
               <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
             </button>
-          </Link>
+          </a>
 
           <a
-            href="https://wa.me/919999999999"
+            href="https://wa.me/919843010705"
             target="_blank"
             rel="noopener noreferrer"
             className="px-8 md:px-12 py-4 md:py-5 bg-white/10 text-white text-lg md:text-xl font-semibold rounded-xl hover:bg-white/20 transition-all border border-white/20 flex items-center gap-3 justify-center"

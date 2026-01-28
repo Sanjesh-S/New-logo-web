@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Phone } from 'lucide-react'
+import Navigation from '@/components/Navigation'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions - WorthyTen',
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
 
 export default function TermsConditionsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="pt-20 pb-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
           <h1 className="text-4xl font-bold text-brand-blue-900 mb-8">Terms & Conditions</h1>
@@ -20,8 +23,8 @@ export default function TermsConditionsPage() {
               <h2 className="text-xl font-bold text-brand-blue-900">Customer Support</h2>
             </div>
             <p className="text-brand-blue-900 font-semibold mb-1">10AM To 6PM (Monday-Friday)</p>
-            <a href="tel:+919843010746" className="text-brand-blue-600 hover:text-brand-blue-800 text-lg font-semibold">
-              9843010746
+            <a href="tel:+919843010705" className="text-brand-blue-600 hover:text-brand-blue-800 text-lg font-semibold">
+              9843010705
             </a>
           </div>
 
@@ -106,6 +109,7 @@ export default function TermsConditionsPage() {
             </section>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

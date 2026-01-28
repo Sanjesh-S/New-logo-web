@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, ArrowRight, CheckCircle, X } from 'lucide-react'
+import Link from 'next/link'
 import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
@@ -20,6 +21,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -272,9 +274,6 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                     <h1 className="text-3xl md:text-4xl font-bold text-brand-blue-900 mb-2">
                       Login/Signup
                     </h1>
-                    <h2 className="text-xl md:text-2xl font-bold text-brand-blue-900 mb-2 mt-4">
-                      Login with OTP
-                    </h2>
                     <p className="text-gray-600 mb-6">
                       Enter your phone number to receive OTP
                     </p>
@@ -311,12 +310,39 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                       </motion.div>
                     )}
 
+                    {/* Terms and Conditions Checkbox */}
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="agree-terms"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer accent-cyan-500"
+                        style={{ accentColor: '#06b6d4' }}
+                      />
+                      <label htmlFor="agree-terms" className="text-sm text-gray-700 cursor-pointer leading-relaxed">
+                        I agree to the{' '}
+                        <Link href="/terms-conditions" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                          Terms and Conditions
+                        </Link>
+                        {' '}&{' '}
+                        <Link href="/privacy-policy" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                          Privacy Policy
+                        </Link>
+                        .
+                      </label>
+                    </div>
+
                     <motion.button
                       type="submit"
-                      disabled={loading || phoneNumber.length !== 10}
-                      className="w-full py-4 bg-gray-300 text-gray-700 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      whileHover={{ scale: loading ? 1 : 1.02 }}
-                      whileTap={{ scale: loading ? 1 : 0.98 }}
+                      disabled={loading || phoneNumber.length !== 10 || !agreedToTerms}
+                      className={`w-full py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
+                        agreedToTerms && phoneNumber.length === 10 && !loading
+                          ? 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
+                          : 'bg-gray-300 text-gray-700 cursor-not-allowed'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      whileHover={agreedToTerms && phoneNumber.length === 10 && !loading ? { scale: 1.02 } : {}}
+                      whileTap={agreedToTerms && phoneNumber.length === 10 && !loading ? { scale: 0.98 } : {}}
                     >
                       {loading ? (
                         <div className="w-5 h-5 border-2 border-gray-500/30 border-t-gray-700 rounded-full animate-spin" />

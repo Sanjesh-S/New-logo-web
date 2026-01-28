@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, User, Phone, CheckCircle, X, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface OrderConfirmationProps {
   isOpen: boolean
@@ -34,6 +36,7 @@ export default function OrderConfirmation({
   onConfirm,
   onClose,
 }: OrderConfirmationProps) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState<AddressData>({
     name: '',
     phone: phoneNumber || '',
@@ -55,6 +58,7 @@ export default function OrderConfirmation({
   const [pincodeLoading, setPincodeLoading] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof AddressData, string>>>({})
   const [showSuccess, setShowSuccess] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   // Fetch address details from pincode API
   const fetchAddressFromPincode = async (pincode: string) => {
@@ -222,6 +226,8 @@ export default function OrderConfirmation({
       alert('Please select both date and time')
       return
     }
+    // Reset checkbox when showing confirmation
+    setAgreedToTerms(false)
     // Show confirmation view
     setShowConfirmation(true)
   }
@@ -246,6 +252,7 @@ export default function OrderConfirmation({
         },
         pickupDate: selectedDate,
         pickupTime: formData.pickupTime || '',
+        userId: user?.uid || null,
       })
 
       if (result.success) {
@@ -609,11 +616,37 @@ export default function OrderConfirmation({
                 </div>
               </div>
 
+              {/* Terms and Conditions Checkbox */}
+              <div className="flex items-start gap-3 pt-4 mt-4 border-t border-gray-200">
+                <input
+                  type="checkbox"
+                  id="agree-terms-confirmation"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer accent-cyan-500"
+                  style={{ accentColor: '#06b6d4' }}
+                />
+                <label htmlFor="agree-terms-confirmation" className="text-sm text-gray-700 cursor-pointer leading-relaxed">
+                  I agree to the{' '}
+                  <Link href="/terms-conditions" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                    Terms and Conditions
+                  </Link>
+                  {' '}&{' '}
+                  <Link href="/privacy-policy" target="_blank" className="text-cyan-600 hover:text-cyan-700 underline font-medium">
+                    Privacy Policy
+                  </Link>
+                  .
+                </label>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex gap-4 pt-6 mt-6 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setShowConfirmation(false)}
+                  onClick={() => {
+                    setAgreedToTerms(false)
+                    setShowConfirmation(false)
+                  }}
                   className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:border-gray-400 transition-all"
                 >
                   Back
@@ -621,8 +654,12 @@ export default function OrderConfirmation({
                 <button
                   type="button"
                   onClick={handleConfirmPickup}
-                  disabled={submitting}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={submitting || !agreedToTerms}
+                  className={`flex-1 px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 ${
+                    agreedToTerms && !submitting
+                      ? 'bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white'
+                      : 'bg-gray-300 text-gray-700 cursor-not-allowed'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {submitting ? (
                     <>

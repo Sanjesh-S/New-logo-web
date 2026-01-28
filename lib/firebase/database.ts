@@ -773,6 +773,89 @@ export interface PickupRequest {
 }
 
 /**
+ * Get pickup requests by userId or phone number
+ */
+export async function getUserPickupRequests(userId: string, userPhone?: string): Promise<PickupRequest[]> {
+  try {
+    const pickupRequestsRef = collection(getDb(), 'pickupRequests')
+    let allRequests: PickupRequest[] = []
+    
+    // Try to fetch by userId first
+    try {
+      let querySnapshot
+      try {
+        // Try to query by userId with ordering
+        const q = query(
+          pickupRequestsRef,
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc')
+        )
+        querySnapshot = await getDocs(q)
+      } catch (orderError: any) {
+        // If ordering fails (e.g., missing index), query without ordering
+        console.warn('Could not order by createdAt, fetching without ordering:', orderError)
+        const q = query(
+          pickupRequestsRef,
+          where('userId', '==', userId)
+        )
+        querySnapshot = await getDocs(q)
+      }
+      
+      const userIdRequests = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as PickupRequest[]
+      
+      allRequests = [...userIdRequests]
+    } catch (error) {
+      console.warn('Error fetching pickup requests by userId:', error)
+    }
+    
+    // Also fetch by phone number for backward compatibility (if userPhone provided)
+    if (userPhone) {
+      try {
+        const normalizedPhone = userPhone.replace(/^\+91/, '').replace(/\D/g, '')
+        if (normalizedPhone.length === 10) {
+          // Fetch all pickup requests and filter by phone number client-side
+          // (since we can't query nested customer.phone easily)
+          const allPickupRequests = await getAllPickupRequests()
+          const phoneRequests = allPickupRequests.filter(pr => {
+            const customerPhone = pr.customer?.phone?.replace(/\D/g, '') || ''
+            return customerPhone === normalizedPhone && pr.userId !== userId
+          })
+          allRequests = [...allRequests, ...phoneRequests]
+        }
+      } catch (error) {
+        console.warn('Error fetching pickup requests by phone:', error)
+      }
+    }
+    
+    // Remove duplicates and sort by date
+    const uniqueRequests = Array.from(
+      new Map(allRequests.map(req => [req.id, req])).values()
+    )
+    
+    // Sort client-side by date
+    if (uniqueRequests.length > 0) {
+      uniqueRequests.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date 
+          ? a.createdAt.getTime() 
+          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+        const bDate = b.createdAt instanceof Date 
+          ? b.createdAt.getTime() 
+          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        return bDate - aDate // Descending order
+      })
+    }
+    
+    return uniqueRequests
+  } catch (error) {
+    console.error('Error fetching user pickup requests:', error)
+    throw error
+  }
+}
+
+/**
  * Get all pickup requests from Firestore
  */
 export async function getAllPickupRequests(): Promise<PickupRequest[]> {

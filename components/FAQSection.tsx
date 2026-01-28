@@ -6,28 +6,28 @@ import { ChevronDown, HelpCircle } from 'lucide-react'
 
 const faqs = [
     {
-        question: 'How does the trade-in process work?',
-        answer: 'It\'s simple! Select your device, answer a few questions about its condition, get an instant quote, and schedule a free doorstep pickup. Once we verify the device, you get paid the same day.',
+        question: 'What documents are needed to sell an old camera or phone?',
+        answer: 'You must submit the original purchase invoice, the warranty card, and any of your government-issued ID. These documents are mandatory to verify ownership and establish the seller\'s identity.',
     },
     {
-        question: 'How quickly will I receive my payment?',
-        answer: 'We offer same-day payment! Once our team picks up and verifies your device, payment is processed immediately via bank transfer or UPI.',
+        question: 'What should I do if my pickup is delayed?',
+        answer: 'Please contact our support team directly 9843010746, if your pickup does not arrive on time. We will immediately coordinate with our logistics team to resolve the delay.',
     },
     {
-        question: 'Is doorstep pickup really free?',
-        answer: 'Yes, absolutely! We offer free doorstep pickup across all major cities in India. No hidden charges or deductions.',
+        question: 'Do you offer delivery to all locations?',
+        answer: 'Yes, we provide secure delivery services to all locations across Tamil Nadu. We ensure your device reaches your doorstep safely, no matter where you are in the state.',
     },
     {
-        question: 'What if my device has some issues?',
-        answer: 'No problem! We accept devices in all conditions - working, minor issues, or even damaged. Our valuation system accounts for the condition and gives you a fair price.',
+        question: 'Do you offer pickup services in all locations?',
+        answer: 'We provide convenient doorstep pickup services throughout Tamil Nadu. Our team can collect your device from any location in the state to make the process easy for you.',
     },
     {
-        question: 'How do you determine the price of my device?',
-        answer: 'We use real-time market data and consider factors like brand, model, age, condition, and accessories included. Our pricing is transparent with no hidden deductions.',
+        question: 'Why should I choose to buy from WorthyTen?',
+        answer: 'At WorthyTen, you get premium-quality devices at the most affordable prices. We ensure you receive high-end technology that fits your budget without compromising on quality.',
     },
     {
-        question: 'Can I trade in multiple devices at once?',
-        answer: 'Yes! You can trade in as many devices as you want in a single transaction. We\'ll evaluate each one and provide a combined quote.',
+        question: 'How do I cancel my pickup or order?',
+        answer: 'To cancel a scheduled pickup or an order, please call our support team directly 9843010746. They will process your request immediately and guide you through the cancellation steps.',
     },
 ]
 
@@ -93,7 +93,7 @@ export default function FAQSection() {
                         Frequently Asked Questions
                     </h2>
                     <p className="text-lg text-gray-600">
-                        Got questions? We've got answers.
+                        Need Clarity? We are Here!!
                     </p>
                 </motion.div>
 
@@ -125,7 +125,7 @@ export default function FAQSection() {
                     <p className="text-gray-600">
                         Still have questions?{' '}
                         <a
-                            href="https://wa.me/919999999999"
+                            href="https://wa.me/919843010705"
                             className="text-brand-lime font-semibold hover:underline"
                         >
                             Chat with us on WhatsApp

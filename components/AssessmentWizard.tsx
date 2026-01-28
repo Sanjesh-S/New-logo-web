@@ -857,8 +857,8 @@ export default function AssessmentWizard({
           />
         )}
 
-        {/* Navigation */}
-        {!showOrderConfirmation && (
+        {/* Navigation - Hide when price is shown */}
+        {!showOrderConfirmation && !showPrice && (
           <div className="flex justify-between gap-4">
             <button
               onClick={handleBack}
