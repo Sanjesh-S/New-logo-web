@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, User, Phone, CheckCircle, X, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
@@ -59,6 +59,15 @@ export default function OrderConfirmation({
   const [errors, setErrors] = useState<Partial<Record<keyof AddressData, string>>>({})
   const [showSuccess, setShowSuccess] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  
+  // Refs for form fields to scroll to on validation error
+  const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const pincodeRef = useRef<HTMLInputElement>(null)
+  const cityRef = useRef<HTMLInputElement>(null)
+  const stateRef = useRef<HTMLInputElement>(null)
+  const addressRef = useRef<HTMLTextAreaElement>(null)
 
   // Fetch address details from pincode API
   const fetchAddressFromPincode = async (pincode: string) => {
@@ -95,6 +104,31 @@ export default function OrderConfirmation({
       fetchAddressFromPincode(formData.pincode)
     }
   }, [formData.pincode])
+
+  // Auto-scroll to first error field when validation fails
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      const errorFields = [
+        { field: 'name', ref: nameRef },
+        { field: 'phone', ref: phoneRef },
+        { field: 'email', ref: emailRef },
+        { field: 'pincode', ref: pincodeRef },
+        { field: 'city', ref: cityRef },
+        { field: 'state', ref: stateRef },
+        { field: 'address', ref: addressRef },
+      ]
+      
+      for (const { field, ref } of errorFields) {
+        if (errors[field as keyof AddressData] && ref.current) {
+          setTimeout(() => {
+            ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            ref.current?.focus()
+          }, 100)
+          break
+        }
+      }
+    }
+  }, [errors])
 
   const handleChange = (field: keyof AddressData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -153,6 +187,8 @@ export default function OrderConfirmation({
     }
 
     const slots = [
+      '02:00 AM - 04:00 AM',
+      '04:00 AM - 06:00 AM',
       '06:00 AM - 08:00 AM',
       '08:00 AM - 10:00 AM',
       '10:00 AM - 12:00 PM',
@@ -161,6 +197,7 @@ export default function OrderConfirmation({
       '04:00 PM - 06:00 PM',
       '06:00 PM - 08:00 PM',
       '08:00 PM - 10:00 PM',
+      '10:00 PM - 12:00 AM',
     ]
 
     const selectedDateObj = new Date(selectedDate)
@@ -176,16 +213,38 @@ export default function OrderConfirmation({
       const currentTime = currentHour * 60 + currentMinute // Convert to minutes
 
       const filteredSlots = slots.filter(slot => {
-        const [startTime] = slot.split(' - ')
-        const [time, period] = startTime.split(' ')
-        const [hours, minutes] = time.split(':').map(Number)
-        let slotHour = hours
-        if (period === 'PM' && hours !== 12) slotHour += 12
-        if (period === 'AM' && hours === 12) slotHour = 0
-        const slotTime = slotHour * 60 + minutes
+        const [startTimeStr, endTimeStr] = slot.split(' - ')
+        
+        // Parse start time
+        const [startTime, startPeriod] = startTimeStr.split(' ')
+        const [startHours, startMinutes] = startTime.split(':').map(Number)
+        let startSlotHour = startHours
+        if (startPeriod === 'PM' && startHours !== 12) startSlotHour += 12
+        if (startPeriod === 'AM' && startHours === 12) startSlotHour = 0
+        let startSlotTime = startSlotHour * 60 + startMinutes
 
-        // Show slots that are at least 30 minutes in the future
-        return slotTime > (currentTime + 30)
+        // Parse end time
+        const [endTime, endPeriod] = endTimeStr.split(' ')
+        const [endHours, endMinutes] = endTime.split(':').map(Number)
+        let endSlotHour = endHours
+        if (endPeriod === 'PM' && endHours !== 12) endSlotHour += 12
+        if (endPeriod === 'AM' && endHours === 12) endSlotHour = 0
+        let endSlotTime = endSlotHour * 60 + endMinutes
+
+        // Handle 12:00 AM (midnight) for end time
+        if (endSlotTime === 0) {
+          endSlotTime = 24 * 60 // Treat as next day
+        }
+        // Handle 12:00 AM (midnight) for start time - if current time is before 11:30 PM,
+        // treat midnight as next day (add 24 hours) so it's considered future
+        if (startSlotTime === 0 && currentTime < 23 * 60 + 30) {
+          startSlotTime = 24 * 60 // Treat as next day
+        }
+
+        // Show slots if:
+        // 1. The slot hasn't ended yet (end time is in the future), OR
+        // 2. The start time is at least 30 minutes in the future
+        return endSlotTime > currentTime || startSlotTime > (currentTime + 30)
       })
       setAvailableTimeSlots(filteredSlots)
     } else {
@@ -219,6 +278,7 @@ export default function OrderConfirmation({
       // Move to schedule pickup step
       setShowSchedulePickup(true)
     }
+    // Error scrolling is handled by useEffect when errors state changes
   }
 
   const handleScheduleSubmit = () => {
@@ -338,6 +398,7 @@ export default function OrderConfirmation({
               Full Name *
             </label>
             <input
+              ref={nameRef}
               type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
@@ -358,6 +419,7 @@ export default function OrderConfirmation({
               Contact Number *
             </label>
             <input
+              ref={phoneRef}
               type="tel"
               value={formData.phone}
               onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
@@ -378,6 +440,7 @@ export default function OrderConfirmation({
               Email Address (for confirmation) *
             </label>
             <input
+              ref={emailRef}
               type="email"
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
@@ -400,6 +463,7 @@ export default function OrderConfirmation({
             </label>
             <div className="relative">
               <input
+                ref={pincodeRef}
                 type="text"
                 value={formData.pincode}
                 onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -442,6 +506,7 @@ export default function OrderConfirmation({
               City *
             </label>
             <input
+              ref={cityRef}
               type="text"
               value={formData.city}
               onChange={(e) => handleChange('city', e.target.value)}
@@ -462,6 +527,7 @@ export default function OrderConfirmation({
               State *
             </label>
             <input
+              ref={stateRef}
               type="text"
               value={formData.state}
               onChange={(e) => handleChange('state', e.target.value)}
@@ -482,6 +548,7 @@ export default function OrderConfirmation({
               Complete Address *
             </label>
             <textarea
+              ref={addressRef}
               value={formData.address}
               onChange={(e) => handleChange('address', e.target.value)}
               rows={3}

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { CheckCircle, Package, Truck, CreditCard, ArrowRight, Copy, Check, Calendar, Sparkles, Shield, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { getProductById, getValuation, type Product } from '@/lib/firebase/database'
+import { getProductById, getValuation, getPickupRequest, type Product, type PickupRequest } from '@/lib/firebase/database'
 import PickupScheduler from '@/components/PickupScheduler'
 import { Timestamp } from 'firebase/firestore'
 
@@ -29,8 +29,10 @@ function OrderSummaryContent() {
   const [showScheduler, setShowScheduler] = useState(false)
   const [scheduledDate, setScheduledDate] = useState<string | null>(null)
   const [scheduledTime, setScheduledTime] = useState<string | null>(null)
+  const [pickupRequest, setPickupRequest] = useState<PickupRequest | null>(null)
+  const [orderType, setOrderType] = useState<'valuation' | 'pickup'>('valuation')
 
-  const finalPrice = price ? parseInt(price) : 0
+  const finalPrice = price ? parseInt(price) : (pickupRequest?.price || 0)
   const internalBase = basePrice ? parseInt(basePrice) : 0
   const totalDeductions = deductions ? parseInt(deductions) : 0
 
@@ -52,13 +54,15 @@ function OrderSummaryContent() {
     fetchProduct()
   }, [productId])
 
-  // Fetch valuation to check if pickup is already scheduled
+  // Fetch order data (valuation or pickup request)
   useEffect(() => {
-    const fetchValuation = async () => {
+    const fetchOrderData = async () => {
       if (valuationId) {
         try {
+          // Try to fetch as valuation first
           const valuation = await getValuation(valuationId)
           if (valuation) {
+            setOrderType('valuation')
             // Extract pickupDate and pickupTime from valuation
             if (valuation.pickupDate) {
               // Handle both Date and Timestamp types
@@ -77,13 +81,34 @@ function OrderSummaryContent() {
             if (valuation.pickupTime) {
               setScheduledTime(valuation.pickupTime)
             }
+            return
+          }
+
+          // If not a valuation, try as pickup request
+          const pickupReq = await getPickupRequest(valuationId)
+          if (pickupReq) {
+            setOrderType('pickup')
+            setPickupRequest(pickupReq)
+            // Extract pickupDate and pickupTime from pickup request
+            if (pickupReq.pickupDate) {
+              const dateValue = typeof pickupReq.pickupDate === 'string' 
+                ? new Date(pickupReq.pickupDate)
+                : pickupReq.pickupDate instanceof Date
+                ? pickupReq.pickupDate
+                : (pickupReq.pickupDate as any)?.toDate?.() || new Date()
+              const formattedDate = dateValue.toISOString().split('T')[0]
+              setScheduledDate(formattedDate)
+            }
+            if (pickupReq.pickupTime) {
+              setScheduledTime(pickupReq.pickupTime)
+            }
           }
         } catch (error) {
-          console.error('Error fetching valuation:', error)
+          console.error('Error fetching order data:', error)
         }
       }
     }
-    fetchValuation()
+    fetchOrderData()
   }, [valuationId])
 
   const copyOrderId = () => {
@@ -122,9 +147,11 @@ function OrderSummaryContent() {
     }
   }, [searchParams, valuationId])
 
-  // Use product data if available, otherwise use URL params as fallback
+  // Use product data if available, otherwise use URL params or pickup request as fallback
   const productBrand = product?.brand || brand || ''
-  const productModel = product?.modelName || model || ''
+  const productModel = orderType === 'pickup' && pickupRequest?.productName 
+    ? pickupRequest.productName 
+    : product?.modelName || model || ''
   const productCategory = product?.category || category || ''
   const productImage = product?.imageUrl
 
@@ -254,7 +281,7 @@ function OrderSummaryContent() {
         {/* Device & Order Info - Stacked on Mobile */}
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Device Card */}
-          {(productBrand || productModel) && (
+          {(productBrand || productModel || pickupRequest?.productName) && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -279,24 +306,41 @@ function OrderSummaryContent() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0 space-y-3">
-                    {productBrand && (
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Brand</p>
-                        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize">{productBrand}</h3>
-                      </div>
-                    )}
-                    {productModel && (
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Model</p>
-                        <p className="text-base sm:text-lg text-gray-700 font-semibold">{productModel}</p>
-                      </div>
-                    )}
-                    {productCategory && (
-                      <div>
-                        <span className="inline-flex items-center px-3 py-1.5 bg-brand-blue-50 text-brand-blue-700 rounded-full text-xs font-semibold capitalize border border-brand-blue-200">
-                          {productCategory}
-                        </span>
-                      </div>
+                    {orderType === 'pickup' && pickupRequest?.productName ? (
+                      <>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Product</p>
+                          <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{pickupRequest.productName}</h3>
+                        </div>
+                        <div>
+                          <span className="inline-flex items-center px-3 py-1.5 bg-brand-blue-50 text-brand-blue-700 rounded-full text-xs font-semibold capitalize border border-brand-blue-200">
+                            <Truck className="w-3 h-3 mr-1" />
+                            Pickup Request
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {productBrand && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Brand</p>
+                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize">{productBrand}</h3>
+                          </div>
+                        )}
+                        {productModel && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Model</p>
+                            <p className="text-base sm:text-lg text-gray-700 font-semibold">{productModel}</p>
+                          </div>
+                        )}
+                        {productCategory && (
+                          <div>
+                            <span className="inline-flex items-center px-3 py-1.5 bg-brand-blue-50 text-brand-blue-700 rounded-full text-xs font-semibold capitalize border border-brand-blue-200">
+                              {productCategory}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -339,10 +383,29 @@ function OrderSummaryContent() {
                   </div>
                   <div>
                     <span className="text-xs sm:text-sm text-gray-500 block mb-2">Status</span>
-                    <span className="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold border border-amber-200">
-                      <span className="w-2 h-2 bg-amber-500 rounded-full mr-2 animate-pulse"></span>
-                      Pending Review
-                    </span>
+                    {(() => {
+                      const orderStatus = orderType === 'pickup' 
+                        ? (pickupRequest?.status || 'pending')
+                        : 'pending'
+                      
+                      const statusConfig: Record<string, { text: string; color: string; bgColor: string }> = {
+                        pending: { text: 'Pending Review', color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200' },
+                        confirmed: { text: 'Pickup Confirmed', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200' },
+                        approved: { text: 'Approved', color: 'text-green-700', bgColor: 'bg-green-50 border-green-200' },
+                        hold: { text: 'On Hold', color: 'text-orange-700', bgColor: 'bg-orange-50 border-orange-200' },
+                        verification: { text: 'Under Verification', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200' },
+                        completed: { text: 'Completed', color: 'text-green-700', bgColor: 'bg-green-50 border-green-200' },
+                      }
+                      
+                      const status = statusConfig[orderStatus] || statusConfig.pending
+                      
+                      return (
+                        <span className={`inline-flex items-center px-3 py-1.5 ${status.bgColor} ${status.color} rounded-full text-xs font-semibold border`}>
+                          <span className={`w-2 h-2 ${status.color.replace('text-', 'bg-')} rounded-full mr-2 ${orderStatus === 'pending' ? 'animate-pulse' : ''}`}></span>
+                          {status.text}
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
@@ -433,7 +496,7 @@ function OrderSummaryContent() {
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2 text-base sm:text-lg">Quality Verification</h3>
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                  Our team will inspect and verify the device condition. This typically takes 24-48 hours after pickup.
+                  Our team will inspect and verify the device condition. This typically takes 5-10 Minutes.
                 </p>
               </motion.div>
 
@@ -451,7 +514,7 @@ function OrderSummaryContent() {
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2 text-base sm:text-lg">Payment Processing</h3>
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                  Once verification is complete, payment will be processed securely and transferred to your account within 2-3 business days.
+                  After QC completion, payment will be processed securely and transferred to your account within 30 Minutes.
                 </p>
               </motion.div>
             </div>

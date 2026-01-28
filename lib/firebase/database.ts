@@ -856,6 +856,24 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
 }
 
 /**
+ * Get a pickup request by ID
+ */
+export async function getPickupRequest(id: string): Promise<PickupRequest | null> {
+  try {
+    const docRef = doc(getDb(), 'pickupRequests', id)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as PickupRequest
+    }
+    return null
+  } catch (error) {
+    console.error('Error fetching pickup request:', error)
+    return null
+  }
+}
+
+/**
  * Get all pickup requests from Firestore
  */
 export async function getAllPickupRequests(): Promise<PickupRequest[]> {
