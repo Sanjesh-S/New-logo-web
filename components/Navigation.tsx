@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { User, LogOut, Menu, X } from 'lucide-react'
@@ -11,9 +12,9 @@ import OTPLogin from './OTPLogin'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '#trade-in', label: 'Trade In' },
-  { href: '#how-it-works', label: 'How It Works' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '/#trade-in', label: 'Trade In' },
+  { href: '/#how-it-works', label: 'How It Works' },
+  { href: '/#faq', label: 'FAQ' },
 ]
 
 export default function Navigation() {
@@ -21,6 +22,8 @@ export default function Navigation() {
   const [showLogin, setShowLogin] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
 
   const handleLogout = async () => {
     try {
@@ -48,16 +51,25 @@ export default function Navigation() {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
               {navLinks.map((link) => {
-                if (link.href.startsWith('#')) {
+                const isAnchorLink = link.href.includes('#')
+                const anchorId = isAnchorLink ? link.href.split('#')[1] : null
+                
+                if (isAnchorLink) {
                   return (
                     <a
                       key={link.href}
                       href={link.href}
                       onClick={(e) => {
                         e.preventDefault()
-                        const element = document.querySelector(link.href)
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        // If we're on the homepage, just scroll
+                        if (pathname === '/') {
+                          const element = document.getElementById(anchorId!)
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        } else {
+                          // Navigate to homepage with anchor
+                          router.push(link.href)
                         }
                       }}
                       className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium cursor-pointer"
@@ -153,7 +165,10 @@ export default function Navigation() {
             >
               <div className="px-4 py-4 space-y-2">
                 {navLinks.map((link) => {
-                  if (link.href.startsWith('#')) {
+                  const isAnchorLink = link.href.includes('#')
+                  const anchorId = isAnchorLink ? link.href.split('#')[1] : null
+                  
+                  if (isAnchorLink) {
                     return (
                       <a
                         key={link.href}
@@ -161,9 +176,15 @@ export default function Navigation() {
                         onClick={(e) => {
                           e.preventDefault()
                           setMobileMenuOpen(false)
-                          const element = document.querySelector(link.href)
-                          if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          // If we're on the homepage, just scroll
+                          if (pathname === '/') {
+                            const element = document.getElementById(anchorId!)
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                            }
+                          } else {
+                            // Navigate to homepage with anchor
+                            router.push(link.href)
                           }
                         }}
                         className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors cursor-pointer"
