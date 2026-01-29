@@ -135,7 +135,7 @@ export default function OrderHistory() {
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h3>
         <p className="text-gray-600 mb-6">Start trading in your devices to see your order history here.</p>
         <Link
-          href="/"
+          href="/#trade-in"
           className="inline-flex items-center gap-2 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-colors"
         >
           Start Trading
