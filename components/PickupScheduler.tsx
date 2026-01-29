@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, X, CheckCircle, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, MapPin, X, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react'
 
 interface PickupSchedulerProps {
   isOpen: boolean
@@ -31,6 +31,7 @@ export default function PickupScheduler({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [step, setStep] = useState<'schedule' | 'confirm'>('schedule')
 
   useEffect(() => {
     if (initialDate) setSelectedDate(initialDate)
@@ -44,6 +45,7 @@ export default function PickupScheduler({
       setSelectedTime('')
       setError(null)
       setSuccess(false)
+      setStep('schedule')
     }
   }, [isOpen])
 
@@ -156,9 +158,16 @@ export default function PickupScheduler({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleNextStep = () => {
+    if (!selectedDate || !selectedTime) {
+      setError('Please select both date and time')
+      return
+    }
+    setError(null)
+    setStep('confirm')
+  }
+
+  const handleSubmit = async () => {
     if (!selectedDate || !selectedTime) {
       setError('Please select both date and time')
       return
@@ -195,10 +204,12 @@ export default function PickupScheduler({
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Reschedule Pickup</h2>
-              {productName && (
-                <p className="text-sm text-gray-600 mt-1">{productName}</p>
-              )}
+              <h2 className="text-xl font-bold text-gray-900">
+                {step === 'confirm' ? 'Confirm Reschedule' : 'Reschedule Pickup'}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {step === 'confirm' ? 'Review your new pickup schedule' : 'Select a convenient date and time'}
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -210,20 +221,119 @@ export default function PickupScheduler({
 
           {/* Content */}
           <div className="p-6">
+            {/* Success State */}
             {success ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-12"
+                className="text-center py-8"
               >
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Pickup Rescheduled!</h3>
-                <p className="text-gray-600">Your pickup has been rescheduled successfully.</p>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
+                  className="w-20 h-20 bg-gradient-to-br from-brand-lime to-brand-lime-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg"
+                >
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </motion.div>
+                <h3 className="text-2xl font-bold text-brand-blue-900 mb-2">Pickup Rescheduled!</h3>
+                <p className="text-gray-600 mb-2">Your pickup has been rescheduled successfully.</p>
+                <p className="text-sm text-gray-500">Redirecting...</p>
               </motion.div>
+            ) : step === 'confirm' ? (
+              /* Confirmation Step */
+              <div className="space-y-6">
+                {/* Order Information */}
+                {productName && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Order Information</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Device:</span>
+                        <span className="font-medium text-gray-900">{productName}</span>
+                      </div>
+                      {price && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Price:</span>
+                          <span className="font-bold text-brand-blue-900">₹{price.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Pickup Schedule */}
+                <div className="bg-gradient-to-br from-brand-blue-50 to-brand-lime/10 rounded-xl p-4 border border-brand-blue-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">New Pickup Schedule</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-blue-100 rounded-full flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-brand-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-brand-blue-900 text-lg">
+                        {formatPickupDate(selectedDate)}, {new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
+                      <p className="text-gray-600">{selectedTime}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-900">
+                      <p className="font-semibold mb-1">Pickup Information</p>
+                      <ul className="space-y-1 text-blue-800">
+                        <li>• Our team will arrive at your selected time</li>
+                        <li>• Please keep your device ready for inspection</li>
+                        <li>• You'll receive a confirmation SMS/Email</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <p className="text-sm text-red-800">{error}</p>
+                  </motion.div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setStep('schedule')}
+                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Rescheduling...
+                      </>
+                    ) : (
+                      'Confirm Reschedule'
+                    )}
+                  </button>
+                </div>
+              </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              /* Schedule Selection Step */
+              <div className="space-y-6">
                 {/* Date Selection */}
                 <div>
                   <label className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-3">
@@ -287,21 +397,6 @@ export default function PickupScheduler({
                   )}
                 </div>
 
-                {/* Info Box */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-900">
-                      <p className="font-semibold mb-1">Pickup Information</p>
-                      <ul className="space-y-1 text-blue-800">
-                        <li>• Our team will arrive at your selected time</li>
-                        <li>• Please keep your device ready for inspection</li>
-                        <li>• You'll receive a confirmation SMS/Email</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Selected Summary */}
                 {selectedDate && selectedTime && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -336,14 +431,16 @@ export default function PickupScheduler({
                     Cancel
                   </button>
                   <button
-                    type="submit"
-                    disabled={submitting || !selectedDate || !selectedTime}
-                    className="flex-1 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-xl font-semibold hover:bg-brand-lime-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="button"
+                    onClick={handleNextStep}
+                    disabled={!selectedDate || !selectedTime}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {submitting ? 'Rescheduling...' : 'Confirm Reschedule'}
+                    Next: Confirm
+                    <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
         </motion.div>

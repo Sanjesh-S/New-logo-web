@@ -386,71 +386,53 @@ export default function ActiveOrders() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mt-4">
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
                   {order.id && (
                     <>
-                      {order.type === 'valuation' ? (
-                        <>
-                          <Link
-                            href={`/order-summary?id=${order.id}`}
-                            className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
-                          >
-                            View Details
-                          </Link>
-                          {order.status === 'approved' && (
-                            <Link
-                              href={`/order-summary?id=${order.id}&schedule=true`}
-                              className="px-4 py-2 text-sm font-medium bg-brand-lime text-brand-blue-900 rounded-lg hover:bg-brand-lime-400 transition-colors text-center"
-                            >
-                              Schedule Pickup
-                            </Link>
-                          )}
-                          {order.status === 'pending' && (
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(order)
-                                setShowCancelModal(true)
-                              }}
-                              className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
-                            >
-                              <X className="w-4 h-4" />
-                              Cancel
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href={`/order-summary?id=${order.id}`}
-                            className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
-                          >
-                            View Details
-                          </Link>
-                          {(order.status === 'pending' || order.status === 'confirmed') && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setSelectedOrder(order)
-                                  setShowRescheduleModal(true)
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors flex items-center gap-1"
-                              >
-                                <Calendar className="w-4 h-4" />
-                                Reschedule
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedOrder(order)
-                                  setShowCancelModal(true)
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
-                              >
-                                <X className="w-4 h-4" />
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                        </>
+                      <Link
+                        href={`/order-summary?id=${order.id}`}
+                        className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
+                      >
+                        View Details
+                      </Link>
+                      
+                      {/* Schedule Pickup for approved valuations */}
+                      {order.type === 'valuation' && order.status === 'approved' && (
+                        <Link
+                          href={`/order-summary?id=${order.id}&schedule=true`}
+                          className="px-4 py-2 text-sm font-medium bg-brand-lime text-brand-blue-900 rounded-lg hover:bg-brand-lime-400 transition-colors text-center"
+                        >
+                          Schedule Pickup
+                        </Link>
+                      )}
+                      
+                      {/* Reschedule button for pickup orders */}
+                      {order.type === 'pickup' && (order.status === 'pending' || order.status === 'confirmed') && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setShowRescheduleModal(true)
+                          }}
+                          className="px-4 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors flex items-center gap-1"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          Reschedule
+                        </button>
+                      )}
+                      
+                      {/* Cancel button for pending orders */}
+                      {(order.status === 'pending' || (order.type === 'pickup' && order.status === 'confirmed')) && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setShowCancelModal(true)
+                          }}
+                          className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                        >
+                          <X className="w-4 h-4" />
+                          Cancel
+                        </button>
                       )}
                     </>
                   )}
