@@ -364,18 +364,34 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                     <h2 className="text-2xl md:text-3xl font-bold text-brand-blue-900 mb-2">
                       Enter OTP
                     </h2>
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-gray-600">
                       We sent a 6-digit code to
-                      <br />
-                      <span className="text-brand-blue-900 font-semibold">
+                    </p>
+                    {/* Phone Number with Edit Button */}
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-brand-blue-900 font-semibold text-lg">
                         +91 {phoneNumber}
                       </span>
-                    </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep('phone')
+                          setOtp(['', '', '', '', '', ''])
+                          setError('')
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 bg-brand-blue-50 hover:bg-brand-blue-100 rounded-full transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Edit
+                      </button>
+                    </div>
                   </div>
 
-                  <form onSubmit={handleOtpSubmit} className="space-y-4">
+                  <form onSubmit={handleOtpSubmit} className="space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
                         Enter 6-digit OTP
                       </label>
                       <div className="flex gap-2 md:gap-3 justify-start">
@@ -390,7 +406,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                             onChange={(e) => handleOtpChange(index, e.target.value)}
                             onKeyDown={(e) => handleOtpKeyDown(index, e)}
                             onPaste={index === 0 ? handleOtpPaste : undefined}
-                            className="w-10 h-12 md:w-12 md:h-14 text-center text-xl md:text-2xl font-bold bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-brand-lime"
+                            className="w-11 h-13 md:w-12 md:h-14 text-center text-xl md:text-2xl font-bold bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 transition-all"
                           />
                         ))}
                       </div>
@@ -400,47 +416,51 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm"
+                        className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2"
                       >
+                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
                         {error}
                       </motion.div>
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 pt-2">
                       <motion.button
                         type="submit"
                         disabled={loading || otp.some(d => !d)}
-                        className="w-full py-4 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        whileHover={{ scale: loading ? 1 : 1.02 }}
-                        whileTap={{ scale: loading ? 1 : 0.98 }}
+                        className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                          otp.every(d => d) && !loading
+                            ? 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400 shadow-md hover:shadow-lg'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                        whileHover={otp.every(d => d) && !loading ? { scale: 1.02 } : {}}
+                        whileTap={otp.every(d => d) && !loading ? { scale: 0.98 } : {}}
                       >
                         {loading ? (
-                          <div className="w-5 h-5 border-2 border-gray-500/30 border-t-gray-700 rounded-full animate-spin mx-auto" />
+                          <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
                         ) : (
-                          'VERIFY OTP'
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            VERIFY OTP
+                          </>
                         )}
                       </motion.button>
 
-                      <button
-                        type="button"
-                        onClick={handleResendOTP}
-                        disabled={loading}
-                        className="w-full py-3 text-teal-600 hover:text-teal-700 transition-colors text-sm font-medium disabled:opacity-50"
-                      >
-                        Resend OTP
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStep('phone')
-                          setOtp(['', '', '', '', '', ''])
-                          setError('')
-                        }}
-                        className="w-full py-3 text-gray-400 hover:text-gray-500 transition-colors text-sm"
-                      >
-                        Change Phone Number
-                      </button>
+                      {/* Resend OTP Section */}
+                      <div className="flex items-center justify-center gap-1 pt-2">
+                        <span className="text-gray-500 text-sm">Didn't receive the code?</span>
+                        <button
+                          type="button"
+                          onClick={handleResendOTP}
+                          disabled={loading}
+                          className="text-brand-blue-600 hover:text-brand-blue-700 text-sm font-semibold disabled:opacity-50 transition-colors"
+                        >
+                          Resend OTP
+                        </button>
+                      </div>
                     </div>
                   </form>
                 </motion.div>
