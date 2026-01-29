@@ -49,13 +49,22 @@ const RefreshIcon = () => (
     </svg>
 )
 
+// Calendar Icon for Rescheduled
+const CalendarIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+)
+
 export default function AdminProductsPage() {
-    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'cancelled' | 'analytics'>('products')
+    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'rescheduled' | 'cancelled' | 'analytics'>('products')
     const [products, setProducts] = useState<Product[]>([])
     const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([])
+    const [rescheduledRequests, setRescheduledRequests] = useState<PickupRequest[]>([])
     const [cancelledRequests, setCancelledRequests] = useState<PickupRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [pickupLoading, setPickupLoading] = useState(false)
+    const [rescheduledLoading, setRescheduledLoading] = useState(false)
     const [cancelledLoading, setCancelledLoading] = useState(false)
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -136,6 +145,31 @@ export default function AdminProductsPage() {
         }
     }
 
+    const fetchRescheduledRequests = async () => {
+        try {
+            setRescheduledLoading(true)
+            const data = await getAllPickupRequests()
+            // Filter for rescheduled requests that are not cancelled
+            const rescheduled = data.filter(request => request.rescheduled === true && request.status !== 'cancelled')
+            // Sort by rescheduledAt date (newest first)
+            rescheduled.sort((a, b) => {
+                const aDate = a.rescheduledAt instanceof Date 
+                    ? a.rescheduledAt.getTime() 
+                    : (a.rescheduledAt as any)?.toDate?.()?.getTime() || 0
+                const bDate = b.rescheduledAt instanceof Date 
+                    ? b.rescheduledAt.getTime() 
+                    : (b.rescheduledAt as any)?.toDate?.()?.getTime() || 0
+                return bDate - aDate
+            })
+            setRescheduledRequests(rescheduled)
+        } catch (error) {
+            console.error('Error fetching rescheduled requests:', error)
+            alert('Failed to load rescheduled orders')
+        } finally {
+            setRescheduledLoading(false)
+        }
+    }
+
     const fetchCancelledRequests = async () => {
         try {
             setCancelledLoading(true)
@@ -157,6 +191,8 @@ export default function AdminProductsPage() {
     useEffect(() => {
         if (activeTab === 'pickup') {
             fetchPickupRequests()
+        } else if (activeTab === 'rescheduled') {
+            fetchRescheduledRequests()
         } else if (activeTab === 'cancelled') {
             fetchCancelledRequests()
         }
@@ -192,10 +228,13 @@ export default function AdminProductsPage() {
     const completedPickups = pickupRequests.filter(r => r.status === 'completed').length
     const totalProducts = products.length
 
+    const rescheduledCount = rescheduledRequests.length
+
     const tabs = [
         { id: 'products' as const, label: 'Product List', icon: PackageIcon, count: totalProducts },
         { id: 'calculator' as const, label: 'Price Calculator', icon: CalculatorIcon },
         { id: 'pickup' as const, label: 'Pickup Requests', icon: TruckIcon, count: pickupRequests.length, highlight: pendingPickups > 0 },
+        { id: 'rescheduled' as const, label: 'Rescheduled', icon: CalendarIcon, count: rescheduledCount, warning: rescheduledCount > 0 },
         { id: 'cancelled' as const, label: 'Cancelled Orders', icon: XCircleIcon, count: cancelledRequests.length, danger: true },
         { id: 'analytics' as const, label: 'Analytics', icon: ChartIcon },
     ]
@@ -290,9 +329,13 @@ export default function AdminProductsPage() {
                                     isActive
                                         ? tab.danger
                                             ? 'bg-red-500 text-white shadow-md'
+                                            : tab.warning
+                                            ? 'bg-orange-500 text-white shadow-md'
                                             : 'bg-brand-blue-900 text-white shadow-md'
                                         : tab.danger
                                         ? 'text-red-600 hover:bg-red-50'
+                                        : tab.warning
+                                        ? 'text-orange-600 hover:bg-orange-50'
                                         : 'text-gray-600 hover:bg-gray-100'
                                 }`}
                             >
@@ -304,6 +347,8 @@ export default function AdminProductsPage() {
                                             ? 'bg-white/20 text-white'
                                             : tab.danger
                                             ? 'bg-red-100 text-red-600'
+                                            : tab.warning
+                                            ? 'bg-orange-100 text-orange-700'
                                             : tab.highlight
                                             ? 'bg-amber-100 text-amber-700'
                                             : 'bg-gray-100 text-gray-600'
@@ -578,6 +623,194 @@ export default function AdminProductsPage() {
                                                     </div>
                                                     <p className="text-gray-500 font-medium">No pickup requests found</p>
                                                     <p className="text-gray-400 text-sm mt-1">New requests will appear here</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Rescheduled Orders Tab */}
+            {activeTab === 'rescheduled' && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* Header */}
+                    <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                                    <CalendarIcon />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-orange-800">Rescheduled Orders</h2>
+                                    <p className="text-sm text-orange-600">Orders that have been rescheduled by customers</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={fetchRescheduledRequests}
+                                className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-200 transition-all duration-200 font-medium text-sm"
+                            >
+                                <RefreshIcon />
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    {rescheduledLoading ? (
+                        <div className="flex flex-col justify-center items-center py-20">
+                            <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-200 border-t-orange-600"></div>
+                            <p className="mt-4 text-gray-500 text-sm">Loading rescheduled orders...</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full">
+                                <thead>
+                                    <tr className="bg-gray-50 border-b border-gray-100">
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Request ID</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Product</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Customer</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Previous Pickup</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">New Pickup</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Rescheduled On</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {rescheduledRequests.map((request) => {
+                                        const customerName = request.customer?.name || request.userName || 'N/A'
+                                        const customerPhone = request.customer?.phone || request.userPhone || 'N/A'
+                                        const customerEmail = request.customer?.email || request.userEmail || 'N/A'
+                                        const price = request.price || request.device?.adjustedPrice || 0
+                                        const productName = request.productName || request.device?.productName || 'N/A'
+                                        const previousPickupDate = request.previousPickupDate ? new Date(request.previousPickupDate) : null
+                                        const newPickupDate = request.pickupDate ? new Date(request.pickupDate) : null
+                                        const rescheduledAt = request.rescheduledAt 
+                                            ? (request.rescheduledAt instanceof Date 
+                                                ? request.rescheduledAt 
+                                                : (request.rescheduledAt as any)?.toDate?.() || new Date())
+                                            : null
+                                        const status = request.status || 'pending'
+                                        const orderId = request.valuationId || request.id
+                                        const statusConfig = getStatusConfig(status)
+
+                                        return (
+                                            <tr key={request.id} className="hover:bg-orange-50/30 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="space-y-1">
+                                                        <div className="text-sm font-mono text-gray-700">
+                                                            {orderId?.substring(0, 16)}...
+                                                        </div>
+                                                        <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                                                            <CalendarIcon />
+                                                            Rescheduled
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-gray-900 text-sm">{productName}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="space-y-1">
+                                                        <div className="font-medium text-gray-900 text-sm">{customerName}</div>
+                                                        <div className="text-sm text-gray-500">{customerPhone}</div>
+                                                        {customerEmail !== 'N/A' && (
+                                                            <div className="text-xs text-gray-400 truncate max-w-[180px]">{customerEmail}</div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="font-semibold text-gray-900">
+                                                        ₹{price.toLocaleString('en-IN')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {previousPickupDate ? (
+                                                        <div className="space-y-1">
+                                                            <div className="text-sm text-gray-500 line-through">
+                                                                {previousPickupDate.toLocaleDateString('en-IN', { 
+                                                                    weekday: 'short',
+                                                                    day: 'numeric',
+                                                                    month: 'short'
+                                                                })}
+                                                            </div>
+                                                            {request.previousPickupTime && (
+                                                                <div className="text-xs text-gray-400 line-through">
+                                                                    {request.previousPickupTime}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400 italic">N/A</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {newPickupDate ? (
+                                                        <div className="space-y-1">
+                                                            <div className="font-medium text-orange-700 text-sm">
+                                                                {newPickupDate.toLocaleDateString('en-IN', { 
+                                                                    weekday: 'short',
+                                                                    day: 'numeric',
+                                                                    month: 'short'
+                                                                })}
+                                                            </div>
+                                                            {request.pickupTime && (
+                                                                <div className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded inline-block">
+                                                                    {request.pickupTime}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400 italic">Not set</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {rescheduledAt ? (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 border border-orange-100 rounded-lg">
+                                                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                                            <span className="text-sm text-orange-700">
+                                                                {rescheduledAt.toLocaleDateString('en-IN', { 
+                                                                    day: 'numeric',
+                                                                    month: 'short'
+                                                                })}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400">N/A</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <select
+                                                        value={status}
+                                                        onChange={(e) => handleStatusChange(request.id, e.target.value)}
+                                                        className={`text-xs font-semibold rounded-lg px-3 py-1.5 border ${statusConfig.bg} ${statusConfig.text} focus:ring-2 focus:ring-brand-blue-500 outline-none cursor-pointer transition-all`}
+                                                    >
+                                                        <option value="pending">Pending</option>
+                                                        <option value="confirmed">Confirmed</option>
+                                                        <option value="completed">Completed</option>
+                                                        <option value="hold">Hold</option>
+                                                        <option value="verification">Verification</option>
+                                                        <option value="reject">Reject</option>
+                                                        <option value="suspect">Suspect</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {rescheduledRequests.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-16 text-center">
+                                                <div className="flex flex-col items-center">
+                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    </div>
+                                                    <p className="text-gray-500 font-medium">No rescheduled orders</p>
+                                                    <p className="text-gray-400 text-sm mt-1">All orders are on their original schedule</p>
                                                 </div>
                                             </td>
                                         </tr>

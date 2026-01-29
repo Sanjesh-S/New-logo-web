@@ -207,9 +207,14 @@ export default function ActiveOrders() {
     if (!selectedOrder) return
     
     if (selectedOrder.type === 'pickup') {
+      // Mark as rescheduled and store previous pickup info
       await updatePickupRequest(selectedOrder.id, {
         pickupDate: date,
         pickupTime: time,
+        rescheduled: true,
+        rescheduledAt: new Date(),
+        previousPickupDate: selectedOrder.pickupDate || undefined,
+        previousPickupTime: selectedOrder.pickupTime || undefined,
       })
     } else {
       await updateValuation(selectedOrder.id, {

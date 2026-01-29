@@ -760,6 +760,11 @@ export interface PickupRequest {
   remarks?: string
   createdAt?: Timestamp | Date
   updatedAt?: Timestamp | Date
+  // Reschedule tracking
+  rescheduled?: boolean
+  rescheduledAt?: Timestamp | Date
+  previousPickupDate?: string
+  previousPickupTime?: string
   // Legacy/alternative fields
   device?: {
     accessories?: string[]
