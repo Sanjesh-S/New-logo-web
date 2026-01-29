@@ -101,7 +101,7 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
           </p>
           <button
             type="button"
-            onClick={fetchProducts}
+            onClick={() => fetchProducts(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
