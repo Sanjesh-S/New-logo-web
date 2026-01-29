@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getValuation, updateValuation, getUserValuations } from '@/lib/firebase/database'
 import { getFirestoreServer } from '@/lib/firebase/server'
-import { collection, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, Timestamp } from 'firebase/firestore'
 import { valuationSchema, valuationUpdateSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
 import { createLogger } from '@/lib/utils/logger'
+import { generateOrderId, getCategoryCode } from '@/lib/utils/orderId'
 
 const logger = createLogger('API:Valuations')
 
@@ -84,9 +85,41 @@ export async function POST(request: NextRequest) {
     finalCondition = finalCondition || 'good'
     finalUsage = finalUsage || 'moderate'
 
+    // Generate custom Order ID
+    // Use provided address or defaults (Tamil Nadu, Coimbatore RTO 37)
+    const state = body.state || 'Tamil Nadu'
+    const pincode = body.pincode || '641004' // Default to Coimbatore pincode
+    
+    let orderId: string
+    try {
+      logger.info('Starting Order ID generation', { state, pincode, category, brand })
+      orderId = await generateOrderId(state, pincode, category, brand)
+      logger.info('Successfully generated Order ID', { orderId, state, pincode, category, brand })
+    } catch (error: any) {
+      logger.error('Error generating Order ID', {
+        error: error?.message || 'Unknown error',
+        stack: error?.stack,
+        code: error?.code,
+        state,
+        pincode,
+        category,
+        brand,
+      })
+      // Don't use fallback - fail the request if Order ID generation fails
+      // This ensures we always get sequential numbers
+      return NextResponse.json(
+        {
+          error: 'Failed to generate Order ID',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          code: error?.code || 'UNKNOWN',
+        },
+        { status: 500 }
+      )
+    }
+
     // Initialize Firestore for server-side using centralized utility
     const db = getFirestoreServer()
-    const valuationRef = collection(db, 'valuations')
+    const valuationDocRef = doc(db, 'valuations', orderId)
     
     const newValuation = {
       category,
@@ -99,28 +132,36 @@ export async function POST(request: NextRequest) {
       estimatedValue: estimatedValue || 0,
       userId: userId || null,
       status: 'pending',
+      orderId, // Store the custom Order ID
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       // Include address data if provided
       ...(body.pickupAddress && { pickupAddress: body.pickupAddress }),
       ...(body.userName && { userName: body.userName }),
       ...(body.userPhone && { userPhone: body.userPhone }),
+      ...(body.state && { state: body.state }),
+      ...(body.pincode && { pincode: body.pincode }),
     }
     
-    const docRef = await addDoc(valuationRef, newValuation)
-    const valuationId = docRef.id
+    // Use setDoc with custom Order ID instead of addDoc
+    await setDoc(valuationDocRef, newValuation)
 
     return NextResponse.json({ 
       success: true, 
-      id: valuationId,
+      id: orderId,
       message: 'Valuation created successfully' 
     })
-  } catch (error) {
-    logger.error('Error creating valuation', error)
+  } catch (error: any) {
+    logger.error('Error creating valuation', {
+      error: error?.message || 'Unknown error',
+      stack: error?.stack,
+      code: error?.code,
+    })
     return NextResponse.json(
       { 
         error: 'Failed to create valuation',
         details: error instanceof Error ? error.message : 'Unknown error',
+        code: error?.code || 'UNKNOWN',
       },
       { status: 500 }
     )

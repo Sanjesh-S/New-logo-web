@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Check, Camera } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getDevices as getDevicesFromDb, getDevice as getDeviceFromDb, createValuation } from '@/lib/firebase/database'
+import { getDevices as getDevicesFromDb, getDevice as getDeviceFromDb } from '@/lib/firebase/database'
 import OTPLogin from '@/components/OTPLogin'
 
 interface Device {
@@ -480,8 +480,9 @@ export default function TradeInFlow() {
             <motion.button
               onClick={async () => {
                 try {
-                  // Use Firebase directly instead of API routes (for static export)
-                  const valuationId = await createValuation({
+                  // Use API client to create valuation with custom Order ID
+                  const { createValuation } = await import('@/lib/api/client')
+                  const data = await createValuation({
                     category: category as 'cameras' | 'phones' | 'laptops',
                     brand: valuation.brand,
                     model: valuation.model,
@@ -490,12 +491,15 @@ export default function TradeInFlow() {
                     accessories: valuation.accessories,
                     basePrice,
                     estimatedValue,
-                    status: 'pending',
                     userId: user?.uid || undefined,
                   })
 
-                  // Redirect to success page
-                  window.location.href = `/success?id=${valuationId}&value=${estimatedValue}`
+                  if (data.success && data.id) {
+                    // Redirect to success page with custom Order ID
+                    window.location.href = `/success?id=${data.id}&value=${estimatedValue}`
+                  } else {
+                    throw new Error('Failed to create valuation')
+                  }
                 } catch (error) {
                   console.error('Error submitting valuation:', error)
                   alert('An error occurred. Please try again.')

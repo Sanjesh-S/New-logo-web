@@ -59,6 +59,7 @@ export default function AssessmentWizard({
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [pricingRules, setPricingRules] = useState<PricingRules>(DEFAULT_PRICING_RULES)
+  const [valuationId, setValuationId] = useState<string | null>(null)
 
   // Fetch product data and pricing rules
   useEffect(() => {
@@ -229,14 +230,48 @@ export default function AssessmentWizard({
     // Don't show order confirmation yet - wait for "Confirm Order" button click
   }
 
-  const handleConfirmOrder = () => {
-    // Show address popup when "Confirm Order" is clicked
-    setShowOrderConfirmation(true)
+  const handleConfirmOrder = async () => {
+    // Create valuation first before showing pickup confirmation
+    if (!product) return
+    
+    try {
+      const { createValuation } = await import('@/lib/api/client')
+      const data = await createValuation({
+        category: (category || product.category) as 'cameras' | 'phones' | 'laptops',
+        brand: brand || product.brand,
+        model: model || product.modelName,
+        productId: product.id,
+        basePrice: product.basePrice,
+        internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
+        estimatedValue: calculatedPrice,
+        answers,
+        userId: user?.uid || undefined,
+      })
+
+      if (data.success && data.id) {
+        setValuationId(data.id)
+        // Show address popup after valuation is created
+        setShowOrderConfirmation(true)
+      } else {
+        const errorMsg = (data as any)?.error || (data as any)?.details || 'Unknown error'
+        console.error('Failed to create order:', data)
+        alert(`Failed to create order: ${errorMsg}. Please try again.`)
+      }
+    } catch (error: any) {
+      console.error('Error creating valuation:', error)
+      const errorMsg = error?.message || error?.error || 'Unknown error occurred'
+      alert(`Failed to create order: ${errorMsg}. Please check the console for details.`)
+    }
   }
 
   const handleOrderConfirm = async (addressData: AddressData) => {
-    // Submit assessment with address data
-    await submitAssessment(addressData)
+    // After pickup is confirmed, redirect to order summary
+    if (!product || !valuationId) return
+    
+    const internalBase = product.internalBasePrice || product.basePrice * 0.5
+    const deductions = calculatedPrice - internalBase
+    const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
+    window.location.href = `/order-summary?id=${valuationId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
   }
 
   if (loading) {
@@ -852,6 +887,7 @@ export default function AssessmentWizard({
             price={calculatedPrice}
             productName={product.modelName}
             phoneNumber={phoneNumber}
+            valuationId={valuationId || undefined}
             onConfirm={handleOrderConfirm}
             onClose={() => setShowOrderConfirmation(false)}
           />

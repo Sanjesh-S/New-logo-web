@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type PickupRequest } from '@/lib/firebase/database'
 import { Clock, Truck, CheckCircle, AlertCircle, Package } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface ActiveOrderItem {
   id: string

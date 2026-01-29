@@ -51,7 +51,7 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
       return
     }
 
-    const { productName, price, customer, pickupDate, pickupTime, userId } = validation.data!
+    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId } = validation.data!
 
     const docRef = await db.collection('pickupRequests').add({
       productName,
@@ -69,6 +69,7 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
       pickupDate,
       pickupTime,
       userId: userId || null,
+      valuationId: valuationId || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'pending',
     })

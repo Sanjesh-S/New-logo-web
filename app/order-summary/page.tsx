@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { CheckCircle, Package, Truck, CreditCard, ArrowRight, Copy, Check, Calendar, Sparkles, Shield, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { getProductById, getValuation, getPickupRequest, type Product, type PickupRequest } from '@/lib/firebase/database'
+import { getProductById, getValuation, getPickupRequest, type Product, type PickupRequest, type Valuation } from '@/lib/firebase/database'
 import PickupScheduler from '@/components/PickupScheduler'
 import { Timestamp } from 'firebase/firestore'
 
@@ -30,7 +30,11 @@ function OrderSummaryContent() {
   const [scheduledDate, setScheduledDate] = useState<string | null>(null)
   const [scheduledTime, setScheduledTime] = useState<string | null>(null)
   const [pickupRequest, setPickupRequest] = useState<PickupRequest | null>(null)
+  const [valuation, setValuation] = useState<Valuation | null>(null)
   const [orderType, setOrderType] = useState<'valuation' | 'pickup'>('valuation')
+  
+  // Get the Order ID to display (prefer orderId from valuation, fallback to valuationId)
+  const displayOrderId = valuation?.orderId || valuationId || ''
 
   const finalPrice = price ? parseInt(price) : (pickupRequest?.price || 0)
   const internalBase = basePrice ? parseInt(basePrice) : 0
@@ -60,26 +64,27 @@ function OrderSummaryContent() {
       if (valuationId) {
         try {
           // Try to fetch as valuation first
-          const valuation = await getValuation(valuationId)
-          if (valuation) {
+          const valuationData = await getValuation(valuationId)
+          if (valuationData) {
+            setValuation(valuationData)
             setOrderType('valuation')
             // Extract pickupDate and pickupTime from valuation
-            if (valuation.pickupDate) {
+            if (valuationData.pickupDate) {
               // Handle both Date and Timestamp types
               let dateValue: Date
-              if (valuation.pickupDate instanceof Timestamp) {
-                dateValue = valuation.pickupDate.toDate()
-              } else if (valuation.pickupDate instanceof Date) {
-                dateValue = valuation.pickupDate
+              if (valuationData.pickupDate instanceof Timestamp) {
+                dateValue = valuationData.pickupDate.toDate()
+              } else if (valuationData.pickupDate instanceof Date) {
+                dateValue = valuationData.pickupDate
               } else {
-                dateValue = new Date(valuation.pickupDate)
+                dateValue = new Date(valuationData.pickupDate)
               }
               // Format as YYYY-MM-DD for the date input
               const formattedDate = dateValue.toISOString().split('T')[0]
               setScheduledDate(formattedDate)
             }
-            if (valuation.pickupTime) {
-              setScheduledTime(valuation.pickupTime)
+            if (valuationData.pickupTime) {
+              setScheduledTime(valuationData.pickupTime)
             }
             return
           }
@@ -112,8 +117,9 @@ function OrderSummaryContent() {
   }, [valuationId])
 
   const copyOrderId = () => {
-    if (valuationId) {
-      navigator.clipboard.writeText(valuationId)
+    const orderIdToCopy = displayOrderId
+    if (orderIdToCopy) {
+      navigator.clipboard.writeText(orderIdToCopy)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -378,7 +384,7 @@ function OrderSummaryContent() {
                       </button>
                     </div>
                     <p className="text-xs sm:text-sm font-mono text-gray-900 bg-gray-50 px-3 py-2 rounded-lg break-all border border-gray-200">
-                      {valuationId}
+                      {displayOrderId}
                     </p>
                   </div>
                   <div>

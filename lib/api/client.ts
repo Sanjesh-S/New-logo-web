@@ -116,15 +116,30 @@ export async function createValuation(data: {
   pickupAddress?: string
   userName?: string
   userPhone?: string
+  state?: string
+  pincode?: string
 }) {
-  return callFunction<{
-    success: boolean
-    id: string
-    message: string
-  }>('valuations', {
+  // ALWAYS use Next.js API route (supports custom Order ID generation)
+  // DO NOT fallback to Firebase Functions - they use auto-generated IDs
+  const response = await fetch('/api/valuations', {
     method: 'POST',
-    body: data,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
   })
+
+  const responseData = await response.json()
+
+  if (!response.ok) {
+    const errorMsg = responseData.error || responseData.details || `API route failed: ${response.statusText}`
+    const error = new Error(errorMsg)
+    // Attach response data for better error handling
+    ;(error as any).response = responseData
+    throw error
+  }
+
+  return responseData
 }
 
 /**
@@ -194,6 +209,7 @@ export async function createPickupRequest(data: {
   pickupDate: string
   pickupTime: string
   userId?: string | null
+  valuationId?: string | null
 }) {
   // Use Firebase Function - notifications are handled server-side in Firebase Functions
   return callFunction<{

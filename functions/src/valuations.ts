@@ -8,6 +8,7 @@ import { valuationSchema, valuationUpdateSchema } from './schemas'
 import { validateSchema, createValidationErrorResponse } from './utils/validation'
 import { checkRateLimit, getClientIdentifier } from './utils/rateLimit'
 import { createLogger } from './utils/logger'
+import { generateOrderId, getCategoryCode } from './utils/orderId'
 
 const logger = createLogger('Functions:Valuations')
 
@@ -54,6 +55,8 @@ export async function createValuation(req: Request, res: Response): Promise<void
       estimatedValue,
       userId,
       answers,
+      state,
+      pincode,
     } = validation.data!
 
     // Extract condition/usage from answers if needed
@@ -83,6 +86,25 @@ export async function createValuation(req: Request, res: Response): Promise<void
     finalCondition = finalCondition || 'good'
     finalUsage = finalUsage || 'moderate'
 
+    // Generate custom Order ID
+    const orderState = state || 'Tamil Nadu'
+    const orderPincode = pincode || '641004' // Default to Coimbatore
+    
+    let orderId: string
+    try {
+      orderId = await generateOrderId(db, orderState, orderPincode, category, brand)
+      logger.info('Generated Order ID', { orderId, state: orderState, pincode: orderPincode, category, brand })
+    } catch (error) {
+      logger.error('Error generating Order ID', error)
+      // Don't use fallback - fail the request if Order ID generation fails
+      // This ensures we always get sequential numbers
+      res.status(500).json({
+        error: 'Failed to generate Order ID',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      })
+      return
+    }
+
     const newValuation = {
       category,
       brand,
@@ -94,19 +116,22 @@ export async function createValuation(req: Request, res: Response): Promise<void
       estimatedValue: estimatedValue || 0,
       userId: userId || null,
       status: 'pending',
+      orderId, // Store the custom Order ID
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       ...(body.pickupAddress && { pickupAddress: body.pickupAddress }),
       ...(body.userName && { userName: body.userName }),
       ...(body.userPhone && { userPhone: body.userPhone }),
+      ...(state && { state }),
+      ...(pincode && { pincode }),
     }
 
-    const docRef = await db.collection('valuations').add(newValuation)
-    const valuationId = docRef.id
+    // Use setDoc with custom Order ID instead of add
+    await db.collection('valuations').doc(orderId).set(newValuation)
 
     res.json({
       success: true,
-      id: valuationId,
+      id: orderId,
       message: 'Valuation created successfully',
     })
   } catch (error) {

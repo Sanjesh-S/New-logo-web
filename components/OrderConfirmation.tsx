@@ -11,6 +11,7 @@ interface OrderConfirmationProps {
   price: number
   productName: string
   phoneNumber: string
+  valuationId?: string
   onConfirm: (addressData: AddressData) => void
   onClose: () => void
 }
@@ -33,6 +34,7 @@ export default function OrderConfirmation({
   price,
   productName,
   phoneNumber,
+  valuationId,
   onConfirm,
   onClose,
 }: OrderConfirmationProps) {
@@ -297,6 +299,7 @@ export default function OrderConfirmation({
     try {
       // Save to Firestore and send Telegram notification
       const { createPickupRequest } = await import('@/lib/api/client')
+      console.log('Creating pickup request with valuationId:', valuationId)
       const result = await createPickupRequest({
         productName,
         price,
@@ -313,7 +316,9 @@ export default function OrderConfirmation({
         pickupDate: selectedDate,
         pickupTime: formData.pickupTime || '',
         userId: user?.uid || null,
+        valuationId: valuationId || null,
       })
+      console.log('Pickup request created:', result)
 
       if (result.success) {
         console.log('Pickup request created successfully:', result)

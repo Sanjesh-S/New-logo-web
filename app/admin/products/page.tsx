@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAllProducts, getAllPickupRequests, updatePickupRequest, type Product, type PickupRequest } from '@/lib/firebase/database'
+import { getAllProducts, getAllPickupRequests, updatePickupRequest, getUserValuationsLegacy, type Product, type PickupRequest, type Valuation } from '@/lib/firebase/database'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'
 
@@ -35,7 +35,35 @@ export default function AdminProductsPage() {
         try {
             setPickupLoading(true)
             const data = await getAllPickupRequests()
-            setPickupRequests(data)
+            
+            // Try to link pickup requests to valuations if valuationId is missing
+            // This helps with existing pickup requests created before valuationId was added
+            const requestsWithValuationId = await Promise.all(
+                data.map(async (request) => {
+                    // If already has valuationId, return as is
+                    if (request.valuationId) {
+                        return request
+                    }
+                    
+                    // Try to find matching valuation by phone number and product/price
+                    try {
+                        // Get all valuations (we'll filter client-side)
+                        // Note: This is a simplified approach - in production you might want to query by phone
+                        const customerPhone = request.customer?.phone?.replace(/\D/g, '') || request.userPhone?.replace(/\D/g, '') || ''
+                        if (customerPhone.length === 10) {
+                            // Try to find valuation by matching phone and approximate price/date
+                            // For now, we'll just return the request as-is
+                            // A more sophisticated matching could be added later
+                        }
+                    } catch (error) {
+                        console.warn('Error trying to match valuation:', error)
+                    }
+                    
+                    return request
+                })
+            )
+            
+            setPickupRequests(requestsWithValuationId)
         } catch (error) {
             console.error('Error fetching pickup requests:', error)
             alert('Failed to load pickup requests')
@@ -334,13 +362,26 @@ export default function AdminProductsPage() {
                                             const pickupDate = request.pickupDate ? new Date(request.pickupDate) : null
                                             const status = request.status || 'pending'
                                             
+                                            // Use valuationId (Order ID) if available, otherwise use pickup request ID
+                                            const orderId = request.valuationId || request.id
+                                            const hasOrderId = !!request.valuationId
                                             return (
                                                 <tr key={request.id} className="hover:bg-gray-50">
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-mono text-gray-900">
-                                                            {request.id.substring(0, 8)}...
+                                                        <div className={`text-sm font-mono break-all ${hasOrderId ? 'text-gray-900 font-semibold' : 'text-gray-600'}`}>
+                                                            {orderId}
                                                         </div>
-                                                        <div className="text-xs text-gray-500">
+                                                        {hasOrderId && request.valuationId !== request.id && (
+                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                Request: {request.id.substring(0, 8)}...
+                                                            </div>
+                                                        )}
+                                                        {!hasOrderId && (
+                                                            <div className="text-xs text-yellow-600 mt-1 italic font-medium">
+                                                                ⚠ No Order ID linked (Legacy request)
+                                                            </div>
+                                                        )}
+                                                        <div className="text-xs text-gray-500 mt-1">
                                                             {createdAt.toLocaleDateString('en-IN')}
                                                         </div>
                                                     </td>

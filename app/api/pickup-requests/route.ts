@@ -37,7 +37,14 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.errors!)
     }
     
-    const { productName, price, customer, pickupDate, pickupTime, userId } = validation.data!
+    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId } = validation.data!
+
+    logger.info('Creating pickup request', { 
+      productName, 
+      price, 
+      customerPhone: customer.phone,
+      valuationId: valuationId || 'none'
+    })
 
     // Initialize Firestore for server-side using centralized utility
     const db = getFirestoreServer()
@@ -58,6 +65,7 @@ export async function POST(request: NextRequest) {
       pickupDate,
       pickupTime,
       userId: userId || null,
+      valuationId: valuationId || null,
       createdAt: Timestamp.now(),
       status: 'pending',
     })

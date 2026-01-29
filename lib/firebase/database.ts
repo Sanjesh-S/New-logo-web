@@ -21,6 +21,7 @@ import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
 // Database Schema Types
 export interface Valuation {
   id?: string
+  orderId?: string // Custom Order ID (e.g., TN37WTDSLR1001)
   userId?: string
   category: 'cameras' | 'phones' | 'laptops'
   brand: string
@@ -38,6 +39,8 @@ export interface Valuation {
   pickupDate?: Date | Timestamp
   pickupTime?: string
   paymentMethod?: string
+  state?: string
+  pincode?: string
 }
 
 export interface Device {
@@ -741,6 +744,7 @@ export interface PickupRequest {
   id: string
   productName?: string
   price?: number
+  valuationId?: string | null
   customer?: {
     name: string
     phone: string
