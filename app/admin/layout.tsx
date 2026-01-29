@@ -16,20 +16,6 @@ export default function AdminLayout({
                                 <Link href="/admin/products" className="flex-shrink-0 flex items-center cursor-pointer">
                                     <span className="text-xl font-bold text-brand-blue-900">Admin Dashboard</span>
                                 </Link>
-                                <div className="ml-10 flex items-baseline space-x-4">
-                                    <Link
-                                        href="/admin/products"
-                                        className="text-gray-900 hover:text-brand-lime px-3 py-2 rounded-md text-sm font-medium"
-                                    >
-                                        Products
-                                    </Link>
-                                    <Link
-                                        href="/admin/analytics"
-                                        className="text-gray-900 hover:text-brand-lime px-3 py-2 rounded-md text-sm font-medium"
-                                    >
-                                        Analytics
-                                    </Link>
-                                </div>
                             </div>
                         </div>
                     </div>
