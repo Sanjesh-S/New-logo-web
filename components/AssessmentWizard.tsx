@@ -867,12 +867,12 @@ export default function AssessmentWizard({
                 <div className="inline-block px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-4">
                   Your Estimated Trade-In Value
                 </div>
+                <p className="text-white/80 text-sm md:text-base mb-2">
+                  Based on your device condition assessment
+                </p>
                 <div className="text-5xl md:text-6xl lg:text-7xl font-bold mb-2 tracking-tight">
                   ₹{calculatedPrice.toLocaleString('en-IN')}
                 </div>
-                <p className="text-white/80 text-sm md:text-base">
-                  Based on your device condition assessment
-                </p>
                 <p className="text-white/60 text-xs mt-2">
                   Amount subject to revision upon direct assessment.
                 </p>
