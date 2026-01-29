@@ -70,14 +70,17 @@ service cloud.firestore {
       // Allow anyone to create pickup requests (for API routes)
       allow create: if true;
       
-      // Users can read their own requests (if userId is set)
-      allow read: if isAuthenticated() && 
-                     (request.auth.uid == resource.data.userId || isStaff());
-      
-      // Staff can read all pickup requests
+      // Users can read their own requests - allow if:
+      // 1. User is authenticated AND document's userId matches auth uid, OR
+      // 2. User is staff (can read all)
+      // Note: For list queries, user must query with where('userId', '==', uid)
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow read: if isStaff();
       
-      // Staff can update pickup requests (status changes, etc.)
+      // Authenticated users can update their own pickup requests (for cancel/reschedule)
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can update any pickup requests (status changes, etc.)
       allow update: if isStaff();
       
       // Only superadmins can delete pickup requests
@@ -89,14 +92,16 @@ service cloud.firestore {
       // Allow anyone to create valuations (for API routes)
       allow create: if true;
       
-      // Users can read their own valuations (if userId is set)
-      allow read: if isAuthenticated() && 
-                     (request.auth.uid == resource.data.userId || isStaff());
-      
-      // Staff can read all valuations
+      // Users can read their own valuations - allow if:
+      // 1. User is authenticated AND document's userId matches auth uid, OR
+      // 2. User is staff (can read all)
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow read: if isStaff();
       
-      // Staff can update valuations
+      // Authenticated users can update their own valuations
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can update any valuations
       allow update: if isStaff();
       
       // Only superadmins can delete valuations

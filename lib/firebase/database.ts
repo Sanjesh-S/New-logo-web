@@ -798,26 +798,11 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
       console.warn('Error fetching pickup requests by userId:', error)
     }
     
-    // Also fetch by phone number for backward compatibility (if userPhone provided)
-    // This catches cases where userId might be null or different
-    if (userPhone) {
-      try {
-        const normalizedPhone = userPhone.replace(/^\+91/, '').replace(/\D/g, '')
-        if (normalizedPhone.length === 10) {
-          // Fetch all pickup requests and filter by phone number client-side
-          // (since we can't query nested customer.phone easily)
-          const allPickupRequests = await getAllPickupRequests()
-          const phoneRequests = allPickupRequests.filter(pr => {
-            const customerPhone = pr.customer?.phone?.replace(/\D/g, '') || ''
-            // Include if phone matches - don't exclude based on userId
-            return customerPhone === normalizedPhone
-          })
-          allRequests = [...allRequests, ...phoneRequests]
-        }
-      } catch (error) {
-        console.warn('Error fetching pickup requests by phone:', error)
-      }
-    }
+    // Note: Phone number fallback is no longer used because:
+    // 1. Security rules only allow users to read their own documents (by userId)
+    // 2. We can't query nested customer.phone field efficiently
+    // 3. All new pickup requests should have userId set correctly
+    // If userId query returned results, we have what we need
     
     // Remove duplicates and sort by date
     const uniqueRequests = Array.from(
