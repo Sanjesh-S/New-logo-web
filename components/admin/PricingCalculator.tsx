@@ -5,9 +5,88 @@ import { getAllProducts, type Product, getPricingRules, saveProductPricingRules,
 import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
 import { getCurrentUser } from '@/lib/firebase/auth'
 
-interface QuestionConfig {
-    key: keyof PricingRules['questions']
+// Icons
+const SaveIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+)
+
+const ChevronDownIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+)
+
+const ChevronUpIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+)
+
+interface CollapsibleSectionProps {
+    title: string
+    description?: string
+    children: React.ReactNode
+    defaultOpen?: boolean
+    badge?: string
+    badgeColor?: string
+}
+
+function CollapsibleSection({ title, description, children, defaultOpen = false, badge, badgeColor = 'bg-brand-blue-100 text-brand-blue-700' }: CollapsibleSectionProps) {
+    const [isOpen, setIsOpen] = useState(defaultOpen)
+    
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+                    {badge && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badgeColor}`}>
+                            {badge}
+                        </span>
+                    )}
+                </div>
+                {isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+            </button>
+            {isOpen && (
+                <div className="px-6 pb-6 border-t border-gray-100">
+                    {description && (
+                        <p className="text-sm text-gray-500 mt-4 mb-4">{description}</p>
+                    )}
+                    <div className="mt-4">{children}</div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+interface PricingInputProps {
     label: string
+    value: number
+    onChange: (value: number) => void
+    description?: string
+}
+
+function PricingInput({ label, value, onChange, description }: PricingInputProps) {
+    return (
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            {description && <p className="text-xs text-gray-400 mb-2">{description}</p>}
+            <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</span>
+                <input
+                    type="number"
+                    value={value}
+                    onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+                    className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none transition-all bg-white"
+                />
+            </div>
+        </div>
+    )
 }
 
 export default function PricingCalculator() {
@@ -37,7 +116,6 @@ export default function PricingCalculator() {
     useEffect(() => {
         const loadProductRules = async () => {
             if (!selectedProduct) {
-                // Load global rules if no product selected
                 try {
                     const globalRules = await getPricingRules()
                     setPricingRules(globalRules)
@@ -48,25 +126,21 @@ export default function PricingCalculator() {
             }
 
             try {
-                // First try to load from productPricing collection
                 const productPricingData = await getProductPricingFromCollection(selectedProduct.id)
                 if (productPricingData?.pricingRules) {
                     setPricingRules(productPricingData.pricingRules)
                     return
                 }
 
-                // Fallback to products collection
                 const productWithRules = await getProductById(selectedProduct.id)
                 if (productWithRules?.pricingRules) {
                     setPricingRules(productWithRules.pricingRules)
                 } else {
-                    // Fallback to global rules
                     const globalRules = await getPricingRules()
                     setPricingRules(globalRules)
                 }
             } catch (error) {
                 console.error('Error loading product rules:', error)
-                // Fallback to global rules on error
                 try {
                     const globalRules = await getPricingRules()
                     setPricingRules(globalRules)
@@ -78,120 +152,18 @@ export default function PricingCalculator() {
         loadProductRules()
     }, [selectedProduct])
 
-    // Get unique categories and brands
     const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).sort()]
     const brands = selectedCategory === 'All' 
         ? ['All', ...Array.from(new Set(products.map(p => p.brand))).sort()]
         : ['All', ...Array.from(new Set(products.filter(p => p.category === selectedCategory).map(p => p.brand))).sort()]
 
-    // Filter products based on category and brand
     const filteredProducts = products
         .filter(p => {
             const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory
             const matchesBrand = selectedBrand === 'All' || p.brand === selectedBrand
             return matchesCategory && matchesBrand
         })
-        .sort((a, b) => {
-            // Sort by model name, handling numeric parts correctly (e.g., 80D, 90D, 100D)
-            const modelA = a.modelName.toLowerCase()
-            const modelB = b.modelName.toLowerCase()
-            
-            // Extract numeric parts and text parts for comparison
-            const extractParts = (str: string) => {
-                const parts: Array<{ type: 'number' | 'text', value: number | string }> = []
-                const regex = /(\d+)|([^\d]+)/g
-                let match
-                while ((match = regex.exec(str)) !== null) {
-                    if (match[1]) {
-                        parts.push({ type: 'number', value: parseInt(match[1], 10) })
-                    } else if (match[2]) {
-                        parts.push({ type: 'text', value: match[2] })
-                    }
-                }
-                return parts
-            }
-            
-            const partsA = extractParts(modelA)
-            const partsB = extractParts(modelB)
-            
-            // Compare parts
-            const minLength = Math.min(partsA.length, partsB.length)
-            for (let i = 0; i < minLength; i++) {
-                const partA = partsA[i]
-                const partB = partsB[i]
-                
-                // If types differ, text comes after number
-                if (partA.type !== partB.type) {
-                    return partA.type === 'number' ? -1 : 1
-                }
-                
-                // Compare values
-                if (partA.type === 'number' && partB.type === 'number') {
-                    if (partA.value !== partB.value) {
-                        return (partA.value as number) - (partB.value as number)
-                    }
-                } else {
-                    const textA = partA.value as string
-                    const textB = partB.value as string
-                    if (textA !== textB) {
-                        return textA.localeCompare(textB)
-                    }
-                }
-            }
-            
-            // If all parts match up to minLength, shorter string comes first
-            return partsA.length - partsB.length
-        })
-
-    // Get questions for category
-    const getQuestionsForCategory = (category: string): QuestionConfig[] => {
-        const cat = category.toLowerCase()
-        const isPhone = cat.includes('phone')
-        const isLaptop = cat.includes('laptop') || cat.includes('macbook')
-        const isCamera = cat.includes('camera') || cat.includes('dslr')
-
-        if (isCamera) {
-            return [
-                { key: 'powerOn', label: 'Does the camera power on?' },
-                { key: 'cameraFunction', label: 'Does the camera function properly (photo/video)?' },
-                { key: 'buttonsWorking', label: 'Are all buttons working properly?' },
-                { key: 'waterDamage', label: 'Is the device free from water damage?' },
-                { key: 'flashWorking', label: 'Is the flash working properly?' },
-                { key: 'memoryCardSlotWorking', label: 'Is the memory card slot working properly?' },
-                { key: 'speakerWorking', label: 'Is the speaker working properly?' },
-            ]
-        } else if (isPhone) {
-            return [
-                { key: 'powerOn', label: 'Device powers on and functions properly?' },
-                { key: 'lcdWorking', label: 'Screen/Display working properly?' },
-                { key: 'bodyDamage', label: 'Body free from major damage?' },
-            ]
-        } else if (isLaptop) {
-            return [
-                { key: 'powerOn', label: 'Device powers on and functions properly?' },
-                { key: 'lcdWorking', label: 'Screen/Display working properly?' },
-                { key: 'bodyDamage', label: 'Body free from major damage?' },
-            ]
-        } else {
-            // Default for other categories
-            return [
-                { key: 'powerOn', label: 'Device powers on and functions properly?' },
-                { key: 'bodyDamage', label: 'Body free from major damage?' },
-            ]
-        }
-    }
-
-    // Check if category has display
-    const hasDisplay = (category: string): boolean => {
-        const cat = category.toLowerCase()
-        return cat.includes('phone') || cat.includes('laptop') || cat.includes('macbook') || cat.includes('tablet') || cat.includes('ipad') || cat.includes('camera') || cat.includes('dslr')
-    }
-
-    // Check if category is camera
-    const isCamera = (category: string): boolean => {
-        const cat = category.toLowerCase()
-        return cat.includes('camera') || cat.includes('dslr')
-    }
+        .sort((a, b) => a.modelName.localeCompare(b.modelName))
 
     const handleQuestionUpdate = (questionKey: keyof PricingRules['questions'], field: 'yes' | 'no', value: number) => {
         setPricingRules(prev => ({
@@ -206,11 +178,11 @@ export default function PricingCalculator() {
         }))
     }
 
-    const handleConditionUpdate = (conditionType: 'displayCondition' | 'bodyCondition' | 'lensCondition' | 'errorCondition' | 'bodyPhysicalCondition' | 'lcdDisplayCondition' | 'rubberGripsCondition' | 'sensorViewfinderCondition' | 'errorCodesCondition' | 'fungusDustCondition' | 'focusFunctionality' | 'rubberRingCondition' | 'lensErrorStatus', key: string, value: number) => {
+    const handleConditionUpdate = (conditionType: string, key: string, value: number) => {
         setPricingRules(prev => ({
             ...prev,
             [conditionType]: {
-                ...prev[conditionType],
+                ...(prev as any)[conditionType],
                 [key]: value
             }
         }))
@@ -226,20 +198,11 @@ export default function PricingCalculator() {
         setSaving(true)
         setSaveMessage(null)
         try {
-            // Get current user email for updatedBy field
             const currentUser = getCurrentUser()
             const updatedBy = currentUser?.email || 'admin'
 
-            // Save to products collection (for backward compatibility)
             await saveProductPricingRules(selectedProduct.id, pricingRules)
-
-            // Save to productPricing collection (main storage)
-            await saveProductPricingToCollection(
-                selectedProduct.id,
-                selectedProduct,
-                pricingRules,
-                updatedBy
-            )
+            await saveProductPricingToCollection(selectedProduct.id, selectedProduct, pricingRules, updatedBy)
 
             setSaveMessage({ type: 'success', text: `Pricing rules saved for ${selectedProduct.modelName}!` })
             setTimeout(() => setSaveMessage(null), 3000)
@@ -268,54 +231,70 @@ export default function PricingCalculator() {
         setSelectedProduct(null)
     }
 
+    // Determine category type
+    const isCamera = selectedProduct?.category?.toLowerCase().includes('camera') || selectedProduct?.category?.toLowerCase().includes('dslr')
+    const isPhone = selectedProduct?.category?.toLowerCase().includes('phone')
+    const isLaptop = selectedProduct?.category?.toLowerCase().includes('laptop')
+    const isTablet = selectedProduct?.category?.toLowerCase().includes('tablet') || selectedProduct?.category?.toLowerCase().includes('ipad')
+
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue-900"></div>
+            <div className="flex flex-col justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-blue-200 border-t-brand-blue-600"></div>
+                <p className="mt-4 text-gray-500 text-sm">Loading products...</p>
             </div>
         )
     }
 
-    const questions = selectedProduct ? getQuestionsForCategory(selectedProduct.category) : []
-    const showDisplayCondition = selectedProduct ? hasDisplay(selectedProduct.category) : false
-    const showLensCondition = selectedProduct ? isCamera(selectedProduct.category) : false
-    const showErrorCondition = selectedProduct ? isCamera(selectedProduct.category) : false
-
     return (
         <div className="space-y-6">
-            {/* Header with Save Button */}
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900">Product Pricing Calculator</h2>
-                <button
-                    onClick={handleSave}
-                    disabled={saving || !selectedProduct}
-                    className="px-4 py-2 bg-brand-blue-900 text-white rounded-lg hover:bg-brand-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-6 shadow-lg">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white">Product Pricing Calculator</h2>
+                        <p className="text-emerald-100 mt-1">Configure deductions for each assessment question and option</p>
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving || !selectedProduct}
+                        className="inline-flex items-center gap-2 bg-white text-emerald-700 px-5 py-2.5 rounded-xl hover:bg-emerald-50 transition-all duration-200 font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {saving ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <SaveIcon />
+                                Save Changes
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Save Message */}
             {saveMessage && (
-                <div className={`p-4 rounded-lg ${saveMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                <div className={`p-4 rounded-xl ${saveMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
                     {saveMessage.text}
                 </div>
             )}
 
-            {/* Description */}
-            <p className="text-gray-600">
-                Set fixed ₹ deductions/additions for each product and issue. These amounts are subtracted/added directly from the base price.
-            </p>
-
-            {/* Filters */}
-            <div className="bg-white p-6 rounded-lg shadow-sm space-y-4">
+            {/* Product Selection */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Product</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                         <select
                             value={selectedCategory}
                             onChange={(e) => handleCategoryChange(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
                         >
                             {categories.map(cat => (
                                 <option key={cat} value={cat}>{cat}</option>
@@ -323,11 +302,11 @@ export default function PricingCalculator() {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Brand</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
                         <select
                             value={selectedBrand}
                             onChange={(e) => handleBrandChange(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
                             disabled={selectedCategory === 'All'}
                         >
                             {brands.map(brand => (
@@ -336,11 +315,11 @@ export default function PricingCalculator() {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Product</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                         <select
                             value={selectedProduct?.id || ''}
                             onChange={(e) => handleProductSelect(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white"
                             disabled={filteredProducts.length === 0}
                         >
                             <option value="">-- Select Product --</option>
@@ -352,531 +331,613 @@ export default function PricingCalculator() {
                         </select>
                     </div>
                 </div>
+
+                {/* Product Info */}
+                {selectedProduct && (
+                    <div className="mt-6 p-4 bg-gradient-to-r from-brand-blue-50 to-emerald-50 rounded-xl border border-brand-blue-100">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                                <h4 className="font-bold text-gray-900">{selectedProduct.modelName}</h4>
+                                <p className="text-sm text-gray-600">{selectedProduct.brand} • {selectedProduct.category}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm text-gray-500">Internal Base Price</p>
+                                <p className="text-xl font-bold text-brand-blue-900">₹{(selectedProduct.internalBasePrice || selectedProduct.basePrice * 0.75).toLocaleString('en-IN')}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Product Info Card */}
-            {selectedProduct && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-brand-blue-900">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">{selectedProduct.modelName}</h3>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-600 font-medium">Display Price:</span>
-                            <span className="text-lg font-semibold text-gray-900">₹{selectedProduct.basePrice.toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-600 font-medium">Internal Base Price:</span>
-                            <span className="text-lg font-semibold text-gray-900">₹{(selectedProduct.internalBasePrice || selectedProduct.basePrice * 0.5).toLocaleString('en-IN')}</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Assessment Question Deductions */}
-            {selectedProduct && questions.length > 0 && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Assessment Question Deductions (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Enter the amount to SUBTRACT when user answers 'No' to each assessment question.
-                    </p>
-                    <div className="space-y-4">
-                        {questions.map((question) => (
-                            <div key={question.key} className="p-4 border rounded-lg bg-gray-50">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {question.label}
-                                </label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Yes Value (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={pricingRules.questions[question.key]?.yes || 0}
-                                            onChange={(e) => handleQuestionUpdate(question.key, 'yes', parseInt(e.target.value) || 0)}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1">No Value (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={pricingRules.questions[question.key]?.no || 0}
-                                            onChange={(e) => handleQuestionUpdate(question.key, 'no', parseInt(e.target.value) || 0)}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Physical Condition Deductions */}
-            {selectedProduct && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Physical Condition Deductions (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Enter the amount to SUBTRACT for each physical condition option (Excellent, Good, Fair, Cracked, etc.).
-                    </p>
-                    <div className="space-y-6">
-                        {/* Display Condition */}
-                        {showDisplayCondition && (
-                            <div>
-                                <h4 className="font-medium text-gray-800 mb-3">Display Condition</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {Object.entries(pricingRules.displayCondition).map(([key, value]) => (
-                                        <div key={key}>
-                                            <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={value}
-                                                onChange={(e) => handleConditionUpdate('displayCondition', key, parseInt(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Body Condition */}
-                        <div>
-                            <h4 className="font-medium text-gray-800 mb-3">Body Condition</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {Object.entries(pricingRules.bodyCondition).map(([key, value]) => (
-                                    <div key={key}>
-                                        <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={value}
-                                            onChange={(e) => handleConditionUpdate('bodyCondition', key, parseInt(e.target.value) || 0)}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Lens Condition - Only for cameras */}
-                        {showLensCondition && (
-                            <div>
-                                <h4 className="font-medium text-gray-800 mb-3">Lens Condition</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                                    {Object.entries(pricingRules.lensCondition).map(([key, value]) => (
-                                        <div key={key}>
-                                            <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={value}
-                                                onChange={(e) => handleConditionUpdate('lensCondition', key, parseInt(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Error Condition - Only for cameras */}
-                        {showErrorCondition && (
-                            <div>
-                                <h4 className="font-medium text-gray-800 mb-3">Error Condition</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {Object.entries(pricingRules.errorCondition).map(([key, value]) => (
-                                        <div key={key}>
-                                            <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={value}
-                                                onChange={(e) => handleConditionUpdate('errorCondition', key, parseInt(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* New Body Conditions - Camera Only */}
-                        {showErrorCondition && (
-                            <>
-                                <div>
-                                    <h4 className="font-medium text-gray-800 mb-3">Body Physical Condition</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(pricingRules.bodyPhysicalCondition || {}).map(([key, value]) => (
-                                            <div key={key}>
-                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={value}
-                                                    onChange={(e) => handleConditionUpdate('bodyPhysicalCondition', key, parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-medium text-gray-800 mb-3">LCD Display Condition</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(pricingRules.lcdDisplayCondition || {}).map(([key, value]) => (
-                                            <div key={key}>
-                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={value}
-                                                    onChange={(e) => handleConditionUpdate('lcdDisplayCondition', key, parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-medium text-gray-800 mb-3">Rubber Grips Condition</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(pricingRules.rubberGripsCondition || {}).map(([key, value]) => (
-                                            <div key={key}>
-                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={value}
-                                                    onChange={(e) => handleConditionUpdate('rubberGripsCondition', key, parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-medium text-gray-800 mb-3">Sensor/Viewfinder Condition</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(pricingRules.sensorViewfinderCondition || {}).map(([key, value]) => (
-                                            <div key={key}>
-                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={value}
-                                                    onChange={(e) => handleConditionUpdate('sensorViewfinderCondition', key, parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-medium text-gray-800 mb-3">Error Codes Condition</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(pricingRules.errorCodesCondition || {}).map(([key, value]) => (
-                                            <div key={key}>
-                                                <label className="block text-sm text-gray-600 mb-1 capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={value}
-                                                    onChange={(e) => handleConditionUpdate('errorCodesCondition', key, parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Lens Condition - Camera Only */}
-            {selectedProduct && showLensCondition && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Lens Condition Pricing (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Configure pricing modifiers for lens condition questions. Negative values deduct from price, positive values add to price.
-                    </p>
-
-                    {/* Has Lens to Sell */}
-                    <div className="mb-6">
-                        <h4 className="font-medium text-gray-800 mb-3">Do you have a lens to sell?</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 border rounded-lg bg-gray-50">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Yes</label>
-                                <input
-                                    type="number"
-                                    value={pricingRules.questions.hasLensToSell?.yes || 0}
-                                    onChange={(e) => handleQuestionUpdate('hasLensToSell', 'yes', parseInt(e.target.value) || 0)}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                />
-                            </div>
-                            <div className="p-4 border rounded-lg bg-gray-50">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">No</label>
-                                <input
-                                    type="number"
-                                    value={pricingRules.questions.hasLensToSell?.no || 0}
-                                    onChange={(e) => handleQuestionUpdate('hasLensToSell', 'no', parseInt(e.target.value) || 0)}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Fungus/Dust Condition */}
-                    <div className="mb-6">
-                        <h4 className="font-medium text-gray-800 mb-3">Fungus/Dust Condition</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {Object.entries(pricingRules.fungusDustCondition || {}).map(([key, value]) => (
-                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                        {key === 'clean' ? 'Clean / Good Condition' : key === 'minorFungus' ? 'Minor Fungus or Dust' : 'Major Fungus or Dust'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={value}
-                                        onChange={(e) => {
-                                            setPricingRules(prev => ({
-                                                ...prev,
-                                                fungusDustCondition: {
-                                                    ...prev.fungusDustCondition,
-                                                    [key]: parseInt(e.target.value) || 0
-                                                }
-                                            }))
-                                        }}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Focus Functionality */}
-                    <div className="mb-6">
-                        <h4 className="font-medium text-gray-800 mb-3">Focus Functionality</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {Object.entries(pricingRules.focusFunctionality || {}).map(([key, value]) => (
-                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                        {key === 'goodFocus' ? 'Good (AF & MF work)' : key === 'afIssue' ? 'AF Issue Only' : 'MF Issue Only'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={value}
-                                        onChange={(e) => {
-                                            setPricingRules(prev => ({
-                                                ...prev,
-                                                focusFunctionality: {
-                                                    ...prev.focusFunctionality,
-                                                    [key]: parseInt(e.target.value) || 0
-                                                }
-                                            }))
-                                        }}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Rubber Ring Condition */}
-                    <div className="mb-6">
-                        <h4 className="font-medium text-gray-800 mb-3">Rubber Ring Condition</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {Object.entries(pricingRules.rubberRingCondition || {}).map(([key, value]) => (
-                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                        {key === 'goodRubber' ? 'Good Condition' : key === 'minorRubber' ? 'Minor Wear/Damage' : 'Major Damage'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={value}
-                                        onChange={(e) => {
-                                            setPricingRules(prev => ({
-                                                ...prev,
-                                                rubberRingCondition: {
-                                                    ...prev.rubberRingCondition,
-                                                    [key]: parseInt(e.target.value) || 0
-                                                }
-                                            }))
-                                        }}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Error Status */}
-                    <div>
-                        <h4 className="font-medium text-gray-800 mb-3">Error Status</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {Object.entries(pricingRules.lensErrorStatus || {}).map(([key, value]) => (
-                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                        {key === 'noErrors' ? 'No Errors' : key === 'occasionalErrors' ? 'Occasional Errors' : 'Frequent Errors'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={value}
-                                        onChange={(e) => {
-                                            setPricingRules(prev => ({
-                                                ...prev,
-                                                lensErrorStatus: {
-                                                    ...prev.lensErrorStatus,
-                                                    [key]: parseInt(e.target.value) || 0
-                                                }
-                                            }))
-                                        }}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Functional Issues Deductions - For non-camera devices */}
-            {selectedProduct && !showLensCondition && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Functional Issues Deductions (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Enter the amount to SUBTRACT for each functional issue. Negative values deduct from price, positive values add to price.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(pricingRules.functionalIssues).map(([key, value]) => (
-                            <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                    {key === 'noIssues' ? 'No Functional Issues' : key.replace(/([A-Z])/g, ' $1').trim()}
-                                </label>
-                                <input
-                                    type="number"
-                                    value={value}
-                                    onChange={(e) => {
-                                        setPricingRules(prev => ({
-                                            ...prev,
-                                            functionalIssues: {
-                                                ...prev.functionalIssues,
-                                                [key]: parseInt(e.target.value) || 0
-                                            }
-                                        }))
-                                    }}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Accessories Additions */}
-            {selectedProduct && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Accessories Additions (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Enter the amount to ADD for each accessory. Positive values add to the price, negative values deduct from price.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(pricingRules.accessories).map(([key, value]) => (
-                            <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                </label>
-                                <input
-                                    type="number"
-                                    value={value}
-                                    onChange={(e) => {
-                                        setPricingRules(prev => ({
-                                            ...prev,
-                                            accessories: {
-                                                ...prev.accessories,
-                                                [key]: parseInt(e.target.value) || 0
-                                            }
-                                        }))
-                                    }}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Device Age Deductions */}
-            {selectedProduct && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Device Age Deductions (₹)
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-6">
-                        Enter the amount to SUBTRACT for each age range. Negative values deduct from price, positive values add to price.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(pricingRules.age).map(([key, value]) => {
-                            const ageLabels: Record<string, string> = {
-                                lessThan3Months: 'Less than 3 months',
-                                fourToTwelveMonths: '4 to 12 months',
-                                aboveTwelveMonths: 'Above 12 months'
-                            }
-                            return (
-                                <div key={key} className="p-4 border rounded-lg bg-gray-50">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        {ageLabels[key] || key.replace(/([A-Z])/g, ' $1').trim()}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={value}
-                                        onChange={(e) => {
-                                            setPricingRules(prev => ({
-                                                ...prev,
-                                                age: {
-                                                    ...prev.age,
-                                                    [key]: parseInt(e.target.value) || 0
-                                                }
-                                            }))
-                                        }}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-blue-500 outline-none"
-                                    />
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {/* Empty State */}
+            {/* No Product Selected */}
             {!selectedProduct && (
-                <div className="bg-white p-12 rounded-lg shadow-sm text-center">
-                    <p className="text-gray-500">Please select a product to configure pricing rules.</p>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </div>
+                    <p className="text-gray-500 font-medium">Select a product to configure pricing rules</p>
+                    <p className="text-gray-400 text-sm mt-1">Choose a category, brand, and product above</p>
                 </div>
+            )}
+
+            {/* Camera Pricing Sections */}
+            {selectedProduct && isCamera && (
+                <>
+                    {/* Basic Functionality Questions */}
+                    <CollapsibleSection 
+                        title="Basic Functionality Questions" 
+                        description="Set deduction amounts when customer answers 'No' to these questions"
+                        badge="Camera"
+                        badgeColor="bg-purple-100 text-purple-700"
+                        defaultOpen={true}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PricingInput
+                                label="Does the camera power on? (No)"
+                                value={pricingRules.questions.powerOn?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)}
+                                description="Deduct if camera doesn't power on"
+                            />
+                            <PricingInput
+                                label="Camera functions properly? (No)"
+                                value={pricingRules.questions.cameraFunction?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('cameraFunction', 'no', v)}
+                                description="Deduct if photo/video doesn't work"
+                            />
+                            <PricingInput
+                                label="All buttons working? (No)"
+                                value={pricingRules.questions.buttonsWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('buttonsWorking', 'no', v)}
+                                description="Deduct if buttons are not working"
+                            />
+                            <PricingInput
+                                label="Free from water damage? (No)"
+                                value={pricingRules.questions.waterDamage?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('waterDamage', 'no', v)}
+                                description="Deduct if device has water damage"
+                            />
+                            <PricingInput
+                                label="Flash working? (No)"
+                                value={pricingRules.questions.flashWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('flashWorking', 'no', v)}
+                                description="Deduct if flash doesn't work"
+                            />
+                            <PricingInput
+                                label="Memory card slot working? (No)"
+                                value={pricingRules.questions.memoryCardSlotWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('memoryCardSlotWorking', 'no', v)}
+                                description="Deduct if memory card slot is faulty"
+                            />
+                            <PricingInput
+                                label="Speaker working? (No)"
+                                value={pricingRules.questions.speakerWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('speakerWorking', 'no', v)}
+                                description="Deduct if speaker doesn't work"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Body Physical Condition */}
+                    <CollapsibleSection 
+                        title="Body Physical Condition" 
+                        description="What is the physical condition of the camera body?"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <PricingInput
+                                label="Like New"
+                                value={pricingRules.bodyPhysicalCondition?.likeNew || 0}
+                                onChange={(v) => handleConditionUpdate('bodyPhysicalCondition', 'likeNew', v)}
+                                description="No scratches, dents, or cracks"
+                            />
+                            <PricingInput
+                                label="Average"
+                                value={pricingRules.bodyPhysicalCondition?.average || 0}
+                                onChange={(v) => handleConditionUpdate('bodyPhysicalCondition', 'average', v)}
+                                description="Minor scratches or normal wear"
+                            />
+                            <PricingInput
+                                label="Worn"
+                                value={pricingRules.bodyPhysicalCondition?.worn || 0}
+                                onChange={(v) => handleConditionUpdate('bodyPhysicalCondition', 'worn', v)}
+                                description="Visible dents or deep scratches"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* LCD Display Condition */}
+                    <CollapsibleSection 
+                        title="LCD Display Condition" 
+                        description="What is the condition of the LCD Display?"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <PricingInput
+                                label="Good"
+                                value={pricingRules.lcdDisplayCondition?.good || 0}
+                                onChange={(v) => handleConditionUpdate('lcdDisplayCondition', 'good', v)}
+                                description="Clean screen with no issues"
+                            />
+                            <PricingInput
+                                label="Fair"
+                                value={pricingRules.lcdDisplayCondition?.fair || 0}
+                                onChange={(v) => handleConditionUpdate('lcdDisplayCondition', 'fair', v)}
+                                description="Minor scratches or marks"
+                            />
+                            <PricingInput
+                                label="Poor"
+                                value={pricingRules.lcdDisplayCondition?.poor || 0}
+                                onChange={(v) => handleConditionUpdate('lcdDisplayCondition', 'poor', v)}
+                                description="Cracked screen, dead pixels, or discoloration"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Rubber Grips Condition */}
+                    <CollapsibleSection 
+                        title="Rubber Grips & Covers Condition" 
+                        description="What is the condition of the rubber grips and covers?"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <PricingInput
+                                label="Good"
+                                value={pricingRules.rubberGripsCondition?.good || 0}
+                                onChange={(v) => handleConditionUpdate('rubberGripsCondition', 'good', v)}
+                                description="All rubber is tight and intact"
+                            />
+                            <PricingInput
+                                label="Fair"
+                                value={pricingRules.rubberGripsCondition?.fair || 0}
+                                onChange={(v) => handleConditionUpdate('rubberGripsCondition', 'fair', v)}
+                                description="USB/Port covers are missing"
+                            />
+                            <PricingInput
+                                label="Poor"
+                                value={pricingRules.rubberGripsCondition?.poor || 0}
+                                onChange={(v) => handleConditionUpdate('rubberGripsCondition', 'poor', v)}
+                                description="Handgrip rubber is loose, sticky, or expanding"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Sensor/Viewfinder Condition */}
+                    <CollapsibleSection 
+                        title="Sensor/Viewfinder Condition" 
+                        description="Is there dust or fungus in the Sensor or Viewfinder?"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <PricingInput
+                                label="Clean"
+                                value={pricingRules.sensorViewfinderCondition?.clean || 0}
+                                onChange={(v) => handleConditionUpdate('sensorViewfinderCondition', 'clean', v)}
+                                description="No visible dust or fungus"
+                            />
+                            <PricingInput
+                                label="Minor"
+                                value={pricingRules.sensorViewfinderCondition?.minor || 0}
+                                onChange={(v) => handleConditionUpdate('sensorViewfinderCondition', 'minor', v)}
+                                description="Light dust or small fungus spots"
+                            />
+                            <PricingInput
+                                label="Major"
+                                value={pricingRules.sensorViewfinderCondition?.major || 0}
+                                onChange={(v) => handleConditionUpdate('sensorViewfinderCondition', 'major', v)}
+                                description="Heavy fungus, haze, or thick dust"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Error Codes Condition */}
+                    <CollapsibleSection 
+                        title="Error Codes" 
+                        description="Does the camera show any error codes?"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <PricingInput
+                                label="None"
+                                value={pricingRules.errorCodesCondition?.none || 0}
+                                onChange={(v) => handleConditionUpdate('errorCodesCondition', 'none', v)}
+                                description="Camera works perfectly without errors"
+                            />
+                            <PricingInput
+                                label="Intermittent"
+                                value={pricingRules.errorCodesCondition?.intermittent || 0}
+                                onChange={(v) => handleConditionUpdate('errorCodesCondition', 'intermittent', v)}
+                                description="Error messages appear occasionally"
+                            />
+                            <PricingInput
+                                label="Persistent"
+                                value={pricingRules.errorCodesCondition?.persistent || 0}
+                                onChange={(v) => handleConditionUpdate('errorCodesCondition', 'persistent', v)}
+                                description="Error messages appear frequently"
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Lens Condition Section */}
+                    <CollapsibleSection 
+                        title="Lens Condition (If selling lens)" 
+                        description="Configure pricing for lens-specific conditions"
+                        badge="Lens"
+                        badgeColor="bg-amber-100 text-amber-700"
+                    >
+                        <div className="space-y-6">
+                            {/* Has Lens to Sell */}
+                            <div>
+                                <h4 className="font-medium text-gray-800 mb-3">Do you have a lens to sell?</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <PricingInput
+                                        label="Yes - Has lens"
+                                        value={pricingRules.questions.hasLensToSell?.yes || 0}
+                                        onChange={(v) => handleQuestionUpdate('hasLensToSell', 'yes', v)}
+                                    />
+                                    <PricingInput
+                                        label="No - No lens"
+                                        value={pricingRules.questions.hasLensToSell?.no || 0}
+                                        onChange={(v) => handleQuestionUpdate('hasLensToSell', 'no', v)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Fungus/Dust Condition */}
+                            <div>
+                                <h4 className="font-medium text-gray-800 mb-3">Fungus/Dust Condition</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <PricingInput
+                                        label="Clean / Good"
+                                        value={pricingRules.fungusDustCondition?.clean || 0}
+                                        onChange={(v) => handleConditionUpdate('fungusDustCondition', 'clean', v)}
+                                    />
+                                    <PricingInput
+                                        label="Minor Fungus/Dust"
+                                        value={pricingRules.fungusDustCondition?.minorFungus || 0}
+                                        onChange={(v) => handleConditionUpdate('fungusDustCondition', 'minorFungus', v)}
+                                    />
+                                    <PricingInput
+                                        label="Major Fungus/Dust"
+                                        value={pricingRules.fungusDustCondition?.majorFungus || 0}
+                                        onChange={(v) => handleConditionUpdate('fungusDustCondition', 'majorFungus', v)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Focus Functionality */}
+                            <div>
+                                <h4 className="font-medium text-gray-800 mb-3">Focus Functionality</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <PricingInput
+                                        label="Good (AF & MF work)"
+                                        value={pricingRules.focusFunctionality?.goodFocus || 0}
+                                        onChange={(v) => handleConditionUpdate('focusFunctionality', 'goodFocus', v)}
+                                    />
+                                    <PricingInput
+                                        label="AF Issue Only"
+                                        value={pricingRules.focusFunctionality?.afIssue || 0}
+                                        onChange={(v) => handleConditionUpdate('focusFunctionality', 'afIssue', v)}
+                                    />
+                                    <PricingInput
+                                        label="MF Issue Only"
+                                        value={pricingRules.focusFunctionality?.mfIssue || 0}
+                                        onChange={(v) => handleConditionUpdate('focusFunctionality', 'mfIssue', v)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Rubber Ring Condition */}
+                            <div>
+                                <h4 className="font-medium text-gray-800 mb-3">Rubber Ring Condition</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <PricingInput
+                                        label="Good Condition"
+                                        value={pricingRules.rubberRingCondition?.goodRubber || 0}
+                                        onChange={(v) => handleConditionUpdate('rubberRingCondition', 'goodRubber', v)}
+                                    />
+                                    <PricingInput
+                                        label="Minor Wear/Damage"
+                                        value={pricingRules.rubberRingCondition?.minorRubber || 0}
+                                        onChange={(v) => handleConditionUpdate('rubberRingCondition', 'minorRubber', v)}
+                                    />
+                                    <PricingInput
+                                        label="Major Damage"
+                                        value={pricingRules.rubberRingCondition?.majorRubber || 0}
+                                        onChange={(v) => handleConditionUpdate('rubberRingCondition', 'majorRubber', v)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Lens Error Status */}
+                            <div>
+                                <h4 className="font-medium text-gray-800 mb-3">Lens Error Status</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <PricingInput
+                                        label="No Errors"
+                                        value={pricingRules.lensErrorStatus?.noErrors || 0}
+                                        onChange={(v) => handleConditionUpdate('lensErrorStatus', 'noErrors', v)}
+                                    />
+                                    <PricingInput
+                                        label="Occasional Errors"
+                                        value={pricingRules.lensErrorStatus?.occasionalErrors || 0}
+                                        onChange={(v) => handleConditionUpdate('lensErrorStatus', 'occasionalErrors', v)}
+                                    />
+                                    <PricingInput
+                                        label="Frequent Errors"
+                                        value={pricingRules.lensErrorStatus?.frequentErrors || 0}
+                                        onChange={(v) => handleConditionUpdate('lensErrorStatus', 'frequentErrors', v)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </CollapsibleSection>
+
+                    {/* Camera Accessories */}
+                    <CollapsibleSection 
+                        title="Accessories (Bonus)" 
+                        description="Add bonus amounts for each accessory"
+                        badge="Bonus"
+                        badgeColor="bg-green-100 text-green-700"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <PricingInput
+                                label="Original Battery"
+                                value={pricingRules.accessories?.battery || 0}
+                                onChange={(v) => handleConditionUpdate('accessories', 'battery', v)}
+                            />
+                            <PricingInput
+                                label="Original Charger"
+                                value={pricingRules.accessories?.charger || 0}
+                                onChange={(v) => handleConditionUpdate('accessories', 'charger', v)}
+                            />
+                            <PricingInput
+                                label="Box"
+                                value={pricingRules.accessories?.box || 0}
+                                onChange={(v) => handleConditionUpdate('accessories', 'box', v)}
+                            />
+                            <PricingInput
+                                label="Bill"
+                                value={pricingRules.accessories?.bill || 0}
+                                onChange={(v) => handleConditionUpdate('accessories', 'bill', v)}
+                            />
+                            <PricingInput
+                                label="Warranty Card"
+                                value={pricingRules.accessories?.warrantyCard || 0}
+                                onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)}
+                            />
+                        </div>
+                    </CollapsibleSection>
+                </>
+            )}
+
+            {/* Phone Pricing Sections */}
+            {selectedProduct && isPhone && (
+                <>
+                    <CollapsibleSection 
+                        title="Basic Functionality Questions" 
+                        description="Set deduction amounts when customer answers 'No' to these questions"
+                        badge="Phone"
+                        badgeColor="bg-blue-100 text-blue-700"
+                        defaultOpen={true}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PricingInput
+                                label="Phone powers on? (No)"
+                                value={pricingRules.questions.powerOn?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)}
+                            />
+                            <PricingInput
+                                label="Screen working without cracks? (No)"
+                                value={pricingRules.questions.lcdWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('lcdWorking', 'no', v)}
+                            />
+                            <PricingInput
+                                label="Body free from major damage? (No)"
+                                value={pricingRules.questions.bodyDamage?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('bodyDamage', 'no', v)}
+                            />
+                            <PricingInput
+                                label="Battery health above 80%? (No)"
+                                value={pricingRules.questions.batteryHealth?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('batteryHealth', 'no', v)}
+                            />
+                            <PricingInput
+                                label="Face ID / Touch ID working? (No)"
+                                value={pricingRules.questions.biometricWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('biometricWorking', 'no', v)}
+                            />
+                            <PricingInput
+                                label="All cameras working? (No)"
+                                value={pricingRules.questions.cameraWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('cameraWorking', 'no', v)}
+                            />
+                            <PricingInput
+                                label="Free from water damage? (No)"
+                                value={pricingRules.questions.waterDamage?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('waterDamage', 'no', v)}
+                            />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Display Condition" description="Screen/Display physical condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.displayCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.displayCondition?.good || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.displayCondition?.fair || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'fair', v)} />
+                            <PricingInput label="Cracked" value={pricingRules.displayCondition?.cracked || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'cracked', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Body Condition" description="Device body/frame physical condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.bodyCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.bodyCondition?.good || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.bodyCondition?.fair || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'fair', v)} />
+                            <PricingInput label="Poor" value={pricingRules.bodyCondition?.poor || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'poor', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Functional Issues" description="Deductions for functional problems">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.functionalIssues || {}).map(([key, value]) => (
+                                <PricingInput
+                                    key={key}
+                                    label={key === 'noIssues' ? 'No Issues' : key.replace(/([A-Z])/g, ' $1').trim()}
+                                    value={value}
+                                    onChange={(v) => handleConditionUpdate('functionalIssues', key, v)}
+                                />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Accessories (Bonus)" badge="Bonus" badgeColor="bg-green-100 text-green-700">
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <PricingInput label="Original Charger" value={pricingRules.accessories?.charger || 0} onChange={(v) => handleConditionUpdate('accessories', 'charger', v)} />
+                            <PricingInput label="Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
+                            <PricingInput label="Bill" value={pricingRules.accessories?.bill || 0} onChange={(v) => handleConditionUpdate('accessories', 'bill', v)} />
+                            <PricingInput label="Warranty Card" value={pricingRules.accessories?.warrantyCard || 0} onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)} />
+                        </div>
+                    </CollapsibleSection>
+                </>
+            )}
+
+            {/* Laptop Pricing Sections */}
+            {selectedProduct && isLaptop && (
+                <>
+                    <CollapsibleSection 
+                        title="Basic Functionality Questions" 
+                        description="Set deduction amounts when customer answers 'No' to these questions"
+                        badge="Laptop"
+                        badgeColor="bg-indigo-100 text-indigo-700"
+                        defaultOpen={true}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PricingInput label="Laptop powers on? (No)" value={pricingRules.questions.powerOn?.no || 0} onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)} />
+                            <PricingInput label="Screen free from issues? (No)" value={pricingRules.questions.screenCondition?.no || 0} onChange={(v) => handleQuestionUpdate('screenCondition', 'no', v)} />
+                            <PricingInput label="Keyboard & trackpad working? (No)" value={pricingRules.questions.keyboardWorking?.no || 0} onChange={(v) => handleQuestionUpdate('keyboardWorking', 'no', v)} />
+                            <PricingInput label="Body free from damage? (No)" value={pricingRules.questions.bodyDamage?.no || 0} onChange={(v) => handleQuestionUpdate('bodyDamage', 'no', v)} />
+                            <PricingInput label="Battery cycle under 300? (No)" value={pricingRules.questions.batteryCycleCount?.no || 0} onChange={(v) => handleQuestionUpdate('batteryCycleCount', 'no', v)} />
+                            <PricingInput label="All ports working? (No)" value={pricingRules.questions.portsWorking?.no || 0} onChange={(v) => handleQuestionUpdate('portsWorking', 'no', v)} />
+                            <PricingInput label="Charging properly? (No)" value={pricingRules.questions.chargingWorking?.no || 0} onChange={(v) => handleQuestionUpdate('chargingWorking', 'no', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Display Condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.displayCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.displayCondition?.good || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.displayCondition?.fair || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'fair', v)} />
+                            <PricingInput label="Cracked" value={pricingRules.displayCondition?.cracked || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'cracked', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Body Condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.bodyCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.bodyCondition?.good || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.bodyCondition?.fair || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'fair', v)} />
+                            <PricingInput label="Poor" value={pricingRules.bodyCondition?.poor || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'poor', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Functional Issues">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.functionalIssues || {}).map(([key, value]) => (
+                                <PricingInput key={key} label={key === 'noIssues' ? 'No Issues' : key.replace(/([A-Z])/g, ' $1').trim()} value={value} onChange={(v) => handleConditionUpdate('functionalIssues', key, v)} />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Accessories (Bonus)" badge="Bonus" badgeColor="bg-green-100 text-green-700">
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <PricingInput label="Original Charger" value={pricingRules.accessories?.charger || 0} onChange={(v) => handleConditionUpdate('accessories', 'charger', v)} />
+                            <PricingInput label="Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
+                            <PricingInput label="Bill" value={pricingRules.accessories?.bill || 0} onChange={(v) => handleConditionUpdate('accessories', 'bill', v)} />
+                            <PricingInput label="Warranty Card" value={pricingRules.accessories?.warrantyCard || 0} onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)} />
+                        </div>
+                    </CollapsibleSection>
+                </>
+            )}
+
+            {/* Tablet Pricing Sections */}
+            {selectedProduct && isTablet && (
+                <>
+                    <CollapsibleSection 
+                        title="Basic Functionality Questions" 
+                        description="Set deduction amounts when customer answers 'No' to these questions"
+                        badge="Tablet"
+                        badgeColor="bg-pink-100 text-pink-700"
+                        defaultOpen={true}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PricingInput label="Tablet powers on? (No)" value={pricingRules.questions.powerOn?.no || 0} onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)} />
+                            <PricingInput label="Body free from major damage? (No)" value={pricingRules.questions.bodyDamage?.no || 0} onChange={(v) => handleQuestionUpdate('bodyDamage', 'no', v)} />
+                            <PricingInput label="Screen/touchscreen working? (No)" value={pricingRules.questions.lcdWorking?.no || 0} onChange={(v) => handleQuestionUpdate('lcdWorking', 'no', v)} />
+                            <PricingInput label="Battery holding charge? (No)" value={pricingRules.questions.batteryWorking?.no || 0} onChange={(v) => handleQuestionUpdate('batteryWorking', 'no', v)} />
+                            <PricingInput label="Cameras working? (No)" value={pricingRules.questions.cameraWorking?.no || 0} onChange={(v) => handleQuestionUpdate('cameraWorking', 'no', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Display Condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.displayCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.displayCondition?.good || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.displayCondition?.fair || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'fair', v)} />
+                            <PricingInput label="Cracked" value={pricingRules.displayCondition?.cracked || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'cracked', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Body Condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Excellent" value={pricingRules.bodyCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'excellent', v)} />
+                            <PricingInput label="Good" value={pricingRules.bodyCondition?.good || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'good', v)} />
+                            <PricingInput label="Fair" value={pricingRules.bodyCondition?.fair || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'fair', v)} />
+                            <PricingInput label="Poor" value={pricingRules.bodyCondition?.poor || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'poor', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Functional Issues">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.entries(pricingRules.functionalIssues || {}).map(([key, value]) => (
+                                <PricingInput key={key} label={key === 'noIssues' ? 'No Issues' : key.replace(/([A-Z])/g, ' $1').trim()} value={value} onChange={(v) => handleConditionUpdate('functionalIssues', key, v)} />
+                            ))}
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Accessories (Bonus)" badge="Bonus" badgeColor="bg-green-100 text-green-700">
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <PricingInput label="Original Charger" value={pricingRules.accessories?.charger || 0} onChange={(v) => handleConditionUpdate('accessories', 'charger', v)} />
+                            <PricingInput label="Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
+                            <PricingInput label="Bill" value={pricingRules.accessories?.bill || 0} onChange={(v) => handleConditionUpdate('accessories', 'bill', v)} />
+                            <PricingInput label="Warranty Card" value={pricingRules.accessories?.warrantyCard || 0} onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)} />
+                        </div>
+                    </CollapsibleSection>
+                </>
+            )}
+
+            {/* Device Age - Common for all */}
+            {selectedProduct && (
+                <CollapsibleSection 
+                    title="Device Age" 
+                    description="Deductions based on device age"
+                    badge="Common"
+                    badgeColor="bg-gray-100 text-gray-700"
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <PricingInput
+                            label="Less than 3 months"
+                            value={pricingRules.age?.lessThan3Months || 0}
+                            onChange={(v) => handleConditionUpdate('age', 'lessThan3Months', v)}
+                        />
+                        <PricingInput
+                            label="4 to 12 months"
+                            value={pricingRules.age?.fourToTwelveMonths || 0}
+                            onChange={(v) => handleConditionUpdate('age', 'fourToTwelveMonths', v)}
+                        />
+                        <PricingInput
+                            label="Above 12 months"
+                            value={pricingRules.age?.aboveTwelveMonths || 0}
+                            onChange={(v) => handleConditionUpdate('age', 'aboveTwelveMonths', v)}
+                        />
+                    </div>
+                </CollapsibleSection>
             )}
         </div>
     )
