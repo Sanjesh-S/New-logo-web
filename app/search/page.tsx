@@ -6,7 +6,9 @@ import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
 import { Search, AlertCircle } from 'lucide-react'
 import { getAllProducts, type Product } from '@/lib/firebase/database'
+import { dataCache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import ProductCard from '@/components/ProductCard'
+import { ProductGridSkeleton } from '@/components/ui/Skeleton'
 import Link from 'next/link'
 
 function SearchContent() {
@@ -20,10 +22,22 @@ function SearchContent() {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // Check cache first
+      const cached = dataCache.get<Product[]>(CACHE_KEYS.ALL_PRODUCTS)
+      if (cached) {
+        setProducts(cached)
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         setError(null)
         const allProducts = await getAllProducts()
+        
+        // Cache the results
+        dataCache.set(CACHE_KEYS.ALL_PRODUCTS, allProducts, CACHE_TTL.MEDIUM)
+        
         setProducts(allProducts)
       } catch (err: any) {
         setError(err.message || 'Failed to load products')
@@ -51,10 +65,13 @@ function SearchContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading products...</p>
+      <div className="min-h-screen bg-gray-50 pt-20 md:pt-24 pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 md:mb-12">
+            <div className="h-12 w-96 bg-gray-200 rounded-lg animate-pulse mb-4" />
+            <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <ProductGridSkeleton count={10} />
         </div>
       </div>
     )

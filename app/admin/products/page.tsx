@@ -6,11 +6,13 @@ import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'
 
 export default function AdminProductsPage() {
-    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup'>('products')
+    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'cancelled'>('products')
     const [products, setProducts] = useState<Product[]>([])
     const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([])
+    const [cancelledRequests, setCancelledRequests] = useState<PickupRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [pickupLoading, setPickupLoading] = useState(false)
+    const [cancelledLoading, setCancelledLoading] = useState(false)
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
@@ -36,10 +38,13 @@ export default function AdminProductsPage() {
             setPickupLoading(true)
             const data = await getAllPickupRequests()
             
+            // Filter out cancelled requests (they show in the Cancelled Orders tab)
+            const activeRequests = data.filter(request => request.status !== 'cancelled')
+            
             // Try to link pickup requests to valuations if valuationId is missing
             // This helps with existing pickup requests created before valuationId was added
             const requestsWithValuationId = await Promise.all(
-                data.map(async (request) => {
+                activeRequests.map(async (request) => {
                     // If already has valuationId, return as is
                     if (request.valuationId) {
                         return request
@@ -96,6 +101,21 @@ export default function AdminProductsPage() {
         }
     }
 
+    const fetchCancelledRequests = async () => {
+        try {
+            setCancelledLoading(true)
+            const data = await getAllPickupRequests()
+            // Filter only cancelled requests
+            const cancelled = data.filter(request => request.status === 'cancelled')
+            setCancelledRequests(cancelled)
+        } catch (error) {
+            console.error('Error fetching cancelled requests:', error)
+            alert('Failed to load cancelled orders')
+        } finally {
+            setCancelledLoading(false)
+        }
+    }
+
     useEffect(() => {
         fetchProducts()
     }, [])
@@ -103,6 +123,8 @@ export default function AdminProductsPage() {
     useEffect(() => {
         if (activeTab === 'pickup') {
             fetchPickupRequests()
+        } else if (activeTab === 'cancelled') {
+            fetchCancelledRequests()
         }
     }, [activeTab])
 
@@ -188,6 +210,15 @@ export default function AdminProductsPage() {
                                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                         >
                             Pickup Requests
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('cancelled')}
+                            className={`${activeTab === 'cancelled'
+                                    ? 'border-red-600 text-red-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        >
+                            Cancelled Orders
                         </button>
                     </nav>
                 </div>
@@ -480,6 +511,112 @@ export default function AdminProductsPage() {
                                             <tr>
                                                 <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
                                                     No pickup requests found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Cancelled Orders Tab */}
+            {activeTab === 'cancelled' && (
+                <>
+                    {cancelledLoading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                        </div>
+                    ) : (
+                        <div className="bg-white shadow rounded-lg overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-red-50">
+                                <h2 className="text-lg font-semibold text-red-800">Cancelled Orders</h2>
+                                <p className="text-sm text-red-600 mt-1">Orders that have been cancelled by customers</p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Pickup Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancelled On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {cancelledRequests.map((request) => {
+                                            const customerName = request.customer?.name || request.userName || 'N/A'
+                                            const customerPhone = request.customer?.phone || request.userPhone || 'N/A'
+                                            const price = request.price || 0
+                                            const pickupDate = request.pickupDate ? new Date(request.pickupDate) : null
+                                            const cancelledDate = request.updatedAt 
+                                                ? (request.updatedAt as any).toDate?.() || new Date(request.updatedAt as any)
+                                                : null
+                                            const orderId = request.valuationId || request.id
+
+                                            return (
+                                                <tr key={request.id} className="hover:bg-red-50">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-mono text-gray-900">
+                                                            {orderId?.substring(0, 12)}...
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-medium text-gray-900">{request.productName || 'N/A'}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm text-gray-900">{customerName}</div>
+                                                        <div className="text-sm text-gray-500">{customerPhone}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-semibold text-gray-900">
+                                                            ₹{price.toLocaleString('en-IN')}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {pickupDate ? (
+                                                            <>
+                                                                <div className="text-sm text-gray-900">
+                                                                    {pickupDate.toLocaleDateString('en-IN', { 
+                                                                        weekday: 'short',
+                                                                        day: 'numeric',
+                                                                        month: 'short'
+                                                                    })}
+                                                                </div>
+                                                                {request.pickupTime && (
+                                                                    <div className="text-sm text-gray-500">{request.pickupTime}</div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-400">Not set</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {cancelledDate ? (
+                                                            <div className="text-sm text-red-600">
+                                                                {cancelledDate.toLocaleDateString('en-IN', { 
+                                                                    day: 'numeric',
+                                                                    month: 'short',
+                                                                    year: 'numeric',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-400">N/A</div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                        {cancelledRequests.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                                                    No cancelled orders found.
                                                 </td>
                                             </tr>
                                         )}

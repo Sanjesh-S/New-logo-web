@@ -19,6 +19,8 @@ interface ActiveOrderItem {
   price?: number
   status?: string
   createdAt?: Date | any
+  pickupDate?: string
+  pickupTime?: string
 }
 
 export default function ActiveOrders() {
@@ -71,6 +73,8 @@ export default function ActiveOrders() {
               price: pr.price,
               status: pr.status || 'pending',
               createdAt: pr.createdAt,
+              pickupDate: pr.pickupDate,
+              pickupTime: pr.pickupTime,
             })),
         ]
 
@@ -139,6 +143,8 @@ export default function ActiveOrders() {
             price: pr.price,
             status: pr.status || 'pending',
             createdAt: pr.createdAt,
+            pickupDate: pr.pickupDate,
+            pickupTime: pr.pickupTime,
           })),
       ]
 
@@ -212,6 +218,8 @@ export default function ActiveOrders() {
           price: pr.price,
           status: pr.status || 'pending',
           createdAt: pr.createdAt,
+          pickupDate: pr.pickupDate,
+          pickupTime: pr.pickupTime,
         })),
     ]
 
@@ -355,9 +363,20 @@ export default function ActiveOrders() {
                         )}
                       </h3>
                       <p className="text-sm text-gray-600 mb-2">{statusInfo.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <span>Order ID: {order.id?.substring(0, 8)}...</span>
                         <span>₹{(order.type === 'pickup' ? order.price : order.estimatedValue)?.toLocaleString('en-IN')}</span>
+                        {order.pickupDate && (
+                          <span className="flex items-center gap-1 text-brand-blue-600 font-medium">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {new Date(order.pickupDate).toLocaleDateString('en-IN', { 
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short'
+                            })}
+                            {order.pickupTime && ` • ${order.pickupTime}`}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

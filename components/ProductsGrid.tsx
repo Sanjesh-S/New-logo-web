@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import type { Product } from '@/lib/firebase/database'
 import { getProductsByBrand } from '@/lib/firebase/database'
+import { dataCache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import ProductCard from './ProductCard'
 import EnhancedSearch from './EnhancedSearch'
+import { ProductGridSkeleton } from './ui/Skeleton'
 
 interface ProductsGridProps {
   category: string
@@ -15,18 +17,41 @@ interface ProductsGridProps {
 }
 
 export default function ProductsGrid({ category, brand }: ProductsGridProps) {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  // Check cache synchronously on initial render
+  const cacheKey = CACHE_KEYS.PRODUCTS_BY_BRAND(category, brand)
+  const cachedProducts = dataCache.get<Product[]>(cacheKey)
+  
+  const [products, setProducts] = useState<Product[]>(cachedProducts || [])
+  const [loading, setLoading] = useState(!cachedProducts)
   const [error, setError] = useState<string | null>(null)
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(cachedProducts || [])
+  const fetchedRef = useRef(false)
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (forceRefresh = false) => {
+    const cacheKey = CACHE_KEYS.PRODUCTS_BY_BRAND(category, brand)
+    
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = dataCache.get<Product[]>(cacheKey)
+      if (cached) {
+        setProducts(cached)
+        setFilteredProducts(cached)
+        setLoading(false)
+        return
+      }
+    }
+
     try {
       setLoading(true)
       setError(null)
 
       const items = await getProductsByBrand(category, brand)
+      
+      // Cache the results
+      dataCache.set(cacheKey, items, CACHE_TTL.MEDIUM)
+      
       setProducts(items)
+      setFilteredProducts(items)
     } catch (err: any) {
       setError(err.message || 'Something went wrong while loading products.')
     } finally {
@@ -35,8 +60,12 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
   }
 
   useEffect(() => {
-    if (category && brand) {
-      fetchProducts()
+    if (category && brand && !fetchedRef.current) {
+      fetchedRef.current = true
+      // Only fetch if we don't have cached data
+      if (!cachedProducts) {
+        fetchProducts()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, brand])
@@ -48,10 +77,14 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="w-12 h-12 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray-600">Loading products...</p>
-      </div>
+      <section className="pb-16">
+        <div className="mb-8 md:mb-10">
+          <div className="relative max-w-2xl mx-auto">
+            <div className="h-14 bg-gray-200 rounded-xl animate-pulse" />
+          </div>
+        </div>
+        <ProductGridSkeleton count={10} />
+      </section>
     )
   }
 

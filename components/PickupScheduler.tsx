@@ -15,14 +15,6 @@ interface PickupSchedulerProps {
   initialTime?: string
 }
 
-const timeSlots = [
-  '09:00 AM - 11:00 AM',
-  '11:00 AM - 01:00 PM',
-  '01:00 PM - 03:00 PM',
-  '03:00 PM - 05:00 PM',
-  '05:00 PM - 07:00 PM',
-]
-
 export default function PickupScheduler({
   isOpen,
   onClose,
@@ -35,6 +27,7 @@ export default function PickupScheduler({
 }: PickupSchedulerProps) {
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || '')
   const [selectedTime, setSelectedTime] = useState<string>(initialTime || '')
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -44,29 +37,123 @@ export default function PickupScheduler({
     if (initialTime) setSelectedTime(initialTime)
   }, [initialDate, initialTime])
 
-  // Get minimum date (today)
-  const getMinDate = () => {
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedDate('')
+      setSelectedTime('')
+      setError(null)
+      setSuccess(false)
+    }
+  }, [isOpen])
+
+  // Generate available dates (Today, Tomorrow, Day after tomorrow)
+  const getAvailableDates = () => {
+    const dates = []
     const today = new Date()
-    today.setDate(today.getDate() + 1) // Allow scheduling from tomorrow
-    return today.toISOString().split('T')[0]
+    for (let i = 0; i < 3; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
+      dates.push({
+        value: date.toISOString().split('T')[0],
+        label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'long' }),
+        display: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      })
+    }
+    return dates
   }
 
-  // Get maximum date (30 days from now)
-  const getMaxDate = () => {
-    const maxDate = new Date()
-    maxDate.setDate(maxDate.getDate() + 30)
-    return maxDate.toISOString().split('T')[0]
-  }
+  // Generate time slots based on selected date and current time
+  useEffect(() => {
+    if (!selectedDate) {
+      setAvailableTimeSlots([])
+      return
+    }
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return ''
+    const slots = [
+      '02:00 AM - 04:00 AM',
+      '04:00 AM - 06:00 AM',
+      '06:00 AM - 08:00 AM',
+      '08:00 AM - 10:00 AM',
+      '10:00 AM - 12:00 PM',
+      '12:00 PM - 02:00 PM',
+      '02:00 PM - 04:00 PM',
+      '04:00 PM - 06:00 PM',
+      '06:00 PM - 08:00 PM',
+      '08:00 PM - 10:00 PM',
+      '10:00 PM - 12:00 AM',
+    ]
+
+    const selectedDateObj = new Date(selectedDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    selectedDateObj.setHours(0, 0, 0, 0)
+
+    // If selected date is today, filter out past time slots
+    if (selectedDateObj.getTime() === today.getTime()) {
+      const now = new Date()
+      const currentHour = now.getHours()
+      const currentMinute = now.getMinutes()
+      const currentTime = currentHour * 60 + currentMinute // Convert to minutes
+
+      const filteredSlots = slots.filter(slot => {
+        const [startTimeStr, endTimeStr] = slot.split(' - ')
+        
+        // Parse start time
+        const [startTime, startPeriod] = startTimeStr.split(' ')
+        const [startHours, startMinutes] = startTime.split(':').map(Number)
+        let startSlotHour = startHours
+        if (startPeriod === 'PM' && startHours !== 12) startSlotHour += 12
+        if (startPeriod === 'AM' && startHours === 12) startSlotHour = 0
+        let startSlotTime = startSlotHour * 60 + startMinutes
+
+        // Parse end time
+        const [endTime, endPeriod] = endTimeStr.split(' ')
+        const [endHours, endMinutes] = endTime.split(':').map(Number)
+        let endSlotHour = endHours
+        if (endPeriod === 'PM' && endHours !== 12) endSlotHour += 12
+        if (endPeriod === 'AM' && endHours === 12) endSlotHour = 0
+        let endSlotTime = endSlotHour * 60 + endMinutes
+
+        // Handle 12:00 AM (midnight) for end time
+        if (endSlotTime === 0) {
+          endSlotTime = 24 * 60 // Treat as next day
+        }
+        // Handle 12:00 AM (midnight) for start time - if current time is before 11:30 PM,
+        // treat midnight as next day (add 24 hours) so it's considered future
+        if (startSlotTime === 0 && currentTime < 23 * 60 + 30) {
+          startSlotTime = 24 * 60 // Treat as next day
+        }
+
+        // Show slots if:
+        // 1. The slot hasn't ended yet (end time is in the future), OR
+        // 2. The start time is at least 30 minutes in the future
+        return endSlotTime > currentTime || startSlotTime > (currentTime + 30)
+      })
+      setAvailableTimeSlots(filteredSlots)
+    } else {
+      // For future dates, show all slots
+      setAvailableTimeSlots(slots)
+    }
+
+    // Reset selected time when date changes
+    setSelectedTime('')
+  }, [selectedDate])
+
+  const formatPickupDate = (dateStr: string) => {
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const selectedDateObj = new Date(dateStr)
+    selectedDateObj.setHours(0, 0, 0, 0)
+    
+    if (selectedDateObj.getTime() === today.getTime()) {
+      return 'Today'
+    } else if (selectedDateObj.getTime() === today.getTime() + 86400000) {
+      return 'Tomorrow'
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +175,7 @@ export default function PickupScheduler({
         onClose()
       }, 2000)
     } catch (err: any) {
-      setError(err.message || 'Failed to schedule pickup. Please try again.')
+      setError(err.message || 'Failed to reschedule pickup. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -106,16 +193,16 @@ export default function PickupScheduler({
           className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Schedule Pickup</h2>
+              <h2 className="text-xl font-bold text-gray-900">Reschedule Pickup</h2>
               {productName && (
                 <p className="text-sm text-gray-600 mt-1">{productName}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -132,61 +219,72 @@ export default function PickupScheduler({
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="w-8 h-8 text-green-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Pickup Scheduled!</h3>
-                <p className="text-gray-600">Your pickup has been scheduled successfully.</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Pickup Rescheduled!</h3>
+                <p className="text-gray-600">Your pickup has been rescheduled successfully.</p>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Date Selection */}
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                  <label className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-3">
                     <Calendar className="w-5 h-5 text-brand-blue-600" />
                     Select Date
                   </label>
-                  <input
-                    type="date"
-                    required
-                    min={getMinDate()}
-                    max={getMaxDate()}
-                    value={selectedDate}
-                    onChange={(e) => {
-                      setSelectedDate(e.target.value)
-                      setError(null)
-                    }}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 text-gray-900"
-                  />
-                  {selectedDate && (
-                    <p className="mt-2 text-sm text-gray-600">
-                      Selected: <span className="font-medium">{formatDate(selectedDate)}</span>
-                    </p>
-                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    {getAvailableDates().map((date) => (
+                      <button
+                        key={date.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(date.value)
+                          setError(null)
+                        }}
+                        className={`p-4 border-2 rounded-xl text-center transition-all ${
+                          selectedDate === date.value
+                            ? 'border-brand-blue-600 bg-brand-blue-50 text-brand-blue-900'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="font-semibold">{date.label}</div>
+                        <div className="text-sm text-gray-600">{date.display}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Time Selection */}
                 <div>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                  <label className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-3">
                     <Clock className="w-5 h-5 text-brand-blue-600" />
                     Select Time Slot
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {timeSlots.map((slot) => (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => {
-                          setSelectedTime(slot)
-                          setError(null)
-                        }}
-                        className={`px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                          selectedTime === slot
-                            ? 'border-brand-blue-600 bg-brand-blue-50 text-brand-blue-900'
-                            : 'border-gray-200 hover:border-brand-blue-300 text-gray-700'
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
+                  {!selectedDate ? (
+                    <p className="text-gray-500 text-sm">Please select a date first.</p>
+                  ) : availableTimeSlots.length === 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="text-amber-800 text-sm">No available time slots for today. Please select another date.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {availableTimeSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTime(slot)
+                            setError(null)
+                          }}
+                          className={`p-3 border-2 rounded-lg text-center transition-all text-sm ${
+                            selectedTime === slot
+                              ? 'border-brand-blue-600 bg-brand-blue-50 text-brand-blue-900 font-semibold'
+                              : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                          }`}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Info Box */}
@@ -199,11 +297,22 @@ export default function PickupScheduler({
                         <li>• Our team will arrive at your selected time</li>
                         <li>• Please keep your device ready for inspection</li>
                         <li>• You'll receive a confirmation SMS/Email</li>
-                        <li>• You can reschedule up to 24 hours before pickup</li>
                       </ul>
                     </div>
                   </div>
                 </div>
+
+                {/* Selected Summary */}
+                {selectedDate && selectedTime && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="font-medium">
+                        New pickup: {formatPickupDate(selectedDate)} at {selectedTime}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Error Message */}
                 {error && (
@@ -231,7 +340,7 @@ export default function PickupScheduler({
                     disabled={submitting || !selectedDate || !selectedTime}
                     className="flex-1 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-xl font-semibold hover:bg-brand-lime-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Scheduling...' : 'Confirm Pickup'}
+                    {submitting ? 'Rescheduling...' : 'Confirm Reschedule'}
                   </button>
                 </div>
               </form>

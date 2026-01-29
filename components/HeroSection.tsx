@@ -56,9 +56,15 @@ export default function HeroSection() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Ensure component is mounted before animations run (fixes hydration issues)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch products for suggestions
   useEffect(() => {
@@ -141,9 +147,9 @@ export default function HeroSection() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Column - Text Content */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={mounted ? { opacity: 0, x: -20 } : false}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
             className="space-y-6"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-lime/20 rounded-full text-brand-blue-900 font-medium text-sm">
@@ -248,9 +254,9 @@ export default function HeroSection() {
 
             {/* Stats */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={mounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
               className="grid grid-cols-3 gap-4 pt-8 border-t border-gray-200 mt-8"
             >
               {stats.map((stat, index) => {
@@ -269,9 +275,9 @@ export default function HeroSection() {
 
           {/* Right Column - Product Images */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={mounted ? { opacity: 0, x: 20 } : false}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             className="relative hidden lg:block"
           >
             <div className="relative h-[500px]">
@@ -317,9 +323,9 @@ export default function HeroSection() {
         {/* Category Cards at Bottom */}
         <motion.div
           id="trade-in"
-          initial={{ opacity: 0, y: 20 }}
+          initial={mounted ? { opacity: 0, y: 20 } : false}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
           className="mt-12 md:mt-16 scroll-mt-20"
         >
           <p className="text-center text-gray-500 mb-6 font-medium">Select a category to get started</p>

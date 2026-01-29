@@ -321,46 +321,29 @@ export async function getProductsByBrand(
   // Normalize brand (handle case sensitivity)
   const normalizedBrand = brand.trim()
 
-  // Try querying with the first category variation
-  // If no results, we'll fall back to client-side filtering
-  const q = query(
-    productsRef,
-    where('brand', '==', normalizedBrand),
-    where('category', '==', dbCategoryVariations[0])
-  )
-
+  // Run queries for all category variations in PARALLEL for speed
+  // This is much faster than sequential queries
   let snapshot
   try {
-    snapshot = await getDocs(q)
+    // Create queries for top 3 category variations (to limit parallel requests)
+    const queriesToRun = dbCategoryVariations.slice(0, 3).map(catVariation => 
+      query(
+        productsRef,
+        where('brand', '==', normalizedBrand),
+        where('category', '==', catVariation)
+      )
+    )
+    
+    // Run all queries in parallel
+    const snapshots = await Promise.all(queriesToRun.map(q => getDocs(q)))
+    
+    // Find the first non-empty snapshot
+    snapshot = snapshots.find(s => !s.empty) || snapshots[0]
 
-    // If no results with first variation, try other category variations
-    if (snapshot.empty && dbCategoryVariations.length > 1) {
-      for (let i = 1; i < dbCategoryVariations.length; i++) {
-        const altQ = query(
-          productsRef,
-          where('brand', '==', normalizedBrand),
-          where('category', '==', dbCategoryVariations[i])
-        )
-        const altSnapshot = await getDocs(altQ)
-        if (!altSnapshot.empty) {
-          snapshot = altSnapshot
-          break
-        }
-      }
-    }
-
-    // If still no results, try querying just by brand to see if products exist
+    // If still no results, try querying just by brand (single query)
     if (snapshot.empty) {
-      console.log(`No products found for category variations ${dbCategoryVariations.join(', ')} and brand "${normalizedBrand}". Trying brand-only query...`)
       const brandOnlyQ = query(productsRef, where('brand', '==', normalizedBrand))
-      const brandOnlySnapshot = await getDocs(brandOnlyQ)
-
-      if (!brandOnlySnapshot.empty) {
-        console.log(`Found ${brandOnlySnapshot.docs.length} products for brand "${normalizedBrand}" with categories:`,
-          [...new Set(brandOnlySnapshot.docs.map(doc => doc.data().category))])
-        // Use brand-only results and filter client-side
-        snapshot = brandOnlySnapshot
-      }
+      snapshot = await getDocs(brandOnlyQ)
     }
   } catch (queryError) {
     console.error('Firestore query error:', queryError)

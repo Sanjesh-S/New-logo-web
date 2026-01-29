@@ -11,7 +11,7 @@ const faqs = [
     },
     {
         question: 'What should I do if my pickup is delayed?',
-        answer: 'Please contact our support team directly 9843010746, if your pickup does not arrive on time. We will immediately coordinate with our logistics team to resolve the delay.',
+        answer: 'Please contact our support team directly 9843010746. We will immediately coordinate with our pick up team to resolve the delay.',
     },
     {
         question: 'Do you offer delivery to all locations?',
@@ -27,7 +27,7 @@ const faqs = [
     },
     {
         question: 'How do I cancel my pickup or order?',
-        answer: 'To cancel a scheduled pickup or an order, please call our support team directly 9843010746. They will process your request immediately and guide you through the cancellation steps.',
+        answer: 'You can simply click the "Cancel" button on your active order page. Alternatively, please call our support team directly 9843010746 if you require further assistance.',
     },
 ]
 

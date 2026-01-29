@@ -7,13 +7,17 @@ import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type Pi
 import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle, Truck } from 'lucide-react'
 import Link from 'next/link'
 
-type StatusType = 'pending' | 'approved' | 'completed' | 'rejected'
+type StatusType = 'pending' | 'approved' | 'completed' | 'rejected' | 'cancelled' | 'confirmed' | 'hold' | 'verification'
 
 const statusConfig: Record<StatusType, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200', label: 'Pending' },
   approved: { icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-200', label: 'Approved' },
   completed: { icon: CheckCircle, color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'Completed' },
   rejected: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Rejected' },
+  cancelled: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Cancelled' },
+  confirmed: { icon: CheckCircle, color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'Confirmed' },
+  hold: { icon: AlertCircle, color: 'text-orange-600 bg-orange-50 border-orange-200', label: 'On Hold' },
+  verification: { icon: Clock, color: 'text-purple-600 bg-purple-50 border-purple-200', label: 'Verification' },
 }
 
 interface OrderItem {
@@ -28,6 +32,9 @@ interface OrderItem {
   condition?: string
   status?: string
   createdAt?: Date | any
+  pickupDate?: string
+  pickupTime?: string
+  cancelledAt?: Date | any
 }
 
 export default function OrderHistory() {
@@ -51,7 +58,7 @@ export default function OrderHistory() {
           getUserPickupRequests(user.uid, userPhone).catch(() => []),
         ])
 
-        // Combine and sort by date
+        // Combine and sort by date - include ALL orders (including cancelled)
         const allOrders: OrderItem[] = [
           ...valuations.map(v => ({
             id: v.id || '',
@@ -71,6 +78,8 @@ export default function OrderHistory() {
             price: pr.price,
             status: pr.status || 'pending',
             createdAt: pr.createdAt,
+            pickupDate: pr.pickupDate,
+            pickupTime: pr.pickupTime,
           })),
         ]
 

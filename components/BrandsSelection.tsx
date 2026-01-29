@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Search, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { getBrandLogo } from '@/lib/utils/brandLogos'
+import { prefetchProducts } from '@/lib/cache'
 
 interface Device {
   id: string
@@ -90,7 +91,6 @@ const createTimeoutPromise = (ms: number): Promise<never> => {
 
 export default function BrandsSelection() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const category = searchParams.get('category') || 'cameras'
   
   // Initialize with static brands immediately (optimistic UI)
@@ -167,8 +167,9 @@ export default function BrandsSelection() {
     }
   }, [searchQuery, brands])
 
-  const handleBrandClick = (brand: string) => {
-    router.push(`/products?category=${category}&brand=${encodeURIComponent(brand)}`)
+  // Prefetch products when user hovers over a brand
+  const handleBrandHover = (brand: string) => {
+    prefetchProducts(category, brand)
   }
 
   const categoryName = categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1)
@@ -256,65 +257,47 @@ export default function BrandsSelection() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
             className="w-full"
           >
             <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 px-2">
               {filteredBrands.map((brand, index) => {
                 const logoPath = getBrandLogo(brand)
                 return (
-                  <motion.button
+                  <Link
                     key={brand}
-                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ 
-                      delay: 0.05 * index, 
-                      duration: 0.4,
-                      type: 'spring',
-                      stiffness: 100
-                    }}
-                    whileHover={{ 
-                      scale: 1.08, 
-                      y: -6,
-                    }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => handleBrandClick(brand)}
-                    className="group relative p-4 md:p-6 bg-white/90 backdrop-blur-sm border-2 border-gray-200 rounded-2xl hover:border-brand-lime transition-all text-center flex flex-col items-center justify-center w-[140px] md:w-[160px] h-[140px] md:h-[160px] shadow-lg hover:shadow-2xl overflow-hidden flex-shrink-0"
+                    href={`/products?category=${category}&brand=${encodeURIComponent(brand)}`}
+                    prefetch={true}
+                    onMouseEnter={() => handleBrandHover(brand)}
+                    className="group relative p-4 md:p-6 bg-white/90 backdrop-blur-sm border-2 border-gray-200 rounded-2xl hover:border-brand-lime transition-all text-center flex flex-col items-center justify-center w-[140px] md:w-[160px] h-[140px] md:h-[160px] shadow-lg hover:shadow-2xl overflow-hidden flex-shrink-0 hover:scale-105 hover:-translate-y-1 active:scale-98"
                   >
                     {/* Gradient glow on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-blue-500/0 via-brand-lime/0 to-brand-blue-500/0 group-hover:from-brand-blue-500/10 group-hover:via-brand-lime/10 group-hover:to-brand-blue-500/10 transition-all duration-500 rounded-2xl" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-blue-500/0 via-brand-lime/0 to-brand-blue-500/0 group-hover:from-brand-blue-500/10 group-hover:via-brand-lime/10 group-hover:to-brand-blue-500/10 transition-all duration-300 rounded-2xl" />
                     
                     {/* Decorative corner accent */}
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-brand-lime/0 to-brand-blue-500/0 group-hover:from-brand-lime/20 group-hover:to-brand-blue-500/20 rounded-bl-2xl transition-all duration-500" />
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-brand-lime/0 to-brand-blue-500/0 group-hover:from-brand-lime/20 group-hover:to-brand-blue-500/20 rounded-bl-2xl transition-all duration-300" />
                     
                     {logoPath ? (
                       <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2 flex-1">
-                        <motion.div
-                          whileHover={{ scale: 1.1, rotate: [0, -3, 3, -3, 0] }}
-                          transition={{ duration: 0.4 }}
-                          className="relative w-full h-16 md:h-20 flex items-center justify-center"
-                        >
+                        <div className="relative w-full h-16 md:h-20 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                           <div className="absolute inset-0 bg-gradient-to-br from-brand-blue-500/10 to-brand-lime/10 rounded-xl blur-lg group-hover:blur-xl transition-all" />
                           <img
                             src={logoPath}
                             alt={`${brand} logo`}
                             className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain drop-shadow-md"
                           />
-                        </motion.div>
+                        </div>
                         <div className="text-xs md:text-sm text-gray-700 font-semibold group-hover:text-brand-blue-900 transition-colors">
                           {brand}
                         </div>
                       </div>
                     ) : (
                       <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2 flex-1">
-                        <motion.div
-                          whileHover={{ scale: 1.1 }}
-                          className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-brand-blue-500 to-brand-lime rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow"
-                        >
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-brand-blue-500 to-brand-lime rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-200">
                           <span className="text-2xl md:text-3xl font-bold text-white">
                             {brand.charAt(0)}
                           </span>
-                        </motion.div>
+                        </div>
                         <div className="text-sm md:text-base font-bold text-brand-blue-900 group-hover:text-brand-lime transition-colors">
                           {brand}
                         </div>
@@ -322,14 +305,8 @@ export default function BrandsSelection() {
                     )}
                     
                     {/* Bottom accent line */}
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: '100%' }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.05 * index + 0.3, duration: 0.5 }}
-                      className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-brand-blue-500 via-brand-lime to-brand-blue-500 rounded-b-2xl"
-                    />
-                  </motion.button>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-brand-blue-500 via-brand-lime to-brand-blue-500 rounded-b-2xl" />
+                  </Link>
                 )
               })}
             </div>
