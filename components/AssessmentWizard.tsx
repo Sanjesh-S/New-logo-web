@@ -231,9 +231,13 @@ export default function AssessmentWizard({
   }
 
   const handleConfirmOrder = async () => {
-    // Create valuation first before showing pickup confirmation
+    // Show the pickup form immediately for better UX
     if (!product) return
     
+    // Show modal immediately - don't wait for API
+    setShowOrderConfirmation(true)
+    
+    // Create valuation in background
     try {
       const { createValuation } = await import('@/lib/api/client')
       const data = await createValuation({
@@ -250,28 +254,32 @@ export default function AssessmentWizard({
 
       if (data.success && data.id) {
         setValuationId(data.id)
-        // Show address popup after valuation is created
-        setShowOrderConfirmation(true)
       } else {
-        const errorMsg = (data as any)?.error || (data as any)?.details || 'Unknown error'
-        console.error('Failed to create order:', data)
-        alert(`Failed to create order: ${errorMsg}. Please try again.`)
+        console.error('Failed to create valuation:', data)
+        // Don't close modal - let user continue filling form
+        // Valuation will be created when pickup is confirmed if needed
       }
     } catch (error: any) {
       console.error('Error creating valuation:', error)
-      const errorMsg = error?.message || error?.error || 'Unknown error occurred'
-      alert(`Failed to create order: ${errorMsg}. Please check the console for details.`)
+      // Don't close modal - let user continue filling form
     }
   }
 
   const handleOrderConfirm = async (addressData: AddressData) => {
     // After pickup is confirmed, redirect to order summary
-    if (!product || !valuationId) return
+    if (!product) return
     
     const internalBase = product.internalBasePrice || product.basePrice * 0.5
     const deductions = calculatedPrice - internalBase
     const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-    window.location.href = `/order-summary?id=${valuationId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+    
+    // If valuation was created, include the ID
+    if (valuationId) {
+      window.location.href = `/order-summary?id=${valuationId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+    } else {
+      // Fallback: redirect without valuation ID
+      window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+    }
   }
 
   if (loading) {
