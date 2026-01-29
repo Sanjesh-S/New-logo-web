@@ -13,6 +13,18 @@ export interface PricingRules {
         memoryCardSlotWorking: YesNoPrice
         speakerWorking: YesNoPrice
         hasLensToSell?: YesNoPrice
+        // Phone-specific questions
+        batteryHealth?: YesNoPrice
+        biometricWorking?: YesNoPrice
+        cameraWorking?: YesNoPrice
+        // Laptop-specific questions
+        screenCondition?: YesNoPrice
+        keyboardWorking?: YesNoPrice
+        batteryCycleCount?: YesNoPrice
+        portsWorking?: YesNoPrice
+        chargingWorking?: YesNoPrice
+        // Tablet-specific questions
+        batteryWorking?: YesNoPrice
         // Legacy fields for backward compatibility
         bodyDamage?: YesNoPrice
         lcdWorking?: YesNoPrice
@@ -138,6 +150,18 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         memoryCardSlotWorking: { yes: 0, no: -1500 },
         speakerWorking: { yes: 0, no: -800 },
         hasLensToSell: { yes: 0, no: -2000 },
+        // Phone-specific questions
+        batteryHealth: { yes: 0, no: -3000 },
+        biometricWorking: { yes: 0, no: -2500 },
+        cameraWorking: { yes: 0, no: -3000 },
+        // Laptop-specific questions
+        screenCondition: { yes: 0, no: -4000 },
+        keyboardWorking: { yes: 0, no: -3000 },
+        batteryCycleCount: { yes: 0, no: -2000 },
+        portsWorking: { yes: 0, no: -1500 },
+        chargingWorking: { yes: 0, no: -2000 },
+        // Tablet-specific questions
+        batteryWorking: { yes: 0, no: -2500 },
         // Legacy fields for backward compatibility
         bodyDamage: { yes: -2000, no: 0 },
         lcdWorking: { yes: 0, no: -3000 },

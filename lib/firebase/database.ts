@@ -182,7 +182,7 @@ export async function getUserValuations(
     console.error('Error fetching valuations:', error?.message || error)
     return {
       data: [],
-      lastDoc: null,
+      lastDoc: undefined,
       hasMore: false,
     }
   }
