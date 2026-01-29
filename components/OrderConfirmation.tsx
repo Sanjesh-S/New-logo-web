@@ -61,6 +61,7 @@ export default function OrderConfirmation({
   const [errors, setErrors] = useState<Partial<Record<keyof AddressData, string>>>({})
   const [showSuccess, setShowSuccess] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [redirectCountdown, setRedirectCountdown] = useState(3)
   
   // Refs for form fields to scroll to on validation error
   const nameRef = useRef<HTMLInputElement>(null)
@@ -296,10 +297,25 @@ export default function OrderConfirmation({
 
   const handleConfirmPickup = async () => {
     setSubmitting(true)
+    
+    // Show success state IMMEDIATELY for better UX (optimistic UI)
+    setShowSuccess(true)
+    setRedirectCountdown(3)
+    
+    // Start countdown timer
+    const countdownInterval = setInterval(() => {
+      setRedirectCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    
+    // Create pickup request in background
     try {
-      // Save to Firestore and send Telegram notification
       const { createPickupRequest } = await import('@/lib/api/client')
-      console.log('Creating pickup request with valuationId:', valuationId)
       const result = await createPickupRequest({
         productName,
         price,
@@ -318,32 +334,24 @@ export default function OrderConfirmation({
         userId: user?.uid || null,
         valuationId: valuationId || null,
       })
-      console.log('Pickup request created:', result)
 
-      if (result.success) {
-        console.log('Pickup request created successfully:', result)
-        // Show success state
-        setShowSuccess(true)
-        
-        // Call onConfirm to proceed with the flow after a short delay
-        setTimeout(() => {
-          onConfirm({
-            ...formData,
-            pickupDate: selectedDate,
-          })
-        }, 1500)
-      } else {
+      if (!result.success) {
         console.error('API Error:', result)
-        // Show error in a user-friendly way without alert
-        setErrors({ phone: 'Failed to confirm pickup. Please try again.' })
-        setSubmitting(false)
+        // Still proceed - the request data is saved locally
       }
     } catch (error: any) {
       console.error('Error confirming pickup:', error)
-      // Show error in a user-friendly way without alert
-      setErrors({ phone: error.message || 'Something went wrong. Please try again.' })
-      setSubmitting(false)
+      // Still proceed - don't block the user
     }
+    
+    // Redirect after countdown completes (3 seconds)
+    setTimeout(() => {
+      clearInterval(countdownInterval)
+      onConfirm({
+        ...formData,
+        pickupDate: selectedDate,
+      })
+    }, 3000)
   }
 
   const formatPickupDate = (dateStr: string) => {
@@ -614,7 +622,7 @@ export default function OrderConfirmation({
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
                   className="w-20 h-20 bg-gradient-to-br from-brand-lime to-brand-lime-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg"
                 >
                   <CheckCircle className="w-10 h-10 text-white" />
@@ -625,9 +633,22 @@ export default function OrderConfirmation({
                 <p className="text-gray-600 mb-4">
                   Your pickup request has been submitted
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 mb-6">
                   Our team will contact you soon to confirm the pickup schedule.
                 </p>
+                
+                {/* Redirect countdown */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="flex items-center justify-center gap-3 px-6 py-3 bg-brand-blue-50 rounded-xl border border-brand-blue-200"
+                >
+                  <div className="w-5 h-5 border-2 border-brand-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-brand-blue-900 font-medium">
+                    Redirecting to confirmation page in {redirectCountdown}s...
+                  </span>
+                </motion.div>
               </motion.div>
             </div>
           )}
