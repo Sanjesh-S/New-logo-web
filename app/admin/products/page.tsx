@@ -348,7 +348,10 @@ export default function AdminProductsPage() {
                 </>
             ) : activeTab === 'calculator' ? (
                 <PricingCalculator />
-            ) : (
+            ) : null}
+
+            {/* Pickup Requests Tab */}
+            {activeTab === 'pickup' && (
                 <>
                     {/* Pickup Requests Table */}
                     {pickupLoading ? (
