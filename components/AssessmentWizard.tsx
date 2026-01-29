@@ -873,6 +873,9 @@ export default function AssessmentWizard({
                 <p className="text-white/80 text-sm md:text-base">
                   Based on your device condition assessment
                 </p>
+                <p className="text-white/60 text-xs mt-2">
+                  Amount subject to revision upon direct assessment.
+                </p>
               </div>
               
               <motion.button
