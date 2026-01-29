@@ -55,15 +55,30 @@ export default function ActiveOrders() {
         const allOrders: ActiveOrderItem[] = [
           ...valuations
             .filter((v) => v.status === 'pending' || v.status === 'approved')
-            .map(v => ({
-              id: v.id || '',
-              type: 'valuation' as const,
-              brand: v.brand,
-              model: v.model,
-              estimatedValue: v.estimatedValue,
-              status: v.status,
-              createdAt: v.createdAt,
-            })),
+            .map(v => {
+              // Convert pickupDate from Timestamp/Date to string if needed
+              let pickupDateStr: string | undefined
+              if (v.pickupDate) {
+                if (v.pickupDate instanceof Date) {
+                  pickupDateStr = v.pickupDate.toISOString().split('T')[0]
+                } else if ((v.pickupDate as any)?.toDate) {
+                  pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
+                } else if (typeof v.pickupDate === 'string') {
+                  pickupDateStr = v.pickupDate
+                }
+              }
+              return {
+                id: v.id || '',
+                type: 'valuation' as const,
+                brand: v.brand,
+                model: v.model,
+                estimatedValue: v.estimatedValue,
+                status: v.status,
+                createdAt: v.createdAt,
+                pickupDate: pickupDateStr,
+                pickupTime: v.pickupTime,
+              }
+            }),
           ...pickupRequests
             .filter((pr) => {
               const status = pr.status || 'pending'
@@ -126,15 +141,30 @@ export default function ActiveOrders() {
       const allOrders: ActiveOrderItem[] = [
         ...valuations
           .filter((v) => v.status === 'pending' || v.status === 'approved')
-          .map(v => ({
-            id: v.id || '',
-            type: 'valuation' as const,
-            brand: v.brand,
-            model: v.model,
-            estimatedValue: v.estimatedValue,
-            status: v.status,
-            createdAt: v.createdAt,
-          })),
+          .map(v => {
+            // Convert pickupDate from Timestamp/Date to string if needed
+            let pickupDateStr: string | undefined
+            if (v.pickupDate) {
+              if (v.pickupDate instanceof Date) {
+                pickupDateStr = v.pickupDate.toISOString().split('T')[0]
+              } else if ((v.pickupDate as any)?.toDate) {
+                pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
+              } else if (typeof v.pickupDate === 'string') {
+                pickupDateStr = v.pickupDate
+              }
+            }
+            return {
+              id: v.id || '',
+              type: 'valuation' as const,
+              brand: v.brand,
+              model: v.model,
+              estimatedValue: v.estimatedValue,
+              status: v.status,
+              createdAt: v.createdAt,
+              pickupDate: pickupDateStr,
+              pickupTime: v.pickupTime,
+            }
+          }),
         ...pickupRequests
           .filter((pr) => {
             const status = pr.status || 'pending'
@@ -201,15 +231,30 @@ export default function ActiveOrders() {
     const allOrders: ActiveOrderItem[] = [
       ...valuations
         .filter((v) => v.status === 'pending' || v.status === 'approved')
-        .map(v => ({
-          id: v.id || '',
-          type: 'valuation' as const,
-          brand: v.brand,
-          model: v.model,
-          estimatedValue: v.estimatedValue,
-          status: v.status,
-          createdAt: v.createdAt,
-        })),
+        .map(v => {
+          // Convert pickupDate from Timestamp/Date to string if needed
+          let pickupDateStr: string | undefined
+          if (v.pickupDate) {
+            if (v.pickupDate instanceof Date) {
+              pickupDateStr = v.pickupDate.toISOString().split('T')[0]
+            } else if ((v.pickupDate as any)?.toDate) {
+              pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
+            } else if (typeof v.pickupDate === 'string') {
+              pickupDateStr = v.pickupDate
+            }
+          }
+          return {
+            id: v.id || '',
+            type: 'valuation' as const,
+            brand: v.brand,
+            model: v.model,
+            estimatedValue: v.estimatedValue,
+            status: v.status,
+            createdAt: v.createdAt,
+            pickupDate: pickupDateStr,
+            pickupTime: v.pickupTime,
+          }
+        }),
       ...pickupRequests
         .filter((pr) => {
           const status = pr.status || 'pending'
@@ -397,8 +442,8 @@ export default function ActiveOrders() {
                         View Details
                       </Link>
                       
-                      {/* Schedule Pickup for approved valuations */}
-                      {order.type === 'valuation' && order.status === 'approved' && (
+                      {/* Schedule Pickup for approved valuations that don't have pickup scheduled yet */}
+                      {order.type === 'valuation' && order.status === 'approved' && !order.pickupDate && (
                         <Link
                           href={`/order-summary?id=${order.id}&schedule=true`}
                           className="px-4 py-2 text-sm font-medium bg-brand-lime text-brand-blue-900 rounded-lg hover:bg-brand-lime-400 transition-colors text-center"
@@ -407,8 +452,8 @@ export default function ActiveOrders() {
                         </Link>
                       )}
                       
-                      {/* Reschedule button for pickup orders */}
-                      {order.type === 'pickup' && (order.status === 'pending' || order.status === 'confirmed') && (
+                      {/* Reschedule button - shows for ALL orders (both valuation and pickup) with pending/confirmed status */}
+                      {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'approved') && (
                         <button
                           onClick={() => {
                             setSelectedOrder(order)
@@ -422,7 +467,7 @@ export default function ActiveOrders() {
                       )}
                       
                       {/* Cancel button for pending orders */}
-                      {(order.status === 'pending' || (order.type === 'pickup' && order.status === 'confirmed')) && (
+                      {(order.status === 'pending' || order.status === 'confirmed') && (
                         <button
                           onClick={() => {
                             setSelectedOrder(order)
