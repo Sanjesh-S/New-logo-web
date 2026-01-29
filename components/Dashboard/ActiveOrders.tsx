@@ -41,11 +41,15 @@ export default function ActiveOrders() {
         setLoading(true)
         const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
         
+        console.log('Fetching orders for user:', user.uid, 'phone:', userPhone)
+        
         // Fetch both valuations and pickup requests
         const [valuations, pickupRequests] = await Promise.all([
-          getUserValuationsLegacy(user.uid).catch(() => []),
-          getUserPickupRequests(user.uid, userPhone).catch(() => []),
+          getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
+          getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
         ])
+        
+        console.log('Fetched valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
 
         // Combine and filter for active orders
         const allOrders: ActiveOrderItem[] = [

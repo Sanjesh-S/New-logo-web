@@ -799,6 +799,7 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
     }
     
     // Also fetch by phone number for backward compatibility (if userPhone provided)
+    // This catches cases where userId might be null or different
     if (userPhone) {
       try {
         const normalizedPhone = userPhone.replace(/^\+91/, '').replace(/\D/g, '')
@@ -808,7 +809,8 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
           const allPickupRequests = await getAllPickupRequests()
           const phoneRequests = allPickupRequests.filter(pr => {
             const customerPhone = pr.customer?.phone?.replace(/\D/g, '') || ''
-            return customerPhone === normalizedPhone && pr.userId !== userId
+            // Include if phone matches - don't exclude based on userId
+            return customerPhone === normalizedPhone
           })
           allRequests = [...allRequests, ...phoneRequests]
         }
