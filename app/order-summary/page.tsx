@@ -96,11 +96,23 @@ function OrderSummaryContent() {
             setPickupRequest(pickupReq)
             // Extract pickupDate and pickupTime from pickup request
             if (pickupReq.pickupDate) {
-              const dateValue = typeof pickupReq.pickupDate === 'string' 
-                ? new Date(pickupReq.pickupDate)
-                : pickupReq.pickupDate instanceof Date
-                ? pickupReq.pickupDate
-                : (pickupReq.pickupDate as any)?.toDate?.() || new Date()
+              let dateValue: Date
+              const pickupDate = pickupReq.pickupDate
+              
+              if (typeof pickupDate === 'string') {
+                dateValue = new Date(pickupDate)
+              } else {
+                // Handle Date, Firestore Timestamp, or other date-like objects
+                const dateLike = pickupDate as any
+                if (dateLike instanceof Date) {
+                  dateValue = dateLike
+                } else if (dateLike?.toDate && typeof dateLike.toDate === 'function') {
+                  dateValue = dateLike.toDate()
+                } else {
+                  dateValue = new Date(dateLike)
+                }
+              }
+              
               const formattedDate = dateValue.toISOString().split('T')[0]
               setScheduledDate(formattedDate)
             }

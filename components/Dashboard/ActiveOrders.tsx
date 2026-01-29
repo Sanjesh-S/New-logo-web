@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type PickupRequest } from '@/lib/firebase/database'
-import { Clock, Truck, CheckCircle, AlertCircle, Package } from 'lucide-react'
+import { getUserValuationsLegacy, getUserPickupRequests, updatePickupRequest, updateValuation, type Valuation, type PickupRequest } from '@/lib/firebase/database'
+import { Clock, Truck, CheckCircle, AlertCircle, Package, X, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import PickupScheduler from '@/components/PickupScheduler'
 
 interface ActiveOrderItem {
   id: string
@@ -25,6 +26,10 @@ export default function ActiveOrders() {
   const router = useRouter()
   const [activeOrders, setActiveOrders] = useState<ActiveOrderItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<ActiveOrderItem | null>(null)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     const fetchActiveOrders = async () => {
@@ -90,6 +95,138 @@ export default function ActiveOrders() {
 
     fetchActiveOrders()
   }, [user?.uid, user?.phoneNumber])
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return
+    
+    try {
+      setCancelling(true)
+      
+      if (selectedOrder.type === 'pickup') {
+        await updatePickupRequest(selectedOrder.id, { status: 'cancelled' })
+      } else {
+        await updateValuation(selectedOrder.id, { status: 'rejected' })
+      }
+      
+      // Refresh orders list
+      const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
+      const [valuations, pickupRequests] = await Promise.all([
+        getUserValuationsLegacy(user!.uid).catch(() => []),
+        getUserPickupRequests(user!.uid, userPhone).catch(() => []),
+      ])
+
+      const allOrders: ActiveOrderItem[] = [
+        ...valuations
+          .filter((v) => v.status === 'pending' || v.status === 'approved')
+          .map(v => ({
+            id: v.id || '',
+            type: 'valuation' as const,
+            brand: v.brand,
+            model: v.model,
+            estimatedValue: v.estimatedValue,
+            status: v.status,
+            createdAt: v.createdAt,
+          })),
+        ...pickupRequests
+          .filter((pr) => {
+            const status = pr.status || 'pending'
+            return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+          })
+          .map(pr => ({
+            id: pr.id,
+            type: 'pickup' as const,
+            productName: pr.productName,
+            price: pr.price,
+            status: pr.status || 'pending',
+            createdAt: pr.createdAt,
+          })),
+      ]
+
+      allOrders.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date 
+          ? a.createdAt.getTime() 
+          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+        const bDate = b.createdAt instanceof Date 
+          ? b.createdAt.getTime() 
+          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        return bDate - aDate
+      })
+
+      setActiveOrders(allOrders)
+      setShowCancelModal(false)
+      setSelectedOrder(null)
+    } catch (error) {
+      console.error('Error cancelling order:', error)
+      alert('Failed to cancel order. Please try again.')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const handleReschedule = async (date: string, time: string) => {
+    if (!selectedOrder) return
+    
+    if (selectedOrder.type === 'pickup') {
+      await updatePickupRequest(selectedOrder.id, {
+        pickupDate: date,
+        pickupTime: time,
+      })
+    } else {
+      await updateValuation(selectedOrder.id, {
+        pickupDate: new Date(date),
+        pickupTime: time,
+      })
+    }
+    
+    setShowRescheduleModal(false)
+    setSelectedOrder(null)
+    
+    // Refresh orders list
+    const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
+    const [valuations, pickupRequests] = await Promise.all([
+      getUserValuationsLegacy(user!.uid).catch(() => []),
+      getUserPickupRequests(user!.uid, userPhone).catch(() => []),
+    ])
+
+    const allOrders: ActiveOrderItem[] = [
+      ...valuations
+        .filter((v) => v.status === 'pending' || v.status === 'approved')
+        .map(v => ({
+          id: v.id || '',
+          type: 'valuation' as const,
+          brand: v.brand,
+          model: v.model,
+          estimatedValue: v.estimatedValue,
+          status: v.status,
+          createdAt: v.createdAt,
+        })),
+      ...pickupRequests
+        .filter((pr) => {
+          const status = pr.status || 'pending'
+          return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+        })
+        .map(pr => ({
+          id: pr.id,
+          type: 'pickup' as const,
+          productName: pr.productName,
+          price: pr.price,
+          status: pr.status || 'pending',
+          createdAt: pr.createdAt,
+        })),
+    ]
+
+    allOrders.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date 
+        ? a.createdAt.getTime() 
+        : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date 
+        ? b.createdAt.getTime() 
+        : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+
+    setActiveOrders(allOrders)
+  }
 
   if (loading) {
     return (
@@ -226,7 +363,7 @@ export default function ActiveOrders() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-wrap gap-2 mt-4">
                   {order.id && (
                     <>
                       {order.type === 'valuation' ? (
@@ -245,14 +382,52 @@ export default function ActiveOrders() {
                               Schedule Pickup
                             </Link>
                           )}
+                          {order.status === 'pending' && (
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order)
+                                setShowCancelModal(true)
+                              }}
+                              className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </button>
+                          )}
                         </>
                       ) : (
-                        <Link
-                          href={`/order-summary?id=${order.id}`}
-                          className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
-                        >
-                          View Details
-                        </Link>
+                        <>
+                          <Link
+                            href={`/order-summary?id=${order.id}`}
+                            className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
+                          >
+                            View Details
+                          </Link>
+                          {(order.status === 'pending' || order.status === 'confirmed') && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order)
+                                  setShowRescheduleModal(true)
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors flex items-center gap-1"
+                              >
+                                <Calendar className="w-4 h-4" />
+                                Reschedule
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order)
+                                  setShowCancelModal(true)
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                        </>
                       )}
                     </>
                   )}
@@ -262,6 +437,92 @@ export default function ActiveOrders() {
           )
         })}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <AnimatePresence>
+        {showCancelModal && selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Cancel Order</h3>
+                  <p className="text-sm text-gray-500">Are you sure?</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 mb-2">
+                  You are about to cancel this {selectedOrder.type === 'pickup' ? 'pickup request' : 'order'}:
+                </p>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <p className="font-semibold text-gray-900">
+                    {selectedOrder.type === 'pickup' ? selectedOrder.productName : `${selectedOrder.brand} ${selectedOrder.model}`}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    ₹{(selectedOrder.type === 'pickup' ? selectedOrder.price : selectedOrder.estimatedValue)?.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 mt-3">
+                  This action cannot be undone. The {selectedOrder.type === 'pickup' ? 'pickup will be cancelled' : 'order will be marked as cancelled'}.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false)
+                    setSelectedOrder(null)
+                  }}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Keep Order
+                </button>
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {cancelling ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      Yes, Cancel Order
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reschedule Modal */}
+      {selectedOrder && (
+        <PickupScheduler
+          isOpen={showRescheduleModal}
+          onClose={() => {
+            setShowRescheduleModal(false)
+            setSelectedOrder(null)
+          }}
+          onSchedule={handleReschedule}
+          valuationId={selectedOrder.id}
+          productName={selectedOrder.type === 'pickup' ? selectedOrder.productName : `${selectedOrder.brand} ${selectedOrder.model}`}
+          price={selectedOrder.type === 'pickup' ? selectedOrder.price : selectedOrder.estimatedValue}
+        />
+      )}
     </div>
   )
 }
