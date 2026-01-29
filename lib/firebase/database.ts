@@ -135,40 +135,56 @@ export async function getUserValuations(
   userId: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResult<Valuation>> {
-  const { limit: limitCount = 20, startAfter: startAfterDoc } = options
+  const { limit: limitCount = 20 } = options
   const valuationsRef = collection(getDb(), 'valuations')
   
-  let q = query(
+  // Query without orderBy to avoid index requirement
+  // We'll sort client-side
+  const q = query(
     valuationsRef,
     where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount + 1) // Fetch one extra to check if there's more
+    limit(limitCount + 1)
   )
   
-  if (startAfterDoc) {
-    q = query(
-      valuationsRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      startAfter(startAfterDoc),
-      limit(limitCount + 1)
-    )
-  }
-  
-  const querySnapshot = await getDocs(q)
-  const docs = querySnapshot.docs
-  const hasMore = docs.length > limitCount
-  const data = (hasMore ? docs.slice(0, limitCount) : docs).map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Valuation[]
-  
-  const lastDoc = hasMore ? docs[limitCount - 1] : docs[docs.length - 1]
+  try {
+    const querySnapshot = await getDocs(q)
+    console.log('Valuations query returned:', querySnapshot.docs.length, 'documents')
+    
+    let data = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Valuation[]
+    
+    // Sort client-side by createdAt descending
+    data.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date 
+        ? a.createdAt.getTime() 
+        : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date 
+        ? b.createdAt.getTime() 
+        : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    
+    const hasMore = data.length > limitCount
+    if (hasMore) {
+      data = data.slice(0, limitCount)
+    }
+    
+    const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1]
 
-  return {
-    data,
-    lastDoc,
-    hasMore,
+    return {
+      data,
+      lastDoc,
+      hasMore,
+    }
+  } catch (error: any) {
+    console.error('Error fetching valuations:', error?.message || error)
+    return {
+      data: [],
+      lastDoc: null,
+      hasMore: false,
+    }
   }
 }
 
@@ -767,26 +783,16 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
     const pickupRequestsRef = collection(getDb(), 'pickupRequests')
     let allRequests: PickupRequest[] = []
     
-    // Try to fetch by userId first
+    // Query by userId only (no ordering - to avoid index requirement)
+    // We'll sort client-side instead
     try {
-      let querySnapshot
-      try {
-        // Try to query by userId with ordering
-        const q = query(
-          pickupRequestsRef,
-          where('userId', '==', userId),
-          orderBy('createdAt', 'desc')
-        )
-        querySnapshot = await getDocs(q)
-      } catch (orderError: any) {
-        // If ordering fails (e.g., missing index), query without ordering
-        console.warn('Could not order by createdAt, fetching without ordering:', orderError)
-        const q = query(
-          pickupRequestsRef,
-          where('userId', '==', userId)
-        )
-        querySnapshot = await getDocs(q)
-      }
+      const q = query(
+        pickupRequestsRef,
+        where('userId', '==', userId)
+      )
+      const querySnapshot = await getDocs(q)
+      
+      console.log('Pickup requests query returned:', querySnapshot.docs.length, 'documents')
       
       const userIdRequests = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -794,38 +800,27 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
       })) as PickupRequest[]
       
       allRequests = [...userIdRequests]
-    } catch (error) {
-      console.warn('Error fetching pickup requests by userId:', error)
+    } catch (error: any) {
+      console.error('Error fetching pickup requests by userId:', error?.message || error)
     }
     
-    // Note: Phone number fallback is no longer used because:
-    // 1. Security rules only allow users to read their own documents (by userId)
-    // 2. We can't query nested customer.phone field efficiently
-    // 3. All new pickup requests should have userId set correctly
-    // If userId query returned results, we have what we need
-    
-    // Remove duplicates and sort by date
-    const uniqueRequests = Array.from(
-      new Map(allRequests.map(req => [req.id, req])).values()
-    )
-    
-    // Sort client-side by date
-    if (uniqueRequests.length > 0) {
-      uniqueRequests.sort((a, b) => {
+    // Sort client-side by date (descending - newest first)
+    if (allRequests.length > 0) {
+      allRequests.sort((a, b) => {
         const aDate = a.createdAt instanceof Date 
           ? a.createdAt.getTime() 
           : (a.createdAt as any)?.toDate?.()?.getTime() || 0
         const bDate = b.createdAt instanceof Date 
           ? b.createdAt.getTime() 
           : (b.createdAt as any)?.toDate?.()?.getTime() || 0
-        return bDate - aDate // Descending order
+        return bDate - aDate
       })
     }
     
-    return uniqueRequests
+    return allRequests
   } catch (error) {
     console.error('Error fetching user pickup requests:', error)
-    throw error
+    return [] // Return empty array instead of throwing
   }
 }
 
