@@ -13,6 +13,7 @@ import {
   Timestamp,
   addDoc,
   updateDoc,
+  deleteDoc,
   Firestore,
 } from 'firebase/firestore'
 import { db } from './config'
@@ -968,6 +969,142 @@ export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumb
     return false
   } catch (error: any) {
     console.error('Error checking super admin status:', error)
+    throw error
+  }
+}
+
+// Saved Addresses Operations
+export interface SavedAddress {
+  id?: string
+  userId: string
+  name: string
+  phone: string
+  email?: string
+  address: string
+  landmark?: string
+  city: string
+  state: string
+  pincode: string
+  isDefault?: boolean
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+}
+
+/**
+ * Get all saved addresses for a user
+ */
+export async function getUserAddresses(userId: string): Promise<SavedAddress[]> {
+  try {
+    const addressesRef = collection(getDb(), 'savedAddresses')
+    const q = query(addressesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as SavedAddress[]
+  } catch (error) {
+    console.error('Error fetching user addresses:', error)
+    return []
+  }
+}
+
+/**
+ * Check if an address already exists for a user (to avoid duplicates)
+ */
+export async function addressExists(userId: string, addressData: {
+  address: string
+  pincode: string
+  phone: string
+}): Promise<boolean> {
+  try {
+    const addressesRef = collection(getDb(), 'savedAddresses')
+    const q = query(
+      addressesRef,
+      where('userId', '==', userId),
+      where('address', '==', addressData.address),
+      where('pincode', '==', addressData.pincode),
+      where('phone', '==', addressData.phone)
+    )
+    const snapshot = await getDocs(q)
+    return !snapshot.empty
+  } catch (error) {
+    console.error('Error checking if address exists:', error)
+    return false
+  }
+}
+
+/**
+ * Save an address for a user (auto-save from pickup request)
+ */
+export async function saveAddress(addressData: SavedAddress): Promise<string> {
+  try {
+    const addressesRef = collection(getDb(), 'savedAddresses')
+    
+    // If this is set as default, unset other default addresses
+    if (addressData.isDefault) {
+      const existingAddresses = await getUserAddresses(addressData.userId)
+      const updatePromises = existingAddresses
+        .filter(addr => addr.isDefault && addr.id)
+        .map(addr => updateDoc(doc(getDb(), 'savedAddresses', addr.id!), { isDefault: false }))
+      
+      await Promise.all(updatePromises)
+    }
+    
+    const newAddress = {
+      ...addressData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }
+    
+    const docRef = await addDoc(addressesRef, newAddress)
+    return docRef.id
+  } catch (error) {
+    console.error('Error saving address:', error)
+    throw error
+  }
+}
+
+/**
+ * Update an address
+ */
+export async function updateAddress(addressId: string, updates: Partial<SavedAddress>): Promise<void> {
+  try {
+    const addressRef = doc(getDb(), 'savedAddresses', addressId)
+    
+    // If setting as default, unset other default addresses
+    if (updates.isDefault) {
+      const addressDoc = await getDoc(addressRef)
+      if (addressDoc.exists()) {
+        const addressData = addressDoc.data() as SavedAddress
+        const existingAddresses = await getUserAddresses(addressData.userId)
+        const updatePromises = existingAddresses
+          .filter(addr => addr.isDefault && addr.id && addr.id !== addressId)
+          .map(addr => updateDoc(doc(getDb(), 'savedAddresses', addr.id!), { isDefault: false }))
+        
+        await Promise.all(updatePromises)
+      }
+    }
+    
+    await updateDoc(addressRef, {
+      ...updates,
+      updatedAt: Timestamp.now(),
+    })
+  } catch (error) {
+    console.error('Error updating address:', error)
+    throw error
+  }
+}
+
+/**
+ * Delete an address
+ */
+export async function deleteAddress(addressId: string): Promise<void> {
+  try {
+    const addressRef = doc(getDb(), 'savedAddresses', addressId)
+    await deleteDoc(addressRef)
+  } catch (error) {
+    console.error('Error deleting address:', error)
     throw error
   }
 }

@@ -187,6 +187,27 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Saved Addresses Collection
+    match /savedAddresses/{addressId} {
+      // Users can read their own addresses
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can read all addresses
+      allow read: if isStaff();
+      
+      // Users can create their own addresses
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update their own addresses
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Users can delete their own addresses
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can manage all addresses
+      allow write: if isStaff();
+    }
+    
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

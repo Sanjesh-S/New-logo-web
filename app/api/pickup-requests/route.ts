@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collection, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, Timestamp, query, where, getDocs, limit } from 'firebase/firestore'
 import { getFirestoreServer } from '@/lib/firebase/server'
 import { pickupRequestSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
@@ -69,6 +69,56 @@ export async function POST(request: NextRequest) {
       createdAt: Timestamp.now(),
       status: 'pending',
     })
+
+    // Auto-save address if userId exists and address doesn't already exist
+    if (userId) {
+      try {
+        const addressesRef = collection(db, 'savedAddresses')
+        // Check if address already exists for this user
+        const addressQuery = query(
+          addressesRef,
+          where('userId', '==', userId),
+          where('address', '==', customer.address),
+          where('pincode', '==', customer.pincode),
+          where('phone', '==', customer.phone),
+          limit(1)
+        )
+        const addressSnapshot = await getDocs(addressQuery)
+
+        if (addressSnapshot.empty) {
+          // Address doesn't exist, save it
+          // Check if this will be the first address (set as default)
+          const userAddressesQuery = query(
+            addressesRef,
+            where('userId', '==', userId),
+            limit(1)
+          )
+          const userAddressesSnapshot = await getDocs(userAddressesQuery)
+          const isFirstAddress = userAddressesSnapshot.empty
+
+          await addDoc(addressesRef, {
+            userId,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            address: customer.address,
+            landmark: customer.landmark || '',
+            city: customer.city,
+            state: customer.state,
+            pincode: customer.pincode,
+            isDefault: isFirstAddress, // Set as default if it's the first address
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          })
+          logger.info('Auto-saved address for user', { userId, address: customer.address })
+        } else {
+          logger.info('Address already exists for user', { userId })
+        }
+      } catch (addressError) {
+        logger.error('Failed to auto-save address', { userId, error: addressError })
+        // Don't fail the request - address saving is optional
+      }
+    }
 
     // Send notifications via Firebase Functions
     // All notification logic is handled by Firebase Functions to ensure server-side secrets are secure

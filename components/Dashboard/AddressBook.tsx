@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MapPin, Plus, Edit2, Trash2, Check } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { getUserAddresses, saveAddress, updateAddress, deleteAddress, type SavedAddress } from '@/lib/firebase/database'
 
 interface Address {
   id: string
@@ -17,7 +19,9 @@ interface Address {
 }
 
 export default function AddressBook() {
+  const { user } = useAuth()
   const [addresses, setAddresses] = useState<Address[]>([])
+  const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Omit<Address, 'id'>>({
@@ -31,38 +35,137 @@ export default function AddressBook() {
     isDefault: false,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editingId) {
-      setAddresses(addresses.map(addr => addr.id === editingId ? { ...addr, ...formData } : addr))
-      setEditingId(null)
-    } else {
-      const newAddress: Address = {
-        id: Date.now().toString(),
-        ...formData,
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (!user?.uid) {
+        setLoading(false)
+        return
       }
-      if (formData.isDefault) {
-        setAddresses([...addresses.map(a => ({ ...a, isDefault: false })), newAddress])
-      } else {
-        setAddresses([...addresses, newAddress])
+      
+      try {
+        setLoading(true)
+        const savedAddresses = await getUserAddresses(user.uid)
+        setAddresses(savedAddresses.map(addr => ({
+          id: addr.id || '',
+          name: addr.name,
+          phone: addr.phone,
+          address: addr.address,
+          landmark: addr.landmark,
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          isDefault: addr.isDefault || false,
+        })))
+      } catch (error) {
+        console.error('Error fetching addresses:', error)
+      } finally {
+        setLoading(false)
       }
     }
-    setFormData({
-      name: '',
-      phone: '',
-      address: '',
-      landmark: '',
-      city: '',
-      state: '',
-      pincode: '',
-      isDefault: false,
-    })
-    setShowAddForm(false)
+    
+    fetchAddresses()
+  }, [user?.uid])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user?.uid) return
+    
+    try {
+      if (editingId) {
+        // Update existing address
+        await updateAddress(editingId, {
+          userId: user.uid,
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          landmark: formData.landmark,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          isDefault: formData.isDefault,
+        })
+        // Refresh addresses
+        const savedAddresses = await getUserAddresses(user.uid)
+        setAddresses(savedAddresses.map(addr => ({
+          id: addr.id || '',
+          name: addr.name,
+          phone: addr.phone,
+          address: addr.address,
+          landmark: addr.landmark,
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          isDefault: addr.isDefault || false,
+        })))
+        setEditingId(null)
+      } else {
+        // Create new address
+        await saveAddress({
+          userId: user.uid,
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          landmark: formData.landmark,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          isDefault: formData.isDefault || false,
+        })
+        // Refresh addresses
+        const savedAddresses = await getUserAddresses(user.uid)
+        setAddresses(savedAddresses.map(addr => ({
+          id: addr.id || '',
+          name: addr.name,
+          phone: addr.phone,
+          address: addr.address,
+          landmark: addr.landmark,
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          isDefault: addr.isDefault || false,
+        })))
+      }
+      
+      setFormData({
+        name: '',
+        phone: '',
+        address: '',
+        landmark: '',
+        city: '',
+        state: '',
+        pincode: '',
+        isDefault: false,
+      })
+      setShowAddForm(false)
+    } catch (error) {
+      console.error('Error saving address:', error)
+      alert('Failed to save address. Please try again.')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this address?')) {
-      setAddresses(addresses.filter(addr => addr.id !== id))
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this address?')) return
+    
+    try {
+      await deleteAddress(id)
+      // Refresh addresses
+      if (user?.uid) {
+        const savedAddresses = await getUserAddresses(user.uid)
+        setAddresses(savedAddresses.map(addr => ({
+          id: addr.id || '',
+          name: addr.name,
+          phone: addr.phone,
+          address: addr.address,
+          landmark: addr.landmark,
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          isDefault: addr.isDefault || false,
+        })))
+      }
+    } catch (error) {
+      console.error('Error deleting address:', error)
+      alert('Failed to delete address. Please try again.')
     }
   }
 
@@ -79,6 +182,14 @@ export default function AddressBook() {
     })
     setEditingId(address.id)
     setShowAddForm(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-4 border-brand-lime border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   if (addresses.length === 0 && !showAddForm) {
