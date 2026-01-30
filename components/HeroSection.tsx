@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Check, Camera, Smartphone, Laptop, Tablet, TrendingUp, Users, Star, X } from 'lucide-react'
 import Link from 'next/link'
+import { getAssetPath } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getAllProducts, type Product } from '@/lib/firebase/database'
 
@@ -273,49 +274,20 @@ export default function HeroSection() {
             </motion.div>
           </motion.div>
 
-          {/* Right Column - Product Images */}
+          {/* Right Column - Hero devices image */}
           <motion.div
             initial={mounted ? { opacity: 0, x: 20 } : false}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="relative hidden lg:block"
+            className="relative hidden lg:flex items-center justify-center flex-1 min-h-[500px]"
           >
-            <div className="relative h-[500px]">
-              {/* Camera - Large */}
-              <motion.div
-                animate={{ y: [0, -15, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-0 left-8 w-52 h-52 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl p-6 flex items-center justify-center"
-              >
-                <Camera className="w-24 h-24 text-gray-300" />
-              </motion.div>
-
-              {/* Phone */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                className="absolute top-32 right-8 w-32 h-56 bg-gradient-to-br from-white to-gray-100 rounded-3xl shadow-2xl border-4 border-gray-200 flex items-center justify-center"
-              >
-                <Smartphone className="w-12 h-12 text-gray-400" />
-              </motion.div>
-
-              {/* Laptop */}
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-12 left-16 w-56 h-36 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl shadow-2xl flex items-center justify-center"
-              >
-                <Laptop className="w-20 h-20 text-gray-300" />
-              </motion.div>
-
-              {/* Tablet */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                className="absolute bottom-32 right-4 w-28 h-36 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl shadow-xl border-2 border-gray-300 flex items-center justify-center"
-              >
-                <Tablet className="w-10 h-10 text-gray-400" />
-              </motion.div>
+            <div className="relative w-full max-w-md h-[500px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getAssetPath('/images/hero-devices.svg')}
+                alt="Camera & gadgets - Trade in your devices"
+                className="w-full h-full object-contain object-center"
+              />
             </div>
           </motion.div>
         </div>
