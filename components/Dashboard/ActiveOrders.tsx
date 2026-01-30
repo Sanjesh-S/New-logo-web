@@ -36,6 +36,54 @@ function getDateStringFromValue(value: Date | FirestoreTimestamp | string | unkn
   return undefined
 }
 
+/**
+ * Check if rescheduling is allowed (must be more than 2 hours before pickup slot starts)
+ * @param pickupDate - Date string in YYYY-MM-DD format
+ * @param pickupTime - Time string in format "10:00 PM - 12:00 AM"
+ * @returns true if rescheduling is allowed (more than 2 hours before slot start)
+ */
+function canReschedule(pickupDate: string | undefined, pickupTime: string | undefined): boolean {
+  if (!pickupDate || !pickupTime) {
+    return true // Allow rescheduling if date/time is missing (shouldn't happen, but be safe)
+  }
+
+  try {
+    // Parse the time slot to get start time (e.g., "10:00 PM - 12:00 AM" -> "10:00 PM")
+    const [startTimeStr] = pickupTime.split(' - ')
+    if (!startTimeStr) {
+      return true // If we can't parse, allow rescheduling
+    }
+
+    // Parse start time (e.g., "10:00 PM")
+    const [timePart, period] = startTimeStr.trim().split(' ')
+    if (!timePart || !period) {
+      return true // If we can't parse, allow rescheduling
+    }
+
+    const [hours, minutes] = timePart.split(':').map(Number)
+    let startHour = hours
+    if (period.toUpperCase() === 'PM' && hours !== 12) startHour += 12
+    if (period.toUpperCase() === 'AM' && hours === 12) startHour = 0
+
+    // Create pickup slot start datetime
+    const pickupDateObj = new Date(pickupDate)
+    pickupDateObj.setHours(startHour, minutes, 0, 0)
+
+    // Get current time
+    const now = new Date()
+
+    // Calculate difference in milliseconds
+    const diffMs = pickupDateObj.getTime() - now.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+
+    // Allow rescheduling only if more than 2 hours remain
+    return diffHours > 2
+  } catch (error) {
+    console.error('Error checking reschedule eligibility:', error)
+    return true // If there's an error, allow rescheduling to be safe
+  }
+}
+
 interface ActiveOrderItem {
   id: string
   orderId?: string // Custom Order ID for display
@@ -466,7 +514,9 @@ export default function ActiveOrders() {
                       )}
                       
                       {/* Reschedule button - shows for ALL orders (both valuation and pickup) with pending/confirmed status */}
-                      {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'approved') && (
+                      {/* Only available if more than 2 hours before pickup slot starts */}
+                      {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'approved') && 
+                       canReschedule(order.pickupDate, order.pickupTime) && (
                         <button
                           onClick={() => {
                             setSelectedOrder(order)
