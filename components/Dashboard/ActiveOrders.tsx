@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserValuationsLegacy, getUserPickupRequests, updatePickupRequest, updateValuation, type Valuation, type PickupRequest } from '@/lib/firebase/database'
@@ -8,6 +8,33 @@ import { Clock, Truck, CheckCircle, AlertCircle, Package, X, Calendar, RefreshCw
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PickupScheduler from '@/components/PickupScheduler'
+
+// Helper to safely convert Firestore Timestamp or Date to Date
+interface FirestoreTimestamp {
+  toDate: () => Date
+}
+
+function getDateFromTimestamp(value: Date | FirestoreTimestamp | unknown): Date {
+  if (value instanceof Date) {
+    return value
+  }
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as FirestoreTimestamp).toDate === 'function') {
+    return (value as FirestoreTimestamp).toDate()
+  }
+  return new Date()
+}
+
+function getDateStringFromValue(value: Date | FirestoreTimestamp | string | unknown): string | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') return value
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0]
+  }
+  if (typeof value === 'object' && 'toDate' in value && typeof (value as FirestoreTimestamp).toDate === 'function') {
+    return (value as FirestoreTimestamp).toDate().toISOString().split('T')[0]
+  }
+  return undefined
+}
 
 interface ActiveOrderItem {
   id: string
@@ -18,7 +45,7 @@ interface ActiveOrderItem {
   estimatedValue?: number
   price?: number
   status?: string
-  createdAt?: Date | any
+  createdAt?: Date | FirestoreTimestamp
   pickupDate?: string
   pickupTime?: string
 }
@@ -59,30 +86,17 @@ export default function ActiveOrders() {
       const allOrders: ActiveOrderItem[] = [
         ...valuations
           .filter((v) => v.status === 'pending' || v.status === 'approved')
-          .map(v => {
-            // Convert pickupDate from Timestamp/Date to string if needed
-            let pickupDateStr: string | undefined
-            if (v.pickupDate) {
-              if (v.pickupDate instanceof Date) {
-                pickupDateStr = v.pickupDate.toISOString().split('T')[0]
-              } else if ((v.pickupDate as any)?.toDate) {
-                pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
-              } else if (typeof v.pickupDate === 'string') {
-                pickupDateStr = v.pickupDate
-              }
-            }
-            return {
-              id: v.id || '',
-              type: 'valuation' as const,
-              brand: v.brand,
-              model: v.model,
-              estimatedValue: v.estimatedValue,
-              status: v.status,
-              createdAt: v.createdAt,
-              pickupDate: pickupDateStr,
-              pickupTime: v.pickupTime,
-            }
-          }),
+          .map(v => ({
+            id: v.id || '',
+            type: 'valuation' as const,
+            brand: v.brand,
+            model: v.model,
+            estimatedValue: v.estimatedValue,
+            status: v.status,
+            createdAt: v.createdAt,
+            pickupDate: getDateStringFromValue(v.pickupDate),
+            pickupTime: v.pickupTime,
+          })),
         ...pickupRequests
           .filter((pr) => {
             const status = pr.status || 'pending'
@@ -103,12 +117,8 @@ export default function ActiveOrders() {
 
       // Sort by date (newest first)
       allOrders.sort((a, b) => {
-        const aDate = a.createdAt instanceof Date 
-          ? a.createdAt.getTime() 
-          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
-        const bDate = b.createdAt instanceof Date 
-          ? b.createdAt.getTime() 
-          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        const aDate = getDateFromTimestamp(a.createdAt).getTime()
+        const bDate = getDateFromTimestamp(b.createdAt).getTime()
         return bDate - aDate
       })
 
@@ -158,30 +168,17 @@ export default function ActiveOrders() {
       const allOrders: ActiveOrderItem[] = [
         ...valuations
           .filter((v) => v.status === 'pending' || v.status === 'approved')
-          .map(v => {
-            // Convert pickupDate from Timestamp/Date to string if needed
-            let pickupDateStr: string | undefined
-            if (v.pickupDate) {
-              if (v.pickupDate instanceof Date) {
-                pickupDateStr = v.pickupDate.toISOString().split('T')[0]
-              } else if ((v.pickupDate as any)?.toDate) {
-                pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
-              } else if (typeof v.pickupDate === 'string') {
-                pickupDateStr = v.pickupDate
-              }
-            }
-            return {
-              id: v.id || '',
-              type: 'valuation' as const,
-              brand: v.brand,
-              model: v.model,
-              estimatedValue: v.estimatedValue,
-              status: v.status,
-              createdAt: v.createdAt,
-              pickupDate: pickupDateStr,
-              pickupTime: v.pickupTime,
-            }
-          }),
+          .map(v => ({
+            id: v.id || '',
+            type: 'valuation' as const,
+            brand: v.brand,
+            model: v.model,
+            estimatedValue: v.estimatedValue,
+            status: v.status,
+            createdAt: v.createdAt,
+            pickupDate: getDateStringFromValue(v.pickupDate),
+            pickupTime: v.pickupTime,
+          })),
         ...pickupRequests
           .filter((pr) => {
             const status = pr.status || 'pending'
@@ -200,12 +197,8 @@ export default function ActiveOrders() {
       ]
 
       allOrders.sort((a, b) => {
-        const aDate = a.createdAt instanceof Date 
-          ? a.createdAt.getTime() 
-          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
-        const bDate = b.createdAt instanceof Date 
-          ? b.createdAt.getTime() 
-          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        const aDate = getDateFromTimestamp(a.createdAt).getTime()
+        const bDate = getDateFromTimestamp(b.createdAt).getTime()
         return bDate - aDate
       })
 
@@ -253,30 +246,17 @@ export default function ActiveOrders() {
     const allOrders: ActiveOrderItem[] = [
       ...valuations
         .filter((v) => v.status === 'pending' || v.status === 'approved')
-        .map(v => {
-          // Convert pickupDate from Timestamp/Date to string if needed
-          let pickupDateStr: string | undefined
-          if (v.pickupDate) {
-            if (v.pickupDate instanceof Date) {
-              pickupDateStr = v.pickupDate.toISOString().split('T')[0]
-            } else if ((v.pickupDate as any)?.toDate) {
-              pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
-            } else if (typeof v.pickupDate === 'string') {
-              pickupDateStr = v.pickupDate
-            }
-          }
-          return {
-            id: v.id || '',
-            type: 'valuation' as const,
-            brand: v.brand,
-            model: v.model,
-            estimatedValue: v.estimatedValue,
-            status: v.status,
-            createdAt: v.createdAt,
-            pickupDate: pickupDateStr,
-            pickupTime: v.pickupTime,
-          }
-        }),
+        .map(v => ({
+          id: v.id || '',
+          type: 'valuation' as const,
+          brand: v.brand,
+          model: v.model,
+          estimatedValue: v.estimatedValue,
+          status: v.status,
+          createdAt: v.createdAt,
+          pickupDate: getDateStringFromValue(v.pickupDate),
+          pickupTime: v.pickupTime,
+        })),
       ...pickupRequests
         .filter((pr) => {
           const status = pr.status || 'pending'
@@ -295,12 +275,8 @@ export default function ActiveOrders() {
     ]
 
     allOrders.sort((a, b) => {
-      const aDate = a.createdAt instanceof Date 
-        ? a.createdAt.getTime() 
-        : (a.createdAt as any)?.toDate?.()?.getTime() || 0
-      const bDate = b.createdAt instanceof Date 
-        ? b.createdAt.getTime() 
-        : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      const aDate = getDateFromTimestamp(a.createdAt).getTime()
+      const bDate = getDateFromTimestamp(b.createdAt).getTime()
       return bDate - aDate
     })
 

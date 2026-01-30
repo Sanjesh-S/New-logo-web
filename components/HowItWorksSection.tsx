@@ -125,13 +125,16 @@ export default function HowItWorksSection() {
 
                     {/* Arrow connector (except last) */}
                     {index < steps.length - 1 && (
-                      <div className="absolute top-1/2 -right-3 z-10 hidden xl:block">
+                      <div 
+                        className="absolute top-1/2 -right-3 z-10 hidden xl:block"
+                        aria-hidden="true"
+                      >
                         <motion.div
                           animate={{ x: [0, 8, 0] }}
                           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                           className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-brand-lime"
                         >
-                          <ArrowRight className="w-6 h-6 text-brand-lime" />
+                          <ArrowRight className="w-6 h-6 text-brand-lime" aria-hidden="true" />
                         </motion.div>
                       </div>
                     )}

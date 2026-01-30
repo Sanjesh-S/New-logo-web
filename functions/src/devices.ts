@@ -15,11 +15,25 @@ if (!admin.apps.length) {
 
 const db = admin.firestore()
 
+// Maximum number of devices to return
+const MAX_DEVICES_LIMIT = 500
+
+/**
+ * Validate and sanitize query parameter
+ */
+function sanitizeQueryParam(param: unknown): string | null {
+  if (typeof param !== 'string') return null
+  const sanitized = param.trim().slice(0, 100) // Limit length
+  if (sanitized.length === 0) return null
+  return sanitized
+}
+
 export async function getDevices(req: Request, res: Response): Promise<void> {
   try {
-    const category = req.query.category as string
-    const brand = req.query.brand as string
-    const model = req.query.model as string
+    // Validate and sanitize query parameters
+    const category = sanitizeQueryParam(req.query.category)
+    const brand = sanitizeQueryParam(req.query.brand)
+    const model = sanitizeQueryParam(req.query.model)
 
     if (brand && model) {
       // Get specific device
@@ -56,9 +70,13 @@ export async function getDevices(req: Request, res: Response): Promise<void> {
 
       let query: admin.firestore.Query = db.collection('devices')
         .where('category', '==', dbCategory)
+        .limit(MAX_DEVICES_LIMIT)
 
       if (brand) {
-        query = query.where('brand', '==', brand.trim())
+        query = db.collection('devices')
+          .where('category', '==', dbCategory)
+          .where('brand', '==', brand.trim())
+          .limit(MAX_DEVICES_LIMIT)
       }
 
       const snapshot = await query.get()
@@ -69,8 +87,12 @@ export async function getDevices(req: Request, res: Response): Promise<void> {
         for (const altCat of altCategories) {
           let altQuery: admin.firestore.Query = db.collection('devices')
             .where('category', '==', altCat)
+            .limit(MAX_DEVICES_LIMIT)
           if (brand) {
-            altQuery = altQuery.where('brand', '==', brand.trim())
+            altQuery = db.collection('devices')
+              .where('category', '==', altCat)
+              .where('brand', '==', brand.trim())
+              .limit(MAX_DEVICES_LIMIT)
           }
           const altSnapshot = await altQuery.get()
           if (!altSnapshot.empty) {

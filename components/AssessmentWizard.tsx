@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 import { getProductById, type Product, getPricingRules, getProductPricingFromCollection } from '@/lib/firebase/database'
@@ -47,6 +48,7 @@ export default function AssessmentWizard({
   brand,
   model,
 }: AssessmentWizardProps) {
+  const router = useRouter()
   const { user, isAuthenticated } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -182,26 +184,26 @@ export default function AssessmentWizard({
 
       if (data.success) {
         // Calculate deductions for summary
-        const internalBase = product.internalBasePrice || product.basePrice * 0.5
+        const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
         const deductions = calculatedPrice - internalBase
         
         // Redirect to order summary page with price breakdown and product info
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-        window.location.href = `/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+        router.push(`/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
       } else {
         // Fallback: redirect even if there's an error (graceful degradation)
-        const internalBase = product.internalBasePrice || product.basePrice * 0.5
+        const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
         const deductions = calculatedPrice - internalBase
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-        window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+        router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
       }
     } catch (error) {
       console.error('Error submitting assessment:', error)
       // Graceful fallback: redirect to order summary even on error
-      const internalBase = product.internalBasePrice || product.basePrice * 0.5
+      const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
       const deductions = calculatedPrice - internalBase
       const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-      window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
     }
   }
 
@@ -278,10 +280,10 @@ export default function AssessmentWizard({
     const orderId = addressData.orderId || valuationId
     
     if (orderId) {
-      window.location.href = `/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+      router.push(`/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
     } else {
       // Fallback: redirect without order ID
-      window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
     }
   }
 

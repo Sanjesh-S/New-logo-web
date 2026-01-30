@@ -45,7 +45,7 @@ function SuccessContent() {
           >
             <div className="text-white/80 text-sm mb-1">Estimated Value</div>
             <div className="text-4xl font-bold text-white">
-              ${parseInt(value).toLocaleString()}
+              ₹{parseInt(value).toLocaleString('en-IN')}
             </div>
           </motion.div>
         )}

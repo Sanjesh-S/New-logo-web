@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from 'react'
 import { User } from 'firebase/auth'
 import { getCurrentUser, onAuthStateChange } from '@/lib/firebase/auth'
 
@@ -8,35 +8,85 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   isAuthenticated: boolean
+  error: Error | null
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isAuthenticated: false,
+  error: null,
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange((user) => {
-      setUser(user)
-      setLoading(false)
-    })
+    isMountedRef.current = true
+    
+    // Check current user immediately to reduce initial loading time
+    try {
+      const currentUser = getCurrentUser()
+      if (isMountedRef.current && currentUser) {
+        setUser(currentUser)
+        // Don't set loading to false yet, wait for auth state listener
+      }
+    } catch (err) {
+      console.error('Error getting current user:', err)
+    }
 
-    return () => unsubscribe()
+    let unsubscribe: (() => void) | undefined
+
+    try {
+      unsubscribe = onAuthStateChange((authUser) => {
+        // Guard against updates after unmount
+        if (!isMountedRef.current) return
+        
+        setUser(authUser)
+        setLoading(false)
+        setError(null)
+      })
+    } catch (err) {
+      console.error('Error setting up auth state listener:', err)
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err : new Error('Failed to initialize auth'))
+        setLoading(false)
+      }
+    }
+
+    // Set a timeout to prevent infinite loading state
+    const timeoutId = setTimeout(() => {
+      if (isMountedRef.current && loading) {
+        setLoading(false)
+      }
+    }, 10000) // 10 second timeout
+
+    return () => {
+      isMountedRef.current = false
+      clearTimeout(timeoutId)
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe()
+        } catch (err) {
+          console.error('Error unsubscribing from auth state:', err)
+        }
+      }
+    }
   }, [])
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = {
+    user,
+    loading,
+    isAuthenticated: !loading && !!user,
+    error,
+  }
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

@@ -5,10 +5,123 @@ import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestor
 
 const logger = createLogger('API:Email')
 
+/**
+ * Sanitize string to prevent XSS in HTML emails
+ */
+function sanitizeHtml(str: string | undefined | null): string {
+  if (!str) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+/**
+ * Validate email request body
+ */
+function validateEmailRequest(body: unknown): { 
+  valid: true; 
+  data: { 
+    productName: string; 
+    price: number; 
+    customer: { 
+      name: string; 
+      email: string; 
+      address: string; 
+      landmark?: string; 
+      city: string; 
+      state: string; 
+      pincode: string 
+    }; 
+    pickupDate: string; 
+    pickupTime: string; 
+    requestId: string 
+  } 
+} | { valid: false; error: string } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Invalid request body' }
+  }
+  
+  const { productName, price, customer, pickupDate, pickupTime, requestId } = body as Record<string, unknown>
+  
+  if (!productName || typeof productName !== 'string') {
+    return { valid: false, error: 'Invalid productName' }
+  }
+  if (typeof price !== 'number' || isNaN(price)) {
+    return { valid: false, error: 'Invalid price' }
+  }
+  if (!customer || typeof customer !== 'object') {
+    return { valid: false, error: 'Invalid customer data' }
+  }
+  
+  const c = customer as Record<string, unknown>
+  if (!c.name || typeof c.name !== 'string') {
+    return { valid: false, error: 'Invalid customer name' }
+  }
+  if (!c.email || typeof c.email !== 'string' || !c.email.includes('@')) {
+    return { valid: false, error: 'Invalid customer email' }
+  }
+  if (!c.address || typeof c.address !== 'string') {
+    return { valid: false, error: 'Invalid customer address' }
+  }
+  if (!c.city || typeof c.city !== 'string') {
+    return { valid: false, error: 'Invalid customer city' }
+  }
+  if (!c.state || typeof c.state !== 'string') {
+    return { valid: false, error: 'Invalid customer state' }
+  }
+  if (!c.pincode || typeof c.pincode !== 'string') {
+    return { valid: false, error: 'Invalid customer pincode' }
+  }
+  if (!pickupDate || typeof pickupDate !== 'string') {
+    return { valid: false, error: 'Invalid pickupDate' }
+  }
+  if (!pickupTime || typeof pickupTime !== 'string') {
+    return { valid: false, error: 'Invalid pickupTime' }
+  }
+  if (!requestId || typeof requestId !== 'string') {
+    return { valid: false, error: 'Invalid requestId' }
+  }
+  
+  return {
+    valid: true,
+    data: {
+      productName,
+      price,
+      customer: {
+        name: c.name as string,
+        email: c.email as string,
+        address: c.address as string,
+        landmark: c.landmark as string | undefined,
+        city: c.city as string,
+        state: c.state as string,
+        pincode: c.pincode as string,
+      },
+      pickupDate,
+      pickupTime,
+      requestId,
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { productName, price, customer, pickupDate, pickupTime, requestId } = body
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    
+    // Validate request body
+    const validation = validateEmailRequest(body)
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    
+    const { productName, price, customer, pickupDate, pickupTime, requestId } = validation.data
 
     // Email service configuration
     const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -31,8 +144,19 @@ export async function POST(request: NextRequest) {
       year: 'numeric'
     })
 
+    // Sanitize all user inputs for HTML email
+    const safeCustomerName = sanitizeHtml(customer.name)
+    const safeProductName = sanitizeHtml(productName)
+    const safeAddress = sanitizeHtml(customer.address)
+    const safeLandmark = sanitizeHtml(customer.landmark)
+    const safeCity = sanitizeHtml(customer.city)
+    const safeState = sanitizeHtml(customer.state)
+    const safePincode = sanitizeHtml(customer.pincode)
+    const safeRequestId = sanitizeHtml(requestId)
+    const safePickupTime = sanitizeHtml(pickupTime)
+
     // Format email content
-    const emailSubject = `Order Confirmation - ${productName}`
+    const emailSubject = `Order Confirmation - ${safeProductName}`
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -47,7 +171,7 @@ export async function POST(request: NextRequest) {
           </div>
           
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
-            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${customer.name},</p>
+            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${safeCustomerName},</p>
             
             <p style="font-size: 16px; margin-bottom: 20px;">
               Thank you for choosing WorthyTen! Your pickup request has been confirmed.
@@ -58,7 +182,7 @@ export async function POST(request: NextRequest) {
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Device:</td>
-                  <td style="padding: 8px 0;">${productName}</td>
+                  <td style="padding: 8px 0;">${safeProductName}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Quoted Price:</td>
@@ -70,11 +194,11 @@ export async function POST(request: NextRequest) {
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Pickup Time:</td>
-                  <td style="padding: 8px 0;">${pickupTime}</td>
+                  <td style="padding: 8px 0;">${safePickupTime}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; font-weight: bold; color: #666;">Request ID:</td>
-                  <td style="padding: 8px 0; font-family: monospace; font-size: 14px;">${requestId}</td>
+                  <td style="padding: 8px 0; font-family: monospace; font-size: 14px;">${safeRequestId}</td>
                 </tr>
               </table>
             </div>
@@ -82,8 +206,8 @@ export async function POST(request: NextRequest) {
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #333; margin-top: 0;">Pickup Address</h3>
               <p style="margin: 5px 0;">
-                ${customer.address}${customer.landmark ? ` (Near: ${customer.landmark})` : ''}<br>
-                ${customer.city}, ${customer.state} - ${customer.pincode}
+                ${safeAddress}${safeLandmark ? ` (Near: ${safeLandmark})` : ''}<br>
+                ${safeCity}, ${safeState} - ${safePincode}
               </p>
             </div>
             

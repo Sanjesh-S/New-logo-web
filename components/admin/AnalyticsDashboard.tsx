@@ -16,6 +16,21 @@ import {
 import { getAllProducts, getAllPickupRequests, getUserValuations } from '@/lib/firebase/database'
 import type { Product, PickupRequest, Valuation } from '@/lib/firebase/database'
 
+// Helper to safely convert Firestore Timestamp or Date to Date
+interface FirestoreTimestamp {
+  toDate: () => Date
+}
+
+function getDateFromTimestamp(value: Date | FirestoreTimestamp | unknown): Date {
+  if (value instanceof Date) {
+    return value
+  }
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as FirestoreTimestamp).toDate === 'function') {
+    return (value as FirestoreTimestamp).toDate()
+  }
+  return new Date()
+}
+
 interface AnalyticsData {
   totalProducts: number
   totalValuations: number
@@ -63,9 +78,7 @@ export default function AnalyticsDashboard() {
 
       const filteredRequests = pickupRequests.filter((request) => {
         if (timeRange === 'all') return true
-        const createdAt = request.createdAt instanceof Date
-          ? request.createdAt
-          : (request.createdAt as any)?.toDate?.() || new Date()
+        const createdAt = getDateFromTimestamp(request.createdAt)
         return now.getTime() - createdAt.getTime() <= timeRangeMs
       })
 
@@ -125,12 +138,8 @@ export default function AnalyticsDashboard() {
       // Recent orders
       const recentOrders = [...filteredRequests]
         .sort((a, b) => {
-          const aDate = a.createdAt instanceof Date
-            ? a.createdAt.getTime()
-            : (a.createdAt as any)?.toDate?.()?.getTime() || 0
-          const bDate = b.createdAt instanceof Date
-            ? b.createdAt.getTime()
-            : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+          const aDate = getDateFromTimestamp(a.createdAt).getTime()
+          const bDate = getDateFromTimestamp(b.createdAt).getTime()
           return bDate - aDate
         })
         .slice(0, 10)
@@ -139,17 +148,25 @@ export default function AnalyticsDashboard() {
       const pendingOrders = filteredRequests.filter(r => r.status === 'pending').length
       const rejectedOrders = filteredRequests.filter(r => r.status === 'reject').length
 
+      // Calculate safe values to prevent division by zero
+      const safeCompletedOrders = completedOrders || 0
+      const safeTotalRevenue = totalRevenue || 0
+      const safeAverageOrderValue = safeCompletedOrders > 0 
+        ? safeTotalRevenue / safeCompletedOrders 
+        : 0
+      const safeConversionRate = filteredRequests.length > 0
+        ? (safeCompletedOrders / filteredRequests.length) * 100
+        : 0
+
       setAnalytics({
         totalProducts: products.length,
         totalValuations: filteredRequests.length,
         totalPickupRequests: filteredRequests.length,
-        totalRevenue,
-        averageOrderValue: completedOrders > 0 ? totalRevenue / completedOrders : 0,
-        conversionRate: filteredRequests.length > 0
-          ? (completedOrders / filteredRequests.length) * 100
-          : 0,
+        totalRevenue: safeTotalRevenue,
+        averageOrderValue: safeAverageOrderValue,
+        conversionRate: safeConversionRate,
         pendingOrders,
-        completedOrders,
+        completedOrders: safeCompletedOrders,
         rejectedOrders,
         revenueByCategory,
         ordersByStatus,
@@ -228,7 +245,7 @@ export default function AnalyticsDashboard() {
         </div>
         <select
           value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value as any)}
+          onChange={(e) => setTimeRange(e.target.value as '7d' | '30d' | '90d' | 'all')}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-lime bg-white"
         >
           <option value="7d">Last 7 days</option>
@@ -318,7 +335,9 @@ export default function AnalyticsDashboard() {
                       className="h-full bg-brand-lime transition-all"
                       style={{
                         width: `${
-                          (revenue / analytics.totalRevenue) * 100
+                          analytics.totalRevenue > 0 
+                            ? (revenue / analytics.totalRevenue) * 100 
+                            : 0
                         }%`,
                       }}
                     />
@@ -378,9 +397,7 @@ export default function AnalyticsDashboard() {
               {analytics.recentOrders.map((order) => {
                 const customerName = order.customer?.name || order.userName || 'N/A'
                 const customerPhone = order.customer?.phone || order.userPhone || ''
-                const createdAt = order.createdAt instanceof Date
-                  ? order.createdAt
-                  : (order.createdAt as any)?.toDate?.() || new Date()
+                const createdAt = getDateFromTimestamp(order.createdAt)
                 
                 return (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">

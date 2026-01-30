@@ -6,37 +6,46 @@ import { ChevronDown, HelpCircle } from 'lucide-react'
 
 const faqs = [
     {
+        id: 'faq-documents',
         question: 'What documents are needed to sell an old camera or phone?',
         answer: 'You must submit the original purchase invoice, the warranty card, and any of your government-issued ID. These documents are mandatory to verify ownership and establish the seller\'s identity.',
     },
     {
+        id: 'faq-pickup-delay',
         question: 'What should I do if my pickup is delayed?',
         answer: 'Please contact our support team directly 9843010746. We will immediately coordinate with our pick up team to resolve the delay.',
     },
     {
+        id: 'faq-delivery',
         question: 'Do you offer delivery to all locations?',
         answer: 'Yes, we provide secure delivery services to all locations across Tamil Nadu. We ensure your device reaches your doorstep safely, no matter where you are in the state.',
     },
     {
+        id: 'faq-pickup-locations',
         question: 'Do you offer pickup services in all locations?',
         answer: 'We provide convenient doorstep pickup services throughout Tamil Nadu. Our team can collect your device from any location in the state to make the process easy for you.',
     },
     {
+        id: 'faq-why-worthyten',
         question: 'Why should I choose to buy from WorthyTen?',
         answer: 'At WorthyTen, you get premium-quality devices at the most affordable prices. We ensure you receive high-end technology that fits your budget without compromising on quality.',
     },
     {
+        id: 'faq-cancel',
         question: 'How do I cancel my pickup or order?',
         answer: 'You can simply click the "Cancel" button on your active order page. Alternatively, please call our support team directly 9843010746 if you require further assistance.',
     },
 ]
 
-function FAQItem({ question, answer, isOpen, onClick }: {
+function FAQItem({ id, question, answer, isOpen, onClick }: {
+    id: string
     question: string
     answer: string
     isOpen: boolean
     onClick: () => void
 }) {
+    const contentId = `${id}-content`
+    
     return (
         <motion.div
             initial={false}
@@ -44,6 +53,8 @@ function FAQItem({ question, answer, isOpen, onClick }: {
         >
             <button
                 onClick={onClick}
+                aria-expanded={isOpen}
+                aria-controls={contentId}
                 className="w-full py-5 px-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
             >
                 <span className="font-semibold text-brand-blue-900 pr-4">{question}</span>
@@ -58,6 +69,9 @@ function FAQItem({ question, answer, isOpen, onClick }: {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
+                        id={contentId}
+                        role="region"
+                        aria-labelledby={id}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -106,7 +120,8 @@ export default function FAQSection() {
                 >
                     {faqs.map((faq, index) => (
                         <FAQItem
-                            key={index}
+                            key={faq.id}
+                            id={faq.id}
                             question={faq.question}
                             answer={faq.answer}
                             isOpen={openIndex === index}

@@ -589,40 +589,14 @@ export function getStateCode(state: string): string {
 /**
  * Get next sequential order number (atomic increment)
  * This ensures ALL orders get sequential numbers: 1001, 1002, 1003, etc.
+ * Uses Firestore transactions for atomic counter increment to prevent race conditions.
  */
 async function getNextOrderNumber(): Promise<number> {
   const db = getFirestoreServer()
   const counterRef = doc(db, 'counters', 'orderId')
 
-  console.log('Starting getNextOrderNumber - checking counter document...')
+  console.log('Starting getNextOrderNumber - using atomic transaction...')
   
-  // First, try simple read/write approach (faster, works if no concurrent requests)
-  try {
-    const counterDoc = await getDoc(counterRef)
-    let currentNumber = 1000
-    
-    if (counterDoc.exists()) {
-      const data = counterDoc.data()
-      currentNumber = data?.count || 1000
-      console.log('Current counter value:', currentNumber)
-    } else {
-      console.log('Counter document does not exist, initializing to 1000...')
-      currentNumber = 1000
-    }
-
-    const nextNumber = currentNumber + 1
-    console.log('Setting counter to:', nextNumber)
-    await setDoc(counterRef, { count: nextNumber })
-    console.log('Counter updated successfully to:', nextNumber)
-    return nextNumber
-  } catch (simpleError: any) {
-    console.error('Simple counter update failed, trying transaction approach:', {
-      message: simpleError?.message,
-      code: simpleError?.code,
-    })
-    // Fall through to transaction approach
-  }
-
   // Retry logic for transaction conflicts
   const maxRetries = 5
   let lastError: Error | null = null
@@ -630,89 +604,95 @@ async function getNextOrderNumber(): Promise<number> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       console.log(`Transaction attempt ${attempt + 1}/${maxRetries}`)
-      return await runTransaction(db, async (transaction) => {
+      
+      // Use transaction to ensure atomic read-modify-write
+      // This prevents race conditions where two concurrent requests get the same number
+      const nextNumber = await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterRef)
         console.log('Counter document exists:', counterDoc.exists())
         
-        let nextNumber: number
+        let newNumber: number
         
         if (counterDoc.exists()) {
           const data = counterDoc.data()
-          const currentNumber = data?.count || 1000
+          const currentNumber = typeof data?.count === 'number' ? data.count : 1000
           console.log('Current counter value:', currentNumber)
-          // Increment and update atomically
-          nextNumber = currentNumber + 1
-          transaction.update(counterRef, { count: nextNumber })
-          console.log('Incremented to:', nextNumber)
+          
+          // Validate the current number
+          if (isNaN(currentNumber) || currentNumber < 1000) {
+            console.warn('Invalid counter value, resetting to 1000')
+            newNumber = 1001
+          } else {
+            newNumber = currentNumber + 1
+          }
+          
+          // Use update within transaction to ensure atomicity
+          transaction.update(counterRef, { 
+            count: newNumber,
+            lastUpdated: new Date().toISOString()
+          })
+          console.log('Incremented to:', newNumber)
         } else {
           // Initialize counter if it doesn't exist
-          // Set to 1001 (first order number) directly
           console.log('Initializing counter to 1001')
-          nextNumber = 1001
-          transaction.set(counterRef, { count: nextNumber })
+          newNumber = 1001
+          transaction.set(counterRef, { 
+            count: newNumber,
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          })
         }
         
-        return nextNumber
-      })
-    } catch (error: any) {
-      lastError = error
-      console.error(`Transaction error (attempt ${attempt + 1}/${maxRetries}):`, {
-        message: error?.message,
-        code: error?.code,
-        stack: error?.stack,
+        return newNumber
       })
       
-      // If it's a transaction conflict, retry
-      if (error.code === 'failed-precondition' || error.code === 'aborted' || error.code === 'unavailable' || error.message?.includes('transaction')) {
-        // Wait a bit before retrying (exponential backoff)
-        const waitTime = Math.pow(2, attempt) * 10
-        console.log(`Retrying after ${waitTime}ms...`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
-        continue
-      }
+      console.log('Transaction successful, order number:', nextNumber)
+      return nextNumber
+      
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; stack?: string }
+      lastError = error instanceof Error ? error : new Error(String(error))
+      
+      console.error(`Transaction error (attempt ${attempt + 1}/${maxRetries}):`, {
+        message: err?.message,
+        code: err?.code,
+      })
       
       // For permission errors, don't retry
-      if (error.code === 'permission-denied') {
+      if (err?.code === 'permission-denied') {
         console.error('Permission denied - check Firestore security rules')
         throw new Error('Permission denied: Check Firestore security rules for counters collection')
       }
       
-      // If it's not a transaction conflict, wait a bit before retrying
-      const waitTime = Math.pow(2, attempt) * 10
-      console.log(`Non-transaction error, retrying after ${waitTime}ms...`)
+      // If it's a transaction conflict or temporary error, retry with exponential backoff
+      if (
+        err?.code === 'failed-precondition' || 
+        err?.code === 'aborted' || 
+        err?.code === 'unavailable' ||
+        err?.code === 'resource-exhausted' ||
+        err?.message?.includes('transaction') ||
+        err?.message?.includes('contention')
+      ) {
+        // Add jitter to prevent thundering herd
+        const baseWait = Math.pow(2, attempt) * 50
+        const jitter = Math.random() * 50
+        const waitTime = baseWait + jitter
+        console.log(`Transaction conflict, retrying after ${Math.round(waitTime)}ms...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+        continue
+      }
+      
+      // For other errors, still retry but with longer wait
+      const waitTime = Math.pow(2, attempt) * 100
+      console.log(`Unexpected error, retrying after ${waitTime}ms...`)
       await new Promise(resolve => setTimeout(resolve, waitTime))
     }
   }
 
-  // If all retries failed, try non-transactional approach as last resort
-  console.log('All transaction attempts failed, trying non-transactional approach...')
-  try {
-    const counterDoc = await getDoc(counterRef)
-    let currentNumber = 1000
-    
-    if (counterDoc.exists()) {
-      const data = counterDoc.data()
-      currentNumber = data?.count || 1000
-      console.log('Fallback: Current counter value:', currentNumber)
-    } else {
-      console.log('Fallback: Initializing counter to 1000')
-      await setDoc(counterRef, { count: 1000 })
-      currentNumber = 1000
-    }
-
-    const nextNumber = currentNumber + 1
-    console.log('Fallback: Setting counter to:', nextNumber)
-    await setDoc(counterRef, { count: nextNumber })
-    return nextNumber
-  } catch (fallbackError: any) {
-    console.error('Fallback counter update failed:', {
-      message: fallbackError?.message,
-      code: fallbackError?.code,
-      stack: fallbackError?.stack,
-    })
-    const errorMessage = `Failed to get sequential order number after ${maxRetries} attempts. Last error: ${lastError?.message || 'Unknown error'}. Fallback error: ${fallbackError?.message || 'Unknown error'}`
-    throw new Error(errorMessage)
-  }
+  // All retries failed
+  const errorMessage = `Failed to get sequential order number after ${maxRetries} attempts. Last error: ${lastError?.message || 'Unknown error'}`
+  console.error(errorMessage)
+  throw new Error(errorMessage)
 }
 
 /**

@@ -29,6 +29,31 @@ service cloud.firestore {
       return hasRole('superadmin') || hasRole('manager');
     }
     
+    // Helper function to validate pickup request data
+    function isValidPickupRequest() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['productName', 'price', 'customer', 'pickupDate', 'createdAt'])
+             && data.productName is string
+             && data.productName.size() > 0
+             && data.productName.size() <= 200
+             && data.price is number
+             && data.price >= 0
+             && data.price <= 10000000
+             && data.customer is map
+             && data.customer.name is string
+             && data.customer.name.size() > 0
+             && data.customer.name.size() <= 100;
+    }
+    
+    // Helper function to validate valuation data
+    function isValidValuation() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['productId', 'price', 'createdAt'])
+             && data.price is number
+             && data.price >= 0
+             && data.price <= 10000000;
+    }
+    
     // Staff Users Collection - Only Super Admins can manage
     match /staffUsers/{userId} {
       allow read: if isStaff();
@@ -59,26 +84,35 @@ service cloud.firestore {
       allow delete: if hasRole('superadmin');
     }
     
-    // Counters Collection - Allows API routes to read/write for Order ID generation
+    // Counters Collection - Server-side only via Admin SDK
+    // Client-side access is restricted; order ID generation happens server-side
     match /counters/{counterId} {
-      // Allow API routes to read and write counters (for Order ID generation)
-      allow read, write: if true;
+      // Only staff can read counters (for monitoring)
+      allow read: if isStaff();
+      
+      // Only admin can manually modify (for corrections)
+      // Note: Server-side Admin SDK bypasses these rules
+      allow write: if isAdmin();
     }
     
-    // Pickup Requests Collection - Allows API routes to create
+    // Pickup Requests Collection
     match /pickupRequests/{requestId} {
-      // Allow anyone to create pickup requests (for API routes)
-      allow create: if true;
+      // Authenticated users can create pickup requests with validation
+      // Note: Unauthenticated creates go through Cloud Functions with Admin SDK
+      allow create: if isAuthenticated() && isValidPickupRequest();
       
-      // Users can read their own requests - allow if:
-      // 1. User is authenticated AND document's userId matches auth uid, OR
-      // 2. User is staff (can read all)
-      // Note: For list queries, user must query with where('userId', '==', uid)
+      // Users can read their own requests
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can read all
       allow read: if isStaff();
       
       // Authenticated users can update their own pickup requests (for cancel/reschedule)
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Only allow specific fields to be updated
+      allow update: if isAuthenticated() 
+                       && resource.data.userId == request.auth.uid
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['status', 'pickupDate', 'pickupTime', 'updatedAt']);
       
       // Staff can update any pickup requests (status changes, etc.)
       allow update: if isStaff();
@@ -87,19 +121,23 @@ service cloud.firestore {
       allow delete: if hasRole('superadmin');
     }
     
-    // Valuations Collection - Allows API routes to create
+    // Valuations Collection
     match /valuations/{valuationId} {
-      // Allow anyone to create valuations (for API routes)
-      allow create: if true;
+      // Authenticated users can create valuations with validation
+      // Note: Unauthenticated creates go through Cloud Functions with Admin SDK
+      allow create: if isAuthenticated() && isValidValuation();
       
-      // Users can read their own valuations - allow if:
-      // 1. User is authenticated AND document's userId matches auth uid, OR
-      // 2. User is staff (can read all)
+      // Users can read their own valuations
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Staff can read all
       allow read: if isStaff();
       
-      // Authenticated users can update their own valuations
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Authenticated users can update their own valuations (limited fields)
+      allow update: if isAuthenticated() 
+                       && resource.data.userId == request.auth.uid
+                       && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['status', 'updatedAt']);
       
       // Staff can update any valuations
       allow update: if isStaff();
@@ -132,9 +170,21 @@ service cloud.firestore {
       allow delete: if hasRole('superadmin');
     }
     
+    // Email Logs Collection - Staff only
+    match /emailLogs/{logId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+    
     // Mail Collection (if you have this)
     match /mail/{document=**} {
       allow read, write: if isStaff();
+    }
+    
+    // Devices Collection - Read only for public, write for admin
+    match /devices/{deviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
     
     // Default deny all other collections
