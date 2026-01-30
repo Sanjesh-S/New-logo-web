@@ -18,6 +18,9 @@ import {
 } from 'firebase/firestore'
 import { db } from './config'
 import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { createLogger } from '@/lib/utils/logger'
+
+const logger = createLogger('Database')
 
 // Database Schema Types
 export interface Valuation {

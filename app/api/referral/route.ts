@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getFirestoreServer } from '@/lib/firebase/server'
 import { collection, query, where, getDocs, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { getRequestBody } from '@/lib/middleware/request-limits'
+import { verifyCSRFToken } from '@/lib/middleware/csrf'
 import { createLogger } from '@/lib/utils/logger'
 import { z } from 'zod'
 
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
     const validation = referralSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
+        { error: 'Invalid request data', details: validation.error.issues },
         { status: 400 }
       )
     }

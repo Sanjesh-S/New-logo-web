@@ -10,23 +10,26 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:AdminPricing')
 
+// Value schema for question pricing (yes/no)
+const questionPriceSchema = z.object({
+  yes: z.number().int().min(-1000000).max(1000000),
+  no: z.number().int().min(-1000000).max(1000000),
+})
+
+const numberRecordSchema = z.record(z.string(), z.number().int().min(-1000000).max(1000000))
+
 // Validation schema for pricing rules with comprehensive validation
 const pricingRulesSchema = z.object({
   productId: z.string().min(1).max(100),
   pricingRules: z.object({
-    questions: z.record(z.object({
-      yes: z.number().int().min(-1000000).max(1000000),
-      no: z.number().int().min(-1000000).max(1000000),
-    })),
-    // Validate all pricing rule fields
-    lensCondition: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    displayCondition: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    bodyCondition: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    errorCondition: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    accessories: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    age: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    functionalIssues: z.record(z.number().int().min(-1000000).max(1000000)).optional(),
-    // Add other fields as needed
+    questions: z.record(z.string(), questionPriceSchema),
+    lensCondition: numberRecordSchema.optional(),
+    displayCondition: numberRecordSchema.optional(),
+    bodyCondition: numberRecordSchema.optional(),
+    errorCondition: numberRecordSchema.optional(),
+    accessories: numberRecordSchema.optional(),
+    age: numberRecordSchema.optional(),
+    functionalIssues: numberRecordSchema.optional(),
   }).passthrough(),
 })
 
@@ -77,7 +80,7 @@ export async function POST(request: NextRequest) {
     const validation = pricingRulesSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
+        { error: 'Invalid request data', details: validation.error.issues },
         { status: 400 }
       )
     }
