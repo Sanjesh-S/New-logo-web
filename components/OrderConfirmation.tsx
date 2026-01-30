@@ -12,6 +12,8 @@ interface OrderConfirmationProps {
   productName: string
   phoneNumber: string
   valuationId?: string
+  category?: string  // For order ID generation (cameras, phones, laptops, tablets)
+  brand?: string     // For order ID generation (Apple, Samsung, Canon, etc.)
   onConfirm: (addressData: AddressData) => void
   onClose: () => void
 }
@@ -35,6 +37,8 @@ export default function OrderConfirmation({
   productName,
   phoneNumber,
   valuationId,
+  category = 'cameras',
+  brand = '',
   onConfirm,
   onClose,
 }: OrderConfirmationProps) {
@@ -333,6 +337,8 @@ export default function OrderConfirmation({
         pickupTime: formData.pickupTime || '',
         userId: user?.uid || null,
         valuationId: valuationId || null,
+        category: category,  // For custom order ID generation
+        brand: brand,        // For custom order ID generation
       })
 
       if (!result.success) {

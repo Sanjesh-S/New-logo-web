@@ -899,6 +899,8 @@ export default function AssessmentWizard({
             productName={product.modelName}
             phoneNumber={phoneNumber}
             valuationId={valuationId || undefined}
+            category={category || product.category}
+            brand={brand || product.brand}
             onConfirm={handleOrderConfirm}
             onClose={() => setShowOrderConfirmation(false)}
           />

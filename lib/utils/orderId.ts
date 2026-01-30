@@ -15,84 +15,227 @@ import { getFirestoreServer } from '@/lib/firebase/server'
 import { doc, getDoc, setDoc, runTransaction } from 'firebase/firestore'
 
 /**
- * Map pincode to RTO number (Tamil Nadu)
- * RTO codes for Tamil Nadu districts
+ * Pincode ranges to State and RTO mapping
+ * Format: { startPincode, endPincode, stateCode, rtoNumber }
  */
-const PINCODE_TO_RTO: Record<string, string> = {
-  // Coimbatore - RTO 37
-  '641001': '37', '641002': '37', '641003': '37', '641004': '37', '641005': '37',
-  '641006': '37', '641007': '37', '641008': '37', '641009': '37', '641010': '37',
-  '641011': '37', '641012': '37', '641013': '37', '641014': '37', '641015': '37',
-  '641016': '37', '641017': '37', '641018': '37', '641019': '37', '641020': '37',
-  '641021': '37', '641022': '37', '641023': '37', '641024': '37', '641025': '37',
-  '641026': '37', '641027': '37', '641028': '37', '641029': '37', '641030': '37',
-  '641031': '37', '641032': '37', '641033': '37', '641034': '37', '641035': '37',
-  '641036': '37', '641037': '37', '641038': '37', '641039': '37', '641040': '37',
-  '641041': '37', '641042': '37', '641043': '37', '641044': '37', '641045': '37',
-  '641046': '37', '641047': '37', '641048': '37', '641049': '37', '641050': '37',
-  // Chennai - RTO 01-10 (using 01 as default)
-  '600001': '01', '600002': '01', '600003': '01', '600004': '01', '600005': '01',
-  '600006': '01', '600007': '01', '600008': '01', '600009': '01', '600010': '01',
-  '600011': '01', '600012': '01', '600013': '01', '600014': '01', '600015': '01',
-  '600016': '01', '600017': '01', '600018': '01', '600019': '01', '600020': '01',
-  '600021': '01', '600022': '01', '600023': '01', '600024': '01', '600025': '01',
-  '600026': '01', '600027': '01', '600028': '01', '600029': '01', '600030': '01',
-  '600031': '01', '600032': '01', '600033': '01', '600034': '01', '600035': '01',
-  '600036': '01', '600037': '01', '600038': '01', '600039': '01', '600040': '01',
-  '600041': '01', '600042': '01', '600043': '01', '600044': '01', '600045': '01',
-  '600046': '01', '600047': '01', '600048': '01', '600049': '01', '600050': '01',
-  '600051': '01', '600052': '01', '600053': '01', '600054': '01', '600055': '01',
-  '600056': '01', '600057': '01', '600058': '01', '600059': '01', '600060': '01',
-  '600061': '01', '600062': '01', '600063': '01', '600064': '01', '600065': '01',
-  '600066': '01', '600067': '01', '600068': '01', '600069': '01', '600070': '01',
-  '600071': '01', '600072': '01', '600073': '01', '600074': '01', '600075': '01',
-  '600076': '01', '600077': '01', '600078': '01', '600079': '01', '600080': '01',
-  '600081': '01', '600082': '01', '600083': '01', '600084': '01', '600085': '01',
-  '600086': '01', '600087': '01', '600088': '01', '600089': '01', '600090': '01',
-  '600091': '01', '600092': '01', '600093': '01', '600094': '01', '600095': '01',
-  '600096': '01', '600097': '01', '600098': '01', '600099': '01', '600100': '01',
-  // Madurai - RTO 45
-  '625001': '45', '625002': '45', '625003': '45', '625004': '45', '625005': '45',
-  '625006': '45', '625007': '45', '625008': '45', '625009': '45', '625010': '45',
-  '625011': '45', '625012': '45', '625013': '45', '625014': '45', '625015': '45',
-  '625016': '45', '625017': '45', '625018': '45', '625019': '45', '625020': '45',
-  '625021': '45', '625022': '45', '625023': '45', '625024': '45', '625025': '45',
-  // Trichy - RTO 39
-  '620001': '39', '620002': '39', '620003': '39', '620004': '39', '620005': '39',
-  '620006': '39', '620007': '39', '620008': '39', '620009': '39', '620010': '39',
-  '620011': '39', '620012': '39', '620013': '39', '620014': '39', '620015': '39',
-  '620016': '39', '620017': '39', '620018': '39', '620019': '39', '620020': '39',
-  '620021': '39', '620022': '39', '620023': '39', '620024': '39', '620025': '39',
-  // Salem - RTO 33
-  '636001': '33', '636002': '33', '636003': '33', '636004': '33', '636005': '33',
-  '636006': '33', '636007': '33', '636008': '33', '636009': '33', '636010': '33',
-  '636011': '33', '636012': '33', '636013': '33', '636014': '33', '636015': '33',
-  '636016': '33', '636017': '33', '636018': '33', '636019': '33', '636020': '33',
-  // Tirunelveli - RTO 30
-  '627001': '30', '627002': '30', '627003': '30', '627004': '30', '627005': '30',
-  '627006': '30', '627007': '30', '627008': '30', '627009': '30', '627010': '30',
-  '627011': '30', '627012': '30', '627013': '30', '627014': '30', '627015': '30',
-  // Erode - RTO 31
-  '638001': '31', '638002': '31', '638003': '31', '638004': '31', '638005': '31',
-  '638006': '31', '638007': '31', '638008': '31', '638009': '31', '638010': '31',
-  '638011': '31', '638012': '31', '638013': '31', '638014': '31', '638015': '31',
+interface PincodeRange {
+  start: number
+  end: number
+  state: string
+  rto: string
+}
+
+// Comprehensive pincode to state and RTO mapping
+const PINCODE_RANGES: PincodeRange[] = [
+  // Tamil Nadu (TN)
+  // Chennai - RTO 01-10
+  { start: 600001, end: 600127, state: 'TN', rto: '01' },
+  // Kancheepuram - RTO 11
+  { start: 600128, end: 603399, state: 'TN', rto: '11' },
+  // Tiruvallur - RTO 12
+  { start: 600053, end: 602999, state: 'TN', rto: '12' },
   // Vellore - RTO 23
-  '632001': '23', '632002': '23', '632003': '23', '632004': '23', '632005': '23',
-  '632006': '23', '632007': '23', '632008': '23', '632009': '23', '632010': '23',
-  '632011': '23', '632012': '23', '632013': '23', '632014': '23', '632015': '23',
+  { start: 632001, end: 632999, state: 'TN', rto: '23' },
+  // Tiruvannamalai - RTO 24
+  { start: 606001, end: 606999, state: 'TN', rto: '24' },
+  // Villupuram - RTO 25
+  { start: 604001, end: 605999, state: 'TN', rto: '25' },
+  // Cuddalore - RTO 26
+  { start: 607001, end: 608999, state: 'TN', rto: '26' },
+  // Nagapattinam - RTO 27
+  { start: 609001, end: 611999, state: 'TN', rto: '27' },
+  // Thanjavur - RTO 28
+  { start: 612001, end: 614999, state: 'TN', rto: '28' },
+  // Tiruvarur - RTO 29
+  { start: 610001, end: 610999, state: 'TN', rto: '29' },
+  // Tirunelveli - RTO 30
+  { start: 627001, end: 627999, state: 'TN', rto: '30' },
+  // Erode - RTO 31
+  { start: 638001, end: 638999, state: 'TN', rto: '31' },
+  // Namakkal - RTO 32
+  { start: 637001, end: 637999, state: 'TN', rto: '32' },
+  // Salem - RTO 33
+  { start: 636001, end: 636999, state: 'TN', rto: '33' },
+  // Dharmapuri - RTO 34
+  { start: 635001, end: 635999, state: 'TN', rto: '34' },
+  // Krishnagiri - RTO 35
+  { start: 635101, end: 635199, state: 'TN', rto: '35' },
+  // Dindigul - RTO 36
+  { start: 624001, end: 624999, state: 'TN', rto: '36' },
+  // Coimbatore - RTO 37
+  { start: 641001, end: 641999, state: 'TN', rto: '37' },
   // Tiruppur - RTO 38
-  '641601': '38', '641602': '38', '641603': '38', '641604': '38', '641605': '38',
-  '641606': '38', '641607': '38', '641608': '38', '641609': '38', '641610': '38',
-  '641611': '38', '641612': '38', '641613': '38', '641614': '38', '641615': '38',
+  { start: 641601, end: 641699, state: 'TN', rto: '38' },
+  // Trichy - RTO 39
+  { start: 620001, end: 621999, state: 'TN', rto: '39' },
+  // Karur - RTO 40
+  { start: 639001, end: 639999, state: 'TN', rto: '40' },
+  // Perambalur - RTO 41
+  { start: 621201, end: 621299, state: 'TN', rto: '41' },
+  // Ariyalur - RTO 42
+  { start: 621701, end: 621799, state: 'TN', rto: '42' },
+  // Pudukkottai - RTO 43
+  { start: 622001, end: 622999, state: 'TN', rto: '43' },
+  // Sivaganga - RTO 44
+  { start: 630001, end: 630999, state: 'TN', rto: '44' },
+  // Madurai - RTO 45
+  { start: 625001, end: 625999, state: 'TN', rto: '45' },
+  // Theni - RTO 46
+  { start: 625501, end: 625599, state: 'TN', rto: '46' },
+  // Virudhunagar - RTO 47
+  { start: 626001, end: 626999, state: 'TN', rto: '47' },
+  // Ramanathapuram - RTO 48
+  { start: 623001, end: 623999, state: 'TN', rto: '48' },
+  // Thoothukudi - RTO 49
+  { start: 628001, end: 628999, state: 'TN', rto: '49' },
+  // Kanyakumari - RTO 50
+  { start: 629001, end: 629999, state: 'TN', rto: '50' },
+  // Nilgiris - RTO 51
+  { start: 643001, end: 643999, state: 'TN', rto: '51' },
+  // Tenkasi - RTO 52
+  { start: 627801, end: 627899, state: 'TN', rto: '52' },
+  
+  // Karnataka (KA)
+  { start: 560001, end: 560999, state: 'KA', rto: '01' }, // Bangalore
+  { start: 570001, end: 570999, state: 'KA', rto: '09' }, // Mysore
+  { start: 580001, end: 580999, state: 'KA', rto: '25' }, // Hubli-Dharwad
+  { start: 590001, end: 590999, state: 'KA', rto: '22' }, // Belgaum
+  
+  // Kerala (KL)
+  { start: 670001, end: 670999, state: 'KL', rto: '01' }, // Kannur
+  { start: 673001, end: 673999, state: 'KL', rto: '11' }, // Kozhikode
+  { start: 680001, end: 680999, state: 'KL', rto: '07' }, // Thrissur
+  { start: 682001, end: 682999, state: 'KL', rto: '07' }, // Ernakulam
+  { start: 685001, end: 685999, state: 'KL', rto: '06' }, // Idukki
+  { start: 689001, end: 689999, state: 'KL', rto: '01' }, // Pathanamthitta
+  { start: 690001, end: 690999, state: 'KL', rto: '02' }, // Kollam
+  { start: 695001, end: 695999, state: 'KL', rto: '01' }, // Thiruvananthapuram
+  
+  // Andhra Pradesh (AP)
+  { start: 500001, end: 500999, state: 'TS', rto: '01' }, // Hyderabad (Telangana)
+  { start: 520001, end: 520999, state: 'AP', rto: '09' }, // Vijayawada
+  { start: 530001, end: 530999, state: 'AP', rto: '21' }, // Visakhapatnam
+  { start: 515001, end: 515999, state: 'AP', rto: '02' }, // Anantapur
+  { start: 516001, end: 516999, state: 'AP', rto: '04' }, // Kadapa
+  { start: 517001, end: 517999, state: 'AP', rto: '12' }, // Tirupati
+  { start: 518001, end: 518999, state: 'AP', rto: '08' }, // Kurnool
+  { start: 522001, end: 522999, state: 'AP', rto: '07' }, // Guntur
+  { start: 523001, end: 523999, state: 'AP', rto: '16' }, // Ongole
+  { start: 524001, end: 524999, state: 'AP', rto: '14' }, // Nellore
+  
+  // Telangana (TS)
+  { start: 500001, end: 509999, state: 'TS', rto: '01' }, // Hyderabad
+  { start: 501001, end: 501999, state: 'TS', rto: '02' }, // Medchal
+  { start: 502001, end: 502999, state: 'TS', rto: '03' }, // Sangareddy
+  { start: 503001, end: 503999, state: 'TS', rto: '16' }, // Nizamabad
+  { start: 504001, end: 504999, state: 'TS', rto: '01' }, // Adilabad
+  { start: 505001, end: 505999, state: 'TS', rto: '06' }, // Karimnagar
+  { start: 506001, end: 506999, state: 'TS', rto: '11' }, // Warangal
+  
+  // Maharashtra (MH)
+  { start: 400001, end: 400999, state: 'MH', rto: '01' }, // Mumbai
+  { start: 410001, end: 410999, state: 'MH', rto: '12' }, // Pune
+  { start: 411001, end: 411999, state: 'MH', rto: '12' }, // Pune
+  { start: 440001, end: 440999, state: 'MH', rto: '31' }, // Nagpur
+  { start: 422001, end: 422999, state: 'MH', rto: '15' }, // Nashik
+  { start: 431001, end: 431999, state: 'MH', rto: '20' }, // Aurangabad
+  
+  // Gujarat (GJ)
+  { start: 380001, end: 380999, state: 'GJ', rto: '01' }, // Ahmedabad
+  { start: 390001, end: 390999, state: 'GJ', rto: '06' }, // Vadodara
+  { start: 395001, end: 395999, state: 'GJ', rto: '05' }, // Surat
+  { start: 360001, end: 360999, state: 'GJ', rto: '11' }, // Rajkot
+  
+  // Delhi (DL)
+  { start: 110001, end: 110999, state: 'DL', rto: '01' },
+  
+  // Uttar Pradesh (UP)
+  { start: 201001, end: 201999, state: 'UP', rto: '14' }, // Ghaziabad
+  { start: 208001, end: 208999, state: 'UP', rto: '65' }, // Kanpur
+  { start: 226001, end: 226999, state: 'UP', rto: '32' }, // Lucknow
+  { start: 221001, end: 221999, state: 'UP', rto: '65' }, // Varanasi
+  { start: 250001, end: 250999, state: 'UP', rto: '07' }, // Meerut
+  { start: 282001, end: 282999, state: 'UP', rto: '20' }, // Agra
+  
+  // Rajasthan (RJ)
+  { start: 302001, end: 302999, state: 'RJ', rto: '14' }, // Jaipur
+  { start: 342001, end: 342999, state: 'RJ', rto: '19' }, // Jodhpur
+  { start: 313001, end: 313999, state: 'RJ', rto: '27' }, // Udaipur
+  { start: 324001, end: 324999, state: 'RJ', rto: '21' }, // Kota
+  
+  // West Bengal (WB)
+  { start: 700001, end: 700999, state: 'WB', rto: '01' }, // Kolkata
+  { start: 711001, end: 711999, state: 'WB', rto: '02' }, // Howrah
+  
+  // Punjab (PB)
+  { start: 140001, end: 140999, state: 'PB', rto: '65' }, // Ludhiana
+  { start: 143001, end: 143999, state: 'PB', rto: '02' }, // Amritsar
+  { start: 160001, end: 160999, state: 'PB', rto: '65' }, // Chandigarh (shared)
+  
+  // Haryana (HR)
+  { start: 121001, end: 121999, state: 'HR', rto: '26' }, // Faridabad
+  { start: 122001, end: 122999, state: 'HR', rto: '26' }, // Gurgaon
+  { start: 125001, end: 125999, state: 'HR', rto: '18' }, // Hisar
+  
+  // Madhya Pradesh (MP)
+  { start: 452001, end: 452999, state: 'MP', rto: '09' }, // Indore
+  { start: 462001, end: 462999, state: 'MP', rto: '04' }, // Bhopal
+  { start: 482001, end: 482999, state: 'MP', rto: '20' }, // Jabalpur
+  
+  // Bihar (BR)
+  { start: 800001, end: 800999, state: 'BR', rto: '01' }, // Patna
+  { start: 842001, end: 842999, state: 'BR', rto: '21' }, // Muzaffarpur
+  
+  // Odisha (OD)
+  { start: 751001, end: 751999, state: 'OD', rto: '02' }, // Bhubaneswar
+  { start: 753001, end: 753999, state: 'OD', rto: '05' }, // Cuttack
+  
+  // Jharkhand (JH)
+  { start: 834001, end: 834999, state: 'JH', rto: '01' }, // Ranchi
+  { start: 831001, end: 831999, state: 'JH', rto: '05' }, // Jamshedpur
+  
+  // Chhattisgarh (CG)
+  { start: 492001, end: 492999, state: 'CG', rto: '04' }, // Raipur
+  { start: 490001, end: 490999, state: 'CG', rto: '07' }, // Durg-Bhilai
+  
+  // Assam (AS)
+  { start: 781001, end: 781999, state: 'AS', rto: '01' }, // Guwahati
+  
+  // Goa (GA)
+  { start: 403001, end: 403999, state: 'GA', rto: '01' }, // Panaji
+  
+  // Himachal Pradesh (HP)
+  { start: 171001, end: 171999, state: 'HP', rto: '01' }, // Shimla
+  
+  // Uttarakhand (UK)
+  { start: 248001, end: 248999, state: 'UK', rto: '07' }, // Dehradun
+  
+  // Puducherry (PY)
+  { start: 605001, end: 605999, state: 'PY', rto: '01' },
+]
+
+/**
+ * Get state code and RTO number from pincode
+ */
+export function getStateAndRTOFromPincode(pincode: string): { state: string; rto: string } {
+  const normalizedPincode = parseInt(pincode.replace(/\D/g, '').padStart(6, '0').slice(0, 6), 10)
+  
+  // Find matching range
+  for (const range of PINCODE_RANGES) {
+    if (normalizedPincode >= range.start && normalizedPincode <= range.end) {
+      return { state: range.state, rto: range.rto.padStart(2, '0') }
+    }
+  }
+  
+  // Default to Tamil Nadu, Coimbatore if no match found
+  return { state: 'TN', rto: '37' }
 }
 
 /**
- * Get RTO number from pincode
- * Returns default '37' (Coimbatore) if pincode not found
+ * Get RTO number from pincode (legacy function for compatibility)
  */
 export function getRTOFromPincode(pincode: string): string {
-  const normalizedPincode = pincode.replace(/\D/g, '').padStart(6, '0').slice(0, 6)
-  return PINCODE_TO_RTO[normalizedPincode] || '37' // Default to Coimbatore RTO 37
+  return getStateAndRTOFromPincode(pincode).rto
 }
 
 /**
@@ -107,38 +250,41 @@ export function getCategoryCode(category: string, brand?: string): string {
     return 'DSLR'
   }
 
-  // Apple Phones
-  if (normalizedCategory === 'phones' && normalizedBrand.includes('apple')) {
+  // Apple Phones (iPhone)
+  if ((normalizedCategory === 'phones' || normalizedCategory === 'phone') && 
+      (normalizedBrand.includes('apple') || normalizedBrand.includes('iphone'))) {
     return 'IPNE'
   }
 
   // Samsung Phones
-  if (normalizedCategory === 'phones' && normalizedBrand.includes('samsung')) {
+  if ((normalizedCategory === 'phones' || normalizedCategory === 'phone') && normalizedBrand.includes('samsung')) {
     return 'SMSG'
   }
 
-  // Apple Laptop
-  if (normalizedCategory === 'laptops' && normalizedBrand.includes('apple')) {
+  // Apple Laptop (MacBook)
+  if ((normalizedCategory === 'laptops' || normalizedCategory === 'laptop') && 
+      (normalizedBrand.includes('apple') || normalizedBrand.includes('macbook'))) {
     return 'MCBK'
   }
 
-  // Apple Tablet
-  if (normalizedCategory === 'tablets' && normalizedBrand.includes('apple')) {
+  // Apple Tablet (iPad)
+  if ((normalizedCategory === 'tablets' || normalizedCategory === 'tablet') && 
+      (normalizedBrand.includes('apple') || normalizedBrand.includes('ipad'))) {
     return 'IPAD'
   }
 
   // Default fallback based on category
-  if (normalizedCategory === 'phones') {
-    return 'IPNE' // Default to IPNE for other phones
+  if (normalizedCategory === 'phones' || normalizedCategory === 'phone') {
+    return 'PHNE' // Generic phone
   }
-  if (normalizedCategory === 'laptops') {
-    return 'MCBK' // Default to MCBK for other laptops
+  if (normalizedCategory === 'laptops' || normalizedCategory === 'laptop') {
+    return 'LPTP' // Generic laptop
   }
-  if (normalizedCategory === 'tablets') {
-    return 'IPAD' // Default to IPAD for other tablets
+  if (normalizedCategory === 'tablets' || normalizedCategory === 'tablet') {
+    return 'TBLT' // Generic tablet
   }
 
-  return 'DSLR' // Default fallback
+  return 'DSLR' // Default fallback for cameras
 }
 
 /**
@@ -157,6 +303,7 @@ export function getStateCode(state: string): string {
     'telangana': 'TS',
     'maharashtra': 'MH',
     'delhi': 'DL',
+    'new delhi': 'DL',
     'gujarat': 'GJ',
     'rajasthan': 'RJ',
     'west bengal': 'WB',
@@ -164,10 +311,12 @@ export function getStateCode(state: string): string {
     'punjab': 'PB',
     'haryana': 'HR',
     'odisha': 'OD',
+    'orissa': 'OD',
     'assam': 'AS',
     'bihar': 'BR',
     'jharkhand': 'JH',
     'chhattisgarh': 'CG',
+    'madhya pradesh': 'MP',
     'himachal pradesh': 'HP',
     'uttarakhand': 'UK',
     'goa': 'GA',
@@ -180,10 +329,15 @@ export function getStateCode(state: string): string {
     'arunachal pradesh': 'AR',
     'ladakh': 'LA',
     'jammu and kashmir': 'JK',
+    'jammu & kashmir': 'JK',
     'puducherry': 'PY',
+    'pondicherry': 'PY',
     'andaman and nicobar islands': 'AN',
+    'andaman & nicobar': 'AN',
     'dadra and nagar haveli and daman and diu': 'DH',
+    'daman and diu': 'DD',
     'lakshadweep': 'LD',
+    'chandigarh': 'CH',
   }
 
   return stateMap[normalizedState] || 'TN' // Default to Tamil Nadu
@@ -321,24 +475,35 @@ async function getNextOrderNumber(): Promise<number> {
 /**
  * Generate custom Order ID
  * 
- * @param state - State name (e.g., "Tamil Nadu")
- * @param pincode - 6-digit pincode
+ * @param pincode - 6-digit pincode (used to determine state and RTO)
  * @param category - Product category (cameras, phones, laptops, tablets)
  * @param brand - Product brand (optional, used for category code determination)
+ * @param state - State name (optional, will be derived from pincode if not provided)
  * @returns Generated Order ID (e.g., "TN37WTDSLR1001")
  */
 export async function generateOrderId(
-  state: string,
   pincode: string,
   category: string,
-  brand?: string
+  brand?: string,
+  state?: string
 ): Promise<string> {
   try {
-    const stateCode = getStateCode(state)
-    const rtoNumber = getRTOFromPincode(pincode)
+    // Get state and RTO from pincode
+    const { state: derivedState, rto: rtoNumber } = getStateAndRTOFromPincode(pincode)
+    
+    // Use provided state code or derive from pincode
+    const stateCode = state ? getStateCode(state) : derivedState
+    
     const categoryCode = getCategoryCode(category, brand)
     
-    console.log('Generating Order ID components:', { stateCode, rtoNumber, categoryCode, category, brand })
+    console.log('Generating Order ID components:', { 
+      stateCode, 
+      rtoNumber, 
+      categoryCode, 
+      category, 
+      brand,
+      pincode 
+    })
     
     const orderNumber = await getNextOrderNumber()
     console.log('Got order number:', orderNumber)
@@ -354,11 +519,27 @@ export async function generateOrderId(
       message: error?.message,
       code: error?.code,
       stack: error?.stack,
-      state,
       pincode,
       category,
       brand,
+      state,
     })
     throw error
   }
+}
+
+/**
+ * Generate Order ID for client-side use (without sequential number)
+ * This is useful for displaying a preview before the actual order is created
+ */
+export function generateOrderIdPreview(
+  pincode: string,
+  category: string,
+  brand?: string
+): string {
+  const { state: stateCode, rto: rtoNumber } = getStateAndRTOFromPincode(pincode)
+  const categoryCode = getCategoryCode(category, brand)
+  
+  // Return preview with placeholder for sequence number
+  return `${stateCode}${rtoNumber}WT${categoryCode}XXXX`
 }

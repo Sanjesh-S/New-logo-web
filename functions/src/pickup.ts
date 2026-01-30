@@ -8,6 +8,7 @@ import { pickupRequestSchema, schedulePickupSchema } from './schemas'
 import { validateSchema, createValidationErrorResponse } from './utils/validation'
 import { checkRateLimit, getClientIdentifier } from './utils/rateLimit'
 import { createLogger } from './utils/logger'
+import { generateOrderId } from './utils/orderId'
 // Notifications are called via HTTP requests to other functions
 
 const logger = createLogger('Functions:Pickup')
@@ -52,8 +53,31 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
     }
 
     const { productName, price, customer, pickupDate, pickupTime, userId, valuationId } = validation.data!
+    
+    // Extract category and brand from productName for order ID generation
+    // Default to 'cameras' if not determinable
+    const category = (body.category as string) || 'cameras'
+    const brand = (body.brand as string) || ''
 
-    const docRef = await db.collection('pickupRequests').add({
+    // Generate custom order ID
+    let customOrderId: string
+    try {
+      customOrderId = await generateOrderId(
+        db,
+        customer.pincode,
+        category,
+        brand,
+        customer.state
+      )
+      logger.info('Generated custom order ID', { customOrderId, pincode: customer.pincode, category, brand })
+    } catch (orderIdError) {
+      logger.error('Failed to generate custom order ID, using auto-generated ID', orderIdError)
+      // Fallback to auto-generated ID if custom ID generation fails
+      customOrderId = ''
+    }
+
+    // Create the pickup request document
+    const pickupData: Record<string, any> = {
       productName,
       price,
       customer: {
@@ -72,9 +96,16 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
       valuationId: valuationId || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'pending',
-    })
+    }
 
-    const requestId = docRef.id
+    // Add custom order ID if generated
+    if (customOrderId) {
+      pickupData.orderId = customOrderId
+    }
+
+    const docRef = await db.collection('pickupRequests').add(pickupData)
+
+    const requestId = customOrderId || docRef.id
 
     // Send notifications via Firebase Functions (don't fail if they fail)
     const functionsUrl = getFunctionsUrl()

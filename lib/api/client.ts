@@ -210,6 +210,8 @@ export async function createPickupRequest(data: {
   pickupTime: string
   userId?: string | null
   valuationId?: string | null
+  category?: string  // For order ID generation (cameras, phones, laptops, tablets)
+  brand?: string     // For order ID generation (Apple, Samsung, Canon, etc.)
 }) {
   // Use Firebase Function - notifications are handled server-side in Firebase Functions
   return callFunction<{
