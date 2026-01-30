@@ -18,11 +18,15 @@ interface PincodeRange {
 }
 
 // Comprehensive pincode to state and RTO mapping
+// Tamil Nadu RTO codes: https://en.wikipedia.org/wiki/List_of_RTO_districts_in_India#Tamil_Nadu
 const PINCODE_RANGES: PincodeRange[] = [
-  // Tamil Nadu (TN)
-  { start: 600001, end: 600127, state: 'TN', rto: '01' }, // Chennai
-  { start: 600128, end: 603399, state: 'TN', rto: '11' }, // Kancheepuram
-  { start: 600053, end: 602999, state: 'TN', rto: '12' }, // Tiruvallur
+  // Tamil Nadu (TN) - Correct RTO codes
+  { start: 600001, end: 600050, state: 'TN', rto: '01' }, // Chennai North
+  { start: 600051, end: 600099, state: 'TN', rto: '02' }, // Chennai South
+  { start: 600100, end: 600127, state: 'TN', rto: '03' }, // Chennai West
+  { start: 600128, end: 600150, state: 'TN', rto: '04' }, // Chennai East
+  { start: 603001, end: 603399, state: 'TN', rto: '14' }, // Kancheepuram
+  { start: 600053, end: 602999, state: 'TN', rto: '15' }, // Tiruvallur
   { start: 632001, end: 632999, state: 'TN', rto: '23' }, // Vellore
   { start: 606001, end: 606999, state: 'TN', rto: '24' }, // Tiruvannamalai
   { start: 604001, end: 605999, state: 'TN', rto: '25' }, // Villupuram
@@ -30,29 +34,29 @@ const PINCODE_RANGES: PincodeRange[] = [
   { start: 609001, end: 611999, state: 'TN', rto: '27' }, // Nagapattinam
   { start: 612001, end: 614999, state: 'TN', rto: '28' }, // Thanjavur
   { start: 610001, end: 610999, state: 'TN', rto: '29' }, // Tiruvarur
-  { start: 627001, end: 627999, state: 'TN', rto: '30' }, // Tirunelveli
-  { start: 638001, end: 638999, state: 'TN', rto: '31' }, // Erode
-  { start: 637001, end: 637999, state: 'TN', rto: '32' }, // Namakkal
-  { start: 636001, end: 636999, state: 'TN', rto: '33' }, // Salem
-  { start: 635001, end: 635999, state: 'TN', rto: '34' }, // Dharmapuri
-  { start: 635101, end: 635199, state: 'TN', rto: '35' }, // Krishnagiri
-  { start: 624001, end: 624999, state: 'TN', rto: '36' }, // Dindigul
-  { start: 641001, end: 641999, state: 'TN', rto: '37' }, // Coimbatore
-  { start: 641601, end: 641699, state: 'TN', rto: '38' }, // Tiruppur
-  { start: 620001, end: 621999, state: 'TN', rto: '39' }, // Trichy
-  { start: 639001, end: 639999, state: 'TN', rto: '40' }, // Karur
-  { start: 621201, end: 621299, state: 'TN', rto: '41' }, // Perambalur
-  { start: 621701, end: 621799, state: 'TN', rto: '42' }, // Ariyalur
-  { start: 622001, end: 622999, state: 'TN', rto: '43' }, // Pudukkottai
-  { start: 630001, end: 630999, state: 'TN', rto: '44' }, // Sivaganga
-  { start: 625001, end: 625999, state: 'TN', rto: '45' }, // Madurai
-  { start: 625501, end: 625599, state: 'TN', rto: '46' }, // Theni
-  { start: 626001, end: 626999, state: 'TN', rto: '47' }, // Virudhunagar
-  { start: 623001, end: 623999, state: 'TN', rto: '48' }, // Ramanathapuram
-  { start: 628001, end: 628999, state: 'TN', rto: '49' }, // Thoothukudi
-  { start: 629001, end: 629999, state: 'TN', rto: '50' }, // Kanyakumari
-  { start: 643001, end: 643999, state: 'TN', rto: '51' }, // Nilgiris
-  { start: 627801, end: 627899, state: 'TN', rto: '52' }, // Tenkasi
+  { start: 638001, end: 638999, state: 'TN', rto: '33' }, // Erode
+  { start: 637001, end: 637999, state: 'TN', rto: '34' }, // Namakkal
+  { start: 636001, end: 636999, state: 'TN', rto: '30' }, // Salem
+  { start: 635001, end: 635099, state: 'TN', rto: '31' }, // Dharmapuri
+  { start: 635101, end: 635999, state: 'TN', rto: '32' }, // Krishnagiri
+  { start: 624001, end: 624999, state: 'TN', rto: '57' }, // Dindigul
+  { start: 641001, end: 641599, state: 'TN', rto: '37' }, // Coimbatore
+  { start: 641601, end: 641999, state: 'TN', rto: '39' }, // Tiruppur
+  { start: 620001, end: 621199, state: 'TN', rto: '45' }, // Trichy
+  { start: 639001, end: 639999, state: 'TN', rto: '46' }, // Karur
+  { start: 621201, end: 621299, state: 'TN', rto: '47' }, // Perambalur
+  { start: 621701, end: 621999, state: 'TN', rto: '48' }, // Ariyalur
+  { start: 622001, end: 622999, state: 'TN', rto: '49' }, // Pudukkottai
+  { start: 630001, end: 630999, state: 'TN', rto: '58' }, // Sivaganga
+  { start: 625001, end: 625499, state: 'TN', rto: '59' }, // Madurai
+  { start: 625501, end: 625999, state: 'TN', rto: '60' }, // Theni
+  { start: 626001, end: 626999, state: 'TN', rto: '67' }, // Virudhunagar
+  { start: 623001, end: 623999, state: 'TN', rto: '68' }, // Ramanathapuram
+  { start: 628001, end: 628999, state: 'TN', rto: '69' }, // Thoothukudi
+  { start: 629001, end: 629999, state: 'TN', rto: '74' }, // Kanyakumari
+  { start: 643001, end: 643999, state: 'TN', rto: '36' }, // Nilgiris
+  { start: 627001, end: 627799, state: 'TN', rto: '72' }, // Tirunelveli
+  { start: 627801, end: 627999, state: 'TN', rto: '73' }, // Tenkasi
   
   // Karnataka (KA)
   { start: 560001, end: 560999, state: 'KA', rto: '01' }, // Bangalore
