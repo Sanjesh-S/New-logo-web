@@ -87,13 +87,14 @@ export async function createValuation(req: Request, res: Response): Promise<void
     finalUsage = finalUsage || 'moderate'
 
     // Generate custom Order ID
-    const orderState = state || 'Tamil Nadu'
     const orderPincode = pincode || '641004' // Default to Coimbatore
+    const orderState = state || 'Tamil Nadu'
     
     let orderId: string
     try {
-      orderId = await generateOrderId(db, orderState, orderPincode, category, brand)
-      logger.info('Generated Order ID', { orderId, state: orderState, pincode: orderPincode, category, brand })
+      // Parameters: db, pincode, category, brand, state
+      orderId = await generateOrderId(db, orderPincode, category, brand, orderState)
+      logger.info('Generated Order ID', { orderId, pincode: orderPincode, category, brand, state: orderState })
     } catch (error) {
       logger.error('Error generating Order ID', error)
       // Don't use fallback - fail the request if Order ID generation fails
