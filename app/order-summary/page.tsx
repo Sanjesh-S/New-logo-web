@@ -63,37 +63,21 @@ function OrderSummaryContent() {
     const fetchOrderData = async () => {
       if (valuationId) {
         try {
-          // Try to fetch as valuation first
-          const valuationData = await getValuation(valuationId)
-          if (valuationData) {
-            setValuation(valuationData)
-            setOrderType('valuation')
-            // Extract pickupDate and pickupTime from valuation
-            if (valuationData.pickupDate) {
-              // Handle both Date and Timestamp types
-              let dateValue: Date
-              if (valuationData.pickupDate instanceof Timestamp) {
-                dateValue = valuationData.pickupDate.toDate()
-              } else if (valuationData.pickupDate instanceof Date) {
-                dateValue = valuationData.pickupDate
-              } else {
-                dateValue = new Date(valuationData.pickupDate)
-              }
-              // Format as YYYY-MM-DD for the date input
-              const formattedDate = dateValue.toISOString().split('T')[0]
-              setScheduledDate(formattedDate)
-            }
-            if (valuationData.pickupTime) {
-              setScheduledTime(valuationData.pickupTime)
-            }
-            return
-          }
+          // Try to fetch both valuation and pickup request in parallel
+          // Prioritize pickup request since confirmed orders are usually pickup requests
+          const [valuationData, pickupReq] = await Promise.all([
+            getValuation(valuationId).catch(() => null),
+            getPickupRequest(valuationId).catch(() => null),
+          ])
 
-          // If not a valuation, try as pickup request
-          const pickupReq = await getPickupRequest(valuationId)
+          // If pickup request exists, use it (more accurate for confirmed orders)
           if (pickupReq) {
             setOrderType('pickup')
             setPickupRequest(pickupReq)
+            // Also set valuation if it exists (for reference)
+            if (valuationData) {
+              setValuation(valuationData)
+            }
             // Extract pickupDate and pickupTime from pickup request
             if (pickupReq.pickupDate) {
               let dateValue: Date
@@ -118,6 +102,31 @@ function OrderSummaryContent() {
             }
             if (pickupReq.pickupTime) {
               setScheduledTime(pickupReq.pickupTime)
+            }
+            return
+          }
+
+          // If no pickup request, use valuation
+          if (valuationData) {
+            setValuation(valuationData)
+            setOrderType('valuation')
+            // Extract pickupDate and pickupTime from valuation
+            if (valuationData.pickupDate) {
+              // Handle both Date and Timestamp types
+              let dateValue: Date
+              if (valuationData.pickupDate instanceof Timestamp) {
+                dateValue = valuationData.pickupDate.toDate()
+              } else if (valuationData.pickupDate instanceof Date) {
+                dateValue = valuationData.pickupDate
+              } else {
+                dateValue = new Date(valuationData.pickupDate)
+              }
+              // Format as YYYY-MM-DD for the date input
+              const formattedDate = dateValue.toISOString().split('T')[0]
+              setScheduledDate(formattedDate)
+            }
+            if (valuationData.pickupTime) {
+              setScheduledTime(valuationData.pickupTime)
             }
           }
         } catch (error) {
@@ -402,9 +411,22 @@ function OrderSummaryContent() {
                   <div>
                     <span className="text-xs sm:text-sm text-gray-500 block mb-2">Status</span>
                     {(() => {
-                      const orderStatus = orderType === 'pickup' 
-                        ? (pickupRequest?.status || 'pending')
-                        : 'pending'
+                      // Get status from the appropriate source
+                      let orderStatus: string
+                      if (orderType === 'pickup') {
+                        orderStatus = pickupRequest?.status || 'pending'
+                      } else {
+                        // For valuations, map status appropriately
+                        const valStatus = valuation?.status || 'pending'
+                        // Map valuation statuses to pickup statuses for display
+                        if (valStatus === 'approved') {
+                          orderStatus = 'confirmed' // Approved valuations are confirmed
+                        } else if (valStatus === 'completed') {
+                          orderStatus = 'completed'
+                        } else {
+                          orderStatus = valStatus
+                        }
+                      }
                       
                       const statusConfig: Record<string, { text: string; color: string; bgColor: string }> = {
                         pending: { text: 'Pending Review', color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200' },
@@ -413,6 +435,7 @@ function OrderSummaryContent() {
                         hold: { text: 'On Hold', color: 'text-orange-700', bgColor: 'bg-orange-50 border-orange-200' },
                         verification: { text: 'Under Verification', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200' },
                         completed: { text: 'Completed', color: 'text-green-700', bgColor: 'bg-green-50 border-green-200' },
+                        rejected: { text: 'Rejected', color: 'text-red-700', bgColor: 'bg-red-50 border-red-200' },
                       }
                       
                       const status = statusConfig[orderStatus] || statusConfig.pending
