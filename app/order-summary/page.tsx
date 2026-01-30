@@ -33,10 +33,10 @@ function OrderSummaryContent() {
   const [valuation, setValuation] = useState<Valuation | null>(null)
   const [orderType, setOrderType] = useState<'valuation' | 'pickup'>('valuation')
   
-  // Get the Order ID to display (prefer orderId from valuation, fallback to valuationId)
-  const displayOrderId = valuation?.orderId || valuationId || ''
+  // Get the Order ID to display (prefer orderId from valuation/pickupRequest, fallback to valuationId)
+  const displayOrderId = valuation?.orderId || pickupRequest?.orderId || valuationId || ''
 
-  const finalPrice = price ? parseInt(price) : (pickupRequest?.price || 0)
+  const finalPrice = price ? parseInt(price) : (pickupRequest?.price || valuation?.estimatedValue || 0)
   const internalBase = basePrice ? parseInt(basePrice) : 0
   const totalDeductions = deductions ? parseInt(deductions) : 0
 

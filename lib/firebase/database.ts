@@ -96,13 +96,30 @@ export async function createValuation(valuation: Omit<Valuation, 'id' | 'created
 }
 
 export async function getValuation(id: string): Promise<Valuation | null> {
-  const docRef = doc(getDb(), 'valuations', id)
-  const docSnap = await getDoc(docRef)
+  try {
+    // First try to fetch by document ID
+    const docRef = doc(getDb(), 'valuations', id)
+    const docSnap = await getDoc(docRef)
 
-  if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() } as Valuation
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Valuation
+    }
+    
+    // If not found by document ID, try to find by orderId field
+    const valuationsRef = collection(getDb(), 'valuations')
+    const q = query(valuationsRef, where('orderId', '==', id))
+    const querySnapshot = await getDocs(q)
+    
+    if (!querySnapshot.empty) {
+      const valuationDoc = querySnapshot.docs[0]
+      return { id: valuationDoc.id, ...valuationDoc.data() } as Valuation
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error fetching valuation:', error)
+    return null
   }
-  return null
 }
 
 export async function updateValuation(id: string, updates: Partial<Valuation>): Promise<void> {
@@ -741,6 +758,7 @@ export async function getProductPricingFromCollection(productId: string): Promis
 // Pickup Request interface - flexible to handle different structures
 export interface PickupRequest {
   id: string
+  orderId?: string // Custom Order ID (e.g., TN37WTDSLR1001)
   productName?: string
   price?: number
   valuationId?: string | null
@@ -830,16 +848,28 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
 }
 
 /**
- * Get a pickup request by ID
+ * Get a pickup request by ID (document ID or custom orderId)
  */
 export async function getPickupRequest(id: string): Promise<PickupRequest | null> {
   try {
+    // First try to fetch by document ID
     const docRef = doc(getDb(), 'pickupRequests', id)
     const docSnap = await getDoc(docRef)
 
     if (docSnap.exists()) {
       return { id: docSnap.id, ...docSnap.data() } as PickupRequest
     }
+    
+    // If not found by document ID, try to find by orderId field
+    const pickupRequestsRef = collection(getDb(), 'pickupRequests')
+    const q = query(pickupRequestsRef, where('orderId', '==', id))
+    const querySnapshot = await getDocs(q)
+    
+    if (!querySnapshot.empty) {
+      const pickupDoc = querySnapshot.docs[0]
+      return { id: pickupDoc.id, ...pickupDoc.data() } as PickupRequest
+    }
+    
     return null
   } catch (error) {
     console.error('Error fetching pickup request:', error)

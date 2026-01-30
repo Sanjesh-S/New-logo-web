@@ -38,6 +38,7 @@ function getDateStringFromValue(value: Date | FirestoreTimestamp | string | unkn
 
 interface ActiveOrderItem {
   id: string
+  orderId?: string // Custom Order ID for display
   type: 'valuation' | 'pickup'
   brand?: string
   model?: string
@@ -105,6 +106,7 @@ export default function ActiveOrders() {
           })
           .map(pr => ({
             id: pr.id,
+            orderId: pr.orderId, // Custom Order ID for display
             type: 'pickup' as const,
             productName: pr.productName,
             price: pr.price,
@@ -186,6 +188,7 @@ export default function ActiveOrders() {
           })
           .map(pr => ({
             id: pr.id,
+            orderId: pr.orderId,
             type: 'pickup' as const,
             productName: pr.productName,
             price: pr.price,
@@ -264,6 +267,7 @@ export default function ActiveOrders() {
         })
         .map(pr => ({
           id: pr.id,
+          orderId: pr.orderId,
           type: 'pickup' as const,
           productName: pr.productName,
           price: pr.price,
@@ -422,7 +426,7 @@ export default function ActiveOrders() {
                       </h3>
                       <p className="text-sm text-gray-600 mb-2">{statusInfo.description}</p>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                        <span>Order ID: {order.id?.substring(0, 8)}...</span>
+                        <span>Order ID: {order.orderId || order.id?.substring(0, 8) + '...'}</span>
                         <span>₹{(order.type === 'pickup' ? order.price : order.estimatedValue)?.toLocaleString('en-IN')}</span>
                         {order.pickupDate && (
                           <span className="flex items-center gap-1 text-brand-blue-600 font-medium">
@@ -445,7 +449,7 @@ export default function ActiveOrders() {
                   {order.id && (
                     <>
                       <Link
-                        href={`/order-summary?id=${order.id}`}
+                        href={`/order-summary?id=${order.orderId || order.id}&price=${order.type === 'pickup' ? order.price : order.estimatedValue}`}
                         className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
                       >
                         View Details
@@ -454,7 +458,7 @@ export default function ActiveOrders() {
                       {/* Schedule Pickup for approved valuations that don't have pickup scheduled yet */}
                       {order.type === 'valuation' && order.status === 'approved' && !order.pickupDate && (
                         <Link
-                          href={`/order-summary?id=${order.id}&schedule=true`}
+                          href={`/order-summary?id=${order.orderId || order.id}&price=${order.estimatedValue}&schedule=true`}
                           className="px-4 py-2 text-sm font-medium bg-brand-lime text-brand-blue-900 rounded-lg hover:bg-brand-lime-400 transition-colors text-center"
                         >
                           Schedule Pickup
