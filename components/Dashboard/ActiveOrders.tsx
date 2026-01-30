@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { getUserValuationsLegacy, getUserPickupRequests, updatePickupRequest, updateValuation, type Valuation, type PickupRequest } from '@/lib/firebase/database'
-import { Clock, Truck, CheckCircle, AlertCircle, Package, X, Calendar } from 'lucide-react'
+import { Clock, Truck, CheckCircle, AlertCircle, Package, X, Calendar, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PickupScheduler from '@/components/PickupScheduler'
@@ -28,95 +28,112 @@ export default function ActiveOrders() {
   const router = useRouter()
   const [activeOrders, setActiveOrders] = useState<ActiveOrderItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ActiveOrderItem | null>(null)
   const [cancelling, setCancelling] = useState(false)
 
-  useEffect(() => {
-    const fetchActiveOrders = async () => {
-      if (!user?.uid) return
+  const fetchActiveOrders = async (isRefresh = false) => {
+    if (!user?.uid) return
 
-      try {
+    try {
+      if (isRefresh) {
+        setRefreshing(true)
+      } else {
         setLoading(true)
-        const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
-        
-        console.log('Fetching orders for user:', user.uid, 'phone:', userPhone)
-        
-        // Fetch both valuations and pickup requests
-        const [valuations, pickupRequests] = await Promise.all([
-          getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
-          getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
-        ])
-        
-        console.log('Fetched valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
-
-        // Combine and filter for active orders
-        const allOrders: ActiveOrderItem[] = [
-          ...valuations
-            .filter((v) => v.status === 'pending' || v.status === 'approved')
-            .map(v => {
-              // Convert pickupDate from Timestamp/Date to string if needed
-              let pickupDateStr: string | undefined
-              if (v.pickupDate) {
-                if (v.pickupDate instanceof Date) {
-                  pickupDateStr = v.pickupDate.toISOString().split('T')[0]
-                } else if ((v.pickupDate as any)?.toDate) {
-                  pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
-                } else if (typeof v.pickupDate === 'string') {
-                  pickupDateStr = v.pickupDate
-                }
-              }
-              return {
-                id: v.id || '',
-                type: 'valuation' as const,
-                brand: v.brand,
-                model: v.model,
-                estimatedValue: v.estimatedValue,
-                status: v.status,
-                createdAt: v.createdAt,
-                pickupDate: pickupDateStr,
-                pickupTime: v.pickupTime,
-              }
-            }),
-          ...pickupRequests
-            .filter((pr) => {
-              const status = pr.status || 'pending'
-              // Include pending, confirmed, and other active statuses
-              return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
-            })
-            .map(pr => ({
-              id: pr.id,
-              type: 'pickup' as const,
-              productName: pr.productName,
-              price: pr.price,
-              status: pr.status || 'pending',
-              createdAt: pr.createdAt,
-              pickupDate: pr.pickupDate,
-              pickupTime: pr.pickupTime,
-            })),
-        ]
-
-        // Sort by date (newest first)
-        allOrders.sort((a, b) => {
-          const aDate = a.createdAt instanceof Date 
-            ? a.createdAt.getTime() 
-            : (a.createdAt as any)?.toDate?.()?.getTime() || 0
-          const bDate = b.createdAt instanceof Date 
-            ? b.createdAt.getTime() 
-            : (b.createdAt as any)?.toDate?.()?.getTime() || 0
-          return bDate - aDate
-        })
-
-        setActiveOrders(allOrders)
-      } catch (err: any) {
-        console.error('Error fetching active orders:', err)
-      } finally {
-        setLoading(false)
       }
-    }
+      const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
+      
+      console.log('Fetching orders for user:', user.uid, 'phone:', userPhone)
+      
+      // Fetch both valuations and pickup requests
+      const [valuations, pickupRequests] = await Promise.all([
+        getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
+        getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
+      ])
+      
+      console.log('Fetched valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
 
+      // Combine and filter for active orders
+      const allOrders: ActiveOrderItem[] = [
+        ...valuations
+          .filter((v) => v.status === 'pending' || v.status === 'approved')
+          .map(v => {
+            // Convert pickupDate from Timestamp/Date to string if needed
+            let pickupDateStr: string | undefined
+            if (v.pickupDate) {
+              if (v.pickupDate instanceof Date) {
+                pickupDateStr = v.pickupDate.toISOString().split('T')[0]
+              } else if ((v.pickupDate as any)?.toDate) {
+                pickupDateStr = (v.pickupDate as any).toDate().toISOString().split('T')[0]
+              } else if (typeof v.pickupDate === 'string') {
+                pickupDateStr = v.pickupDate
+              }
+            }
+            return {
+              id: v.id || '',
+              type: 'valuation' as const,
+              brand: v.brand,
+              model: v.model,
+              estimatedValue: v.estimatedValue,
+              status: v.status,
+              createdAt: v.createdAt,
+              pickupDate: pickupDateStr,
+              pickupTime: v.pickupTime,
+            }
+          }),
+        ...pickupRequests
+          .filter((pr) => {
+            const status = pr.status || 'pending'
+            // Include pending, confirmed, and other active statuses
+            return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+          })
+          .map(pr => ({
+            id: pr.id,
+            type: 'pickup' as const,
+            productName: pr.productName,
+            price: pr.price,
+            status: pr.status || 'pending',
+            createdAt: pr.createdAt,
+            pickupDate: pr.pickupDate,
+            pickupTime: pr.pickupTime,
+          })),
+      ]
+
+      // Sort by date (newest first)
+      allOrders.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date 
+          ? a.createdAt.getTime() 
+          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+        const bDate = b.createdAt instanceof Date 
+          ? b.createdAt.getTime() 
+          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        return bDate - aDate
+      })
+
+      setActiveOrders(allOrders)
+    } catch (err: any) {
+      console.error('Error fetching active orders:', err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
     fetchActiveOrders()
+  }, [user?.uid, user?.phoneNumber])
+  
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user?.uid) {
+        fetchActiveOrders(true)
+      }
+    }, 30000)
+    
+    return () => clearInterval(interval)
   }, [user?.uid, user?.phoneNumber])
 
   const handleCancelOrder = async () => {
@@ -378,7 +395,18 @@ export default function ActiveOrders() {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">Active Orders</h2>
-        <span className="text-sm text-gray-500">{activeOrders.length} {activeOrders.length === 1 ? 'order' : 'orders'}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fetchActiveOrders(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-brand-blue-600 hover:bg-brand-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh orders"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <span className="text-sm text-gray-500">{activeOrders.length} {activeOrders.length === 1 ? 'order' : 'orders'}</span>
+        </div>
       </div>
 
       <div className="space-y-4">

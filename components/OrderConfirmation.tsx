@@ -306,17 +306,6 @@ export default function OrderConfirmation({
     setShowSuccess(true)
     setRedirectCountdown(3)
     
-    // Start countdown timer
-    const countdownInterval = setInterval(() => {
-      setRedirectCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    
     // Create pickup request in background
     try {
       const { createPickupRequest } = await import('@/lib/api/client')
@@ -350,14 +339,21 @@ export default function OrderConfirmation({
       // Still proceed - don't block the user
     }
     
-    // Redirect after countdown completes (3 seconds)
-    setTimeout(() => {
-      clearInterval(countdownInterval)
-      onConfirm({
-        ...formData,
-        pickupDate: selectedDate,
-      })
-    }, 3000)
+    // Start countdown timer - redirect exactly when countdown reaches 0
+    let countdown = 3
+    const countdownInterval = setInterval(() => {
+      countdown -= 1
+      setRedirectCountdown(countdown)
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval)
+        // Redirect immediately when countdown reaches 0
+        onConfirm({
+          ...formData,
+          pickupDate: selectedDate,
+        })
+      }
+    }, 1000)
   }
 
   const formatPickupDate = (dateStr: string) => {

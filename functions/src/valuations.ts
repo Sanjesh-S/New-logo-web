@@ -8,7 +8,7 @@ import { valuationSchema, valuationUpdateSchema } from './schemas'
 import { validateSchema, createValidationErrorResponse } from './utils/validation'
 import { checkRateLimit, getClientIdentifier } from './utils/rateLimit'
 import { createLogger } from './utils/logger'
-import { generateOrderId, getCategoryCode } from './utils/orderId'
+import { generateOrderId } from './utils/orderId'
 
 const logger = createLogger('Functions:Valuations')
 
