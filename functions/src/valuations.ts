@@ -8,7 +8,7 @@ import { valuationSchema, valuationUpdateSchema } from './schemas'
 import { validateSchema, createValidationErrorResponse } from './utils/validation'
 import { checkRateLimit, getClientIdentifier } from './utils/rateLimit'
 import { createLogger } from './utils/logger'
-import { generateOrderId } from './utils/orderId'
+// generateOrderId is now only used in pickup.ts when the user provides their pincode
 
 const logger = createLogger('Functions:Valuations')
 
@@ -86,25 +86,9 @@ export async function createValuation(req: Request, res: Response): Promise<void
     finalCondition = finalCondition || 'good'
     finalUsage = finalUsage || 'moderate'
 
-    // Generate custom Order ID
-    const orderPincode = pincode || '641004' // Default to Coimbatore
-    const orderState = state || 'Tamil Nadu'
-    
-    let orderId: string
-    try {
-      // Parameters: db, pincode, category, brand, state
-      orderId = await generateOrderId(db, orderPincode, category, brand, orderState)
-      logger.info('Generated Order ID', { orderId, pincode: orderPincode, category, brand, state: orderState })
-    } catch (error) {
-      logger.error('Error generating Order ID', error)
-      // Don't use fallback - fail the request if Order ID generation fails
-      // This ensures we always get sequential numbers
-      res.status(500).json({
-        error: 'Failed to generate Order ID',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      })
-      return
-    }
+    // NOTE: Order ID is generated when pickup request is created (with correct pincode)
+    // The valuation will be updated with the Order ID at that time
+    // For now, we just create the valuation with auto-generated document ID
 
     const newValuation = {
       category,
@@ -117,7 +101,7 @@ export async function createValuation(req: Request, res: Response): Promise<void
       estimatedValue: estimatedValue || 0,
       userId: userId || null,
       status: 'pending',
-      orderId, // Store the custom Order ID
+      // orderId will be set when pickup request is created with correct pincode
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       ...(body.pickupAddress && { pickupAddress: body.pickupAddress }),
@@ -127,12 +111,15 @@ export async function createValuation(req: Request, res: Response): Promise<void
       ...(pincode && { pincode }),
     }
 
-    // Use setDoc with custom Order ID instead of add
-    await db.collection('valuations').doc(orderId).set(newValuation)
+    // Use auto-generated document ID
+    const docRef = await db.collection('valuations').add(newValuation)
+    const valuationId = docRef.id
+    
+    logger.info('Created valuation', { valuationId, category, brand, model })
 
     res.json({
       success: true,
-      id: orderId,
+      id: valuationId,
       message: 'Valuation created successfully',
     })
   } catch (error) {

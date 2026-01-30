@@ -29,6 +29,7 @@ export interface AddressData {
   landmark?: string
   pickupDate?: string
   pickupTime?: string
+  orderId?: string  // Custom order ID from pickup request
 }
 
 export default function OrderConfirmation({
@@ -306,7 +307,8 @@ export default function OrderConfirmation({
     setShowSuccess(true)
     setRedirectCountdown(3)
     
-    // Create pickup request in background
+    // Create pickup request in background and get the custom Order ID
+    let customOrderId: string | undefined
     try {
       const { createPickupRequest } = await import('@/lib/api/client')
       const result = await createPickupRequest({
@@ -330,7 +332,10 @@ export default function OrderConfirmation({
         brand: brand,        // For custom order ID generation
       })
 
-      if (!result.success) {
+      if (result.success && result.id) {
+        customOrderId = result.id
+        console.log('Pickup request created with Order ID:', customOrderId)
+      } else {
         console.error('API Error:', result)
         // Still proceed - the request data is saved locally
       }
@@ -348,9 +353,11 @@ export default function OrderConfirmation({
       if (countdown <= 0) {
         clearInterval(countdownInterval)
         // Redirect immediately when countdown reaches 0
+        // Include the custom Order ID from the pickup request
         onConfirm({
           ...formData,
           pickupDate: selectedDate,
+          orderId: customOrderId,
         })
       }
     }, 1000)

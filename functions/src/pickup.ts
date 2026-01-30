@@ -107,6 +107,20 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
 
     const requestId = customOrderId || docRef.id
 
+    // If there's a valuationId and we generated a custom order ID, update the valuation with the order ID
+    if (valuationId && customOrderId) {
+      try {
+        await db.collection('valuations').doc(valuationId).update({
+          orderId: customOrderId,
+          pickupRequestId: docRef.id,
+        })
+        logger.info('Updated valuation with order ID', { valuationId, orderId: customOrderId })
+      } catch (updateError) {
+        logger.error('Failed to update valuation with order ID', { valuationId, error: updateError })
+        // Don't fail the request - the pickup was created successfully
+      }
+    }
+
     // Send notifications via Firebase Functions (don't fail if they fail)
     const functionsUrl = getFunctionsUrl()
     const notificationData = {

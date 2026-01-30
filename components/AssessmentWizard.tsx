@@ -273,11 +273,14 @@ export default function AssessmentWizard({
     const deductions = calculatedPrice - internalBase
     const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
     
-    // If valuation was created, include the ID
-    if (valuationId) {
-      window.location.href = `/order-summary?id=${valuationId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
+    // Use the custom Order ID from the pickup request (generated with correct pincode)
+    // This is the authoritative Order ID that matches the customer's location
+    const orderId = addressData.orderId || valuationId
+    
+    if (orderId) {
+      window.location.href = `/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
     } else {
-      // Fallback: redirect without valuation ID
+      // Fallback: redirect without order ID
       window.location.href = `/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`
     }
   }
