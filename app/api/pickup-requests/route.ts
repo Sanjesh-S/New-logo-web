@@ -4,6 +4,8 @@ import { getFirestoreServer } from '@/lib/firebase/server'
 import { pickupRequestSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { getRequestBody } from '@/lib/middleware/request-limits'
+import { verifyCSRFToken } from '@/lib/middleware/csrf'
 import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:PickupRequests')
@@ -29,7 +31,23 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const body = await request.json()
+    // CSRF protection
+    const csrfCheck = verifyCSRFToken(request)
+    if (!csrfCheck.valid) {
+      return NextResponse.json(
+        { error: csrfCheck.error || 'CSRF validation failed' },
+        { status: 403 }
+      )
+    }
+    
+    // Validate request size
+    const { body, error: bodyError } = await getRequestBody(request)
+    if (bodyError) {
+      return NextResponse.json(
+        { error: bodyError },
+        { status: 413 }
+      )
+    }
     
     // Validate request body
     const validation = validateSchema(pickupRequestSchema, body)

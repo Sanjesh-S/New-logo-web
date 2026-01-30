@@ -9,6 +9,9 @@ import {
 } from 'firebase/auth'
 import { getAuth as getAuthFromConfig, auth } from './config'
 import { createOrUpdateUser } from './database'
+import { createLogger } from '@/lib/utils/logger'
+
+const logger = createLogger('FirebaseAuth')
 
 // Helper to get auth with type safety
 function getAuthInstance(): Auth {
@@ -51,7 +54,7 @@ export function setupRecaptcha(containerId: string = 'recaptcha-container'): Rec
       // Check if verifier is still valid before clearing
       if (existingVerifier && typeof existingVerifier.clear === 'function') {
         existingVerifier.clear()
-        console.log('Cleared existing reCAPTCHA verifier')
+        // Cleared existing reCAPTCHA verifier
       }
     } catch (e: any) {
       // Ignore internal errors - verifier might already be cleared
@@ -74,36 +77,27 @@ export function setupRecaptcha(containerId: string = 'recaptcha-container'): Rec
   }
 
   try {
-    console.log('Creating RecaptchaVerifier with auth instance:', {
-      appName: authInstance.app.name,
-      projectId: authInstance.app.options.projectId,
-      apiKey: authInstance.app.options.apiKey?.substring(0, 10) + '...',
-      authDomain: authInstance.app.options.authDomain
-    })
+    // Creating RecaptchaVerifier (removed sensitive logging)
 
     const recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       callback: () => {
         // reCAPTCHA solved, allow signInWithPhoneNumber
-        console.log('reCAPTCHA verified')
+        // reCAPTCHA verified
       },
       'expired-callback': () => {
         // Response expired, ask user to solve reCAPTCHA again
-        console.error('reCAPTCHA expired')
+        // reCAPTCHA expired - will retry
       },
     })
 
       ; (window as any).recaptchaVerifier = recaptchaVerifier
-    console.log('RecaptchaVerifier created successfully for app:', authInstance.app.name)
+    // RecaptchaVerifier created successfully
     return recaptchaVerifier
   } catch (error: any) {
-    console.error('Error creating RecaptchaVerifier:', error)
-    console.error('Auth instance details:', {
-      exists: !!authInstance,
-      appName: authInstance?.app?.name,
-      projectId: authInstance?.app?.options?.projectId,
-      apiKey: authInstance?.app?.options?.apiKey?.substring(0, 10) + '...'
-    })
+    // Log error without exposing sensitive details
+    const logger = createLogger('FirebaseAuth')
+    logger.error('Error creating RecaptchaVerifier', { error: error.message })
     throw new Error(`Failed to initialize reCAPTCHA: ${error.message || 'Unknown error'}`)
   }
 }
@@ -121,24 +115,16 @@ export async function sendOTP(
       throw new Error('Firebase Auth is not properly initialized')
     }
 
-    // Log auth instance details for debugging
-    console.log('📤 Sending OTP with auth instance:', {
-      appName: authInstance.app.name,
-      projectId: authInstance.app.options.projectId,
-      apiKey: authInstance.app.options.apiKey?.substring(0, 20) + '...',
-      authDomain: authInstance.app.options.authDomain,
-      storageBucket: authInstance.app.options.storageBucket,
-      phoneNumber: phoneNumber
-    })
+    // Log OTP send attempt (without sensitive details)
+    logger.info('Sending OTP', { phoneNumber: phoneNumber.substring(0, 3) + '****' })
 
     // Verify API key is set (use environment variable, not hardcoded value)
     if (!authInstance.app.options.apiKey) {
       throw new Error('Firebase API key is not configured. Please check your environment variables.')
     }
 
-    console.log('✅ Firebase Auth initialized, proceeding with OTP send...')
     const confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier)
-    console.log('OTP sent successfully')
+    logger.info('OTP sent successfully')
     return confirmationResult
   } catch (error: any) {
     console.error('Error sending OTP:', error)
@@ -189,7 +175,7 @@ export async function verifyOTP(
 
     return user
   } catch (error: any) {
-    console.error('Error verifying OTP:', error)
+    logger.error('Error verifying OTP', { errorCode: error.code })
     // Provide user-friendly error messages
     if (error.code === 'auth/invalid-verification-code' || error.code === 'auth/code-expired') {
       throw new Error('Wrong OTP. Please try again.')
@@ -204,7 +190,7 @@ export async function signOut(): Promise<void> {
     const authInstance = getAuthInstance()
     await firebaseSignOut(authInstance)
   } catch (error: any) {
-    console.error('Error signing out:', error)
+    logger.error('Error signing out', { error: error.message })
     throw new Error(error.message || 'Failed to sign out')
   }
 }

@@ -49,9 +49,21 @@ service cloud.firestore {
     function isValidValuation() {
       let data = request.resource.data;
       return data.keys().hasAll(['productId', 'price', 'createdAt'])
+             && data.productId is string
+             && data.productId.size() > 0
+             && data.productId.size() <= 100
              && data.price is number
              && data.price >= 0
              && data.price <= 10000000;
+    }
+    
+    // Helper function to validate pricing rules
+    function isValidPricingRules() {
+      let data = request.resource.data;
+      // Ensure pricing rules have valid structure
+      return data.keys().hasAll(['questions'])
+             && data.questions is map
+             && data.updatedAt is timestamp;
     }
     
     // Staff Users Collection - Only Super Admins can manage
@@ -148,8 +160,9 @@ service cloud.firestore {
     
     // Settings Collection
     match /settings/{document=**} {
-      // Anyone can read settings (for pricing rules, etc.)
-      allow read: if true;
+      // Only authenticated users can read settings (pricing rules, etc.)
+      // This prevents public exposure of business logic
+      allow read: if isAuthenticated();
       
       // Only admins can write settings
       allow write: if isAdmin();
@@ -195,11 +208,28 @@ service cloud.firestore {
       // Staff can read all addresses
       allow read: if isStaff();
       
-      // Users can create their own addresses
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Users can create their own addresses with validation
+      allow create: if isAuthenticated() 
+                       && request.resource.data.userId == request.auth.uid
+                       && request.resource.data.keys().hasAll(['userId', 'name', 'phone', 'address', 'city', 'state', 'pincode'])
+                       && request.resource.data.name is string
+                       && request.resource.data.name.size() > 0
+                       && request.resource.data.name.size() <= 100
+                       && request.resource.data.phone is string
+                       && request.resource.data.phone.size() == 10
+                       && request.resource.data.address is string
+                       && request.resource.data.address.size() > 0
+                       && request.resource.data.address.size() <= 500
+                       && request.resource.data.pincode is string
+                       && request.resource.data.pincode.size() == 6;
       
-      // Users can update their own addresses
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can update their own addresses (with same validation)
+      allow update: if isAuthenticated() 
+                       && resource.data.userId == request.auth.uid
+                       && request.resource.data.userId == request.auth.uid
+                       && request.resource.data.name is string
+                       && request.resource.data.name.size() > 0
+                       && request.resource.data.name.size() <= 100;
       
       // Users can delete their own addresses
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;

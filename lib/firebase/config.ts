@@ -4,7 +4,7 @@ import { getAuth as getFirebaseAuth, Auth } from 'firebase/auth'
 import { RecaptchaVerifier } from 'firebase/auth'
 import { createLogger } from '@/lib/utils/logger'
 
-const logger = createLogger('Firebase')
+const logger = createLogger('FirebaseConfig')
 
 // Validate required environment variables
 const requiredEnvVars = {
@@ -47,13 +47,12 @@ if (typeof window !== 'undefined') {
   const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig])
   
   if (missingFields.length > 0) {
-    console.warn('Missing Firebase config fields:', missingFields)
+    logger.warn('Missing Firebase config fields', { missingFields })
   } else {
-    console.log('Firebase config loaded:', {
+    logger.info('Firebase config loaded', {
       projectId: firebaseConfig.projectId,
       authDomain: firebaseConfig.authDomain,
       hasApiKey: !!firebaseConfig.apiKey,
-      apiKeyPrefix: firebaseConfig.apiKey?.substring(0, 20) + '...' // First 20 chars for verification
     })
   }
 }
@@ -70,26 +69,21 @@ function getFirebaseApp(): FirebaseApp | undefined {
     
     // If no apps exist, initialize new one
     if (existingApps.length === 0) {
-      console.log('🔵 Initializing Firebase app with config:', {
+      logger.info('Initializing Firebase app', {
         projectId: firebaseConfig.projectId,
         authDomain: firebaseConfig.authDomain,
         storageBucket: firebaseConfig.storageBucket,
-        apiKey: firebaseConfig.apiKey?.substring(0, 15) + '...',
+        hasApiKey: !!firebaseConfig.apiKey,
         appId: firebaseConfig.appId
       })
       
       // Initialize exactly as Firebase console suggests
       firebaseApp = initializeApp(firebaseConfig)
       
-      console.log('✅ Firebase app initialized successfully:', {
+      logger.info('Firebase app initialized successfully', {
         name: firebaseApp.name,
-        options: {
-          projectId: firebaseApp.options.projectId,
-          authDomain: firebaseApp.options.authDomain,
-          storageBucket: firebaseApp.options.storageBucket,
-          apiKey: firebaseApp.options.apiKey?.substring(0, 15) + '...',
-          appId: firebaseApp.options.appId
-        }
+        projectId: firebaseApp.options.projectId,
+        authDomain: firebaseApp.options.authDomain,
       })
       
       // Verify the config matches exactly
@@ -108,9 +102,9 @@ function getFirebaseApp(): FirebaseApp | undefined {
       }
       
       if (mismatches.length > 0) {
-        console.error('❌ Firebase config mismatches detected:', mismatches)
+        logger.error('Firebase config mismatches detected', { mismatches })
       } else {
-        console.log('✅ All Firebase config values match')
+        logger.info('All Firebase config values match')
       }
       
       return firebaseApp
@@ -136,34 +130,20 @@ function getFirebaseApp(): FirebaseApp | undefined {
       firebaseApp.options.storageBucket === firebaseConfig.storageBucket
     
     if (!configMatches) {
-      console.error('❌ CRITICAL: Existing Firebase app does NOT match current config!')
-      console.error('Expected config:', {
-        projectId: firebaseConfig.projectId,
-        apiKey: firebaseConfig.apiKey?.substring(0, 15) + '...',
-        authDomain: firebaseConfig.authDomain,
-        storageBucket: firebaseConfig.storageBucket
+      logger.error('CRITICAL: Existing Firebase app does NOT match current config!', {
+        expectedProjectId: firebaseConfig.projectId,
+        actualProjectId: firebaseApp.options.projectId,
+        expectedAuthDomain: firebaseConfig.authDomain,
+        actualAuthDomain: firebaseApp.options.authDomain,
       })
-      console.error('Actual app config:', {
-        projectId: firebaseApp.options.projectId,
-        apiKey: firebaseApp.options.apiKey?.substring(0, 15) + '...',
-        authDomain: firebaseApp.options.authDomain,
-        storageBucket: firebaseApp.options.storageBucket
-      })
-      console.error('⚠️ This will cause auth errors! Please:')
-      console.error('1. Clear browser cache completely')
-      console.error('2. Hard refresh (Ctrl+Shift+R)')
-      console.error('3. Or restart the dev server')
+      logger.warn('This will cause auth errors! Please clear browser cache and hard refresh')
     }
     
     return firebaseApp
   } catch (error: any) {
-    console.error('❌ Error initializing Firebase:', error)
-    console.error('Firebase config being used:', {
-      projectId: firebaseConfig.projectId,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
-      apiKey: firebaseConfig.apiKey?.substring(0, 15) + '...',
-      appId: firebaseConfig.appId
+    logger.error('Error initializing Firebase', { 
+      error: error.message,
+      projectId: firebaseConfig.projectId 
     })
     return undefined
   }

@@ -57,7 +57,7 @@ export default function AddressBook() {
           isDefault: addr.isDefault || false,
         })))
       } catch (error) {
-        console.error('Error fetching addresses:', error)
+        // Error fetching addresses
       } finally {
         setLoading(false)
       }
@@ -138,7 +138,7 @@ export default function AddressBook() {
       })
       setShowAddForm(false)
     } catch (error) {
-      console.error('Error saving address:', error)
+      // Error saving address
       alert('Failed to save address. Please try again.')
     }
   }
@@ -164,7 +164,7 @@ export default function AddressBook() {
         })))
       }
     } catch (error) {
-      console.error('Error deleting address:', error)
+      // Error deleting address
       alert('Failed to delete address. Please try again.')
     }
   }

@@ -108,6 +108,15 @@ function validateEmailRequest(body: unknown): {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate request size
+    const contentLength = request.headers.get('content-length')
+    if (contentLength && parseInt(contentLength, 10) > 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Request body too large. Maximum size is 1MB' },
+        { status: 413 }
+      )
+    }
+
     let body: unknown
     try {
       body = await request.json()

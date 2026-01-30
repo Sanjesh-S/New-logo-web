@@ -97,7 +97,7 @@ export default function AssessmentWizard({
             rulesToUse = globalRules
           }
         } catch (rulesError) {
-          console.warn('Error loading pricing rules, using defaults:', rulesError)
+          // Error loading pricing rules, using defaults
           // Fallback to DEFAULT_PRICING_RULES if all else fails
           rulesToUse = DEFAULT_PRICING_RULES
         }

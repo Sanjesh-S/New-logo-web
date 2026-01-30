@@ -968,7 +968,7 @@ export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumb
 
     return false
   } catch (error: any) {
-    console.error('Error checking super admin status:', error)
+    logger.error('Error checking super admin status', { error: error.message })
     throw error
   }
 }

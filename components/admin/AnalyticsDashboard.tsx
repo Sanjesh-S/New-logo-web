@@ -174,7 +174,7 @@ export default function AnalyticsDashboard() {
         topProducts,
       })
     } catch (error) {
-      console.error('Error loading analytics:', error)
+      // Error loading analytics
     } finally {
       setLoading(false)
     }

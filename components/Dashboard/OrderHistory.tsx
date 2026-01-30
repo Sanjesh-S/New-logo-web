@@ -56,14 +56,14 @@ export default function OrderHistory() {
         
         // Fetch both valuations and pickup requests
         const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
-        console.log('Fetching order history for user:', user.uid, 'phone:', userPhone)
+        // Fetching order history
         
         const [valuations, pickupRequests] = await Promise.all([
           getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
           getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
         ])
         
-        console.log('Order history - valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
+        // Order history loaded
 
         // Combine and filter for completed/rejected/suspect/cancelled orders only
         const allOrders: OrderItem[] = [

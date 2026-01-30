@@ -13,12 +13,30 @@ interface RateLimitEntry {
 // In-memory store for rate limiting (use Redis in production)
 const rateLimitStore = new Map<string, RateLimitEntry>()
 
+// Maximum entries to prevent memory leaks
+const MAX_ENTRIES = 10000
+
 // Clean up expired entries periodically
 setInterval(() => {
   const now = Date.now()
+  let deletedCount = 0
+  
+  // Delete expired entries
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(key)
+      deletedCount++
+    }
+  }
+  
+  // If still over limit, remove oldest entries
+  if (rateLimitStore.size > MAX_ENTRIES) {
+    const entries = Array.from(rateLimitStore.entries())
+      .sort((a, b) => a[1].resetTime - b[1].resetTime)
+    
+    const toDelete = rateLimitStore.size - MAX_ENTRIES
+    for (let i = 0; i < toDelete; i++) {
+      rateLimitStore.delete(entries[i][0])
     }
   }
 }, 60000) // Clean up every minute

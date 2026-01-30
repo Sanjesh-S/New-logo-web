@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { calculateRequestSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { getRequestBody } from '@/lib/middleware/request-limits'
 import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:Calculate')
@@ -79,7 +80,14 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const body = await request.json()
+    // Validate request size
+    const { body, error: bodyError } = await getRequestBody(request)
+    if (bodyError) {
+      return NextResponse.json(
+        { error: bodyError },
+        { status: 413 }
+      )
+    }
     
     // Validate request body
     const validation = validateSchema(calculateRequestSchema, body)

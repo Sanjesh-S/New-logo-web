@@ -5,6 +5,8 @@ import { collection, doc, setDoc, Timestamp } from 'firebase/firestore'
 import { valuationSchema, valuationUpdateSchema } from '@/lib/validations/schemas'
 import { validateSchema, validationErrorResponse } from '@/lib/validations'
 import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { getRequestBody } from '@/lib/middleware/request-limits'
+import { verifyCSRFToken } from '@/lib/middleware/csrf'
 import { createLogger } from '@/lib/utils/logger'
 import { generateOrderId, getCategoryCode } from '@/lib/utils/orderId'
 
@@ -31,7 +33,17 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const body = await request.json()
+    // CSRF protection (optional for public endpoints, but recommended)
+    // Skip for now since valuations can be created by unauthenticated users
+    
+    // Validate request size
+    const { body, error: bodyError } = await getRequestBody(request)
+    if (bodyError) {
+      return NextResponse.json(
+        { error: bodyError },
+        { status: 413 }
+      )
+    }
     
     // Validate request body
     const validation = validateSchema(valuationSchema, body)

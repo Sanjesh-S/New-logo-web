@@ -100,7 +100,7 @@ export default function OrderConfirmation({
         setErrors(prev => ({ ...prev, pincode: 'Invalid pincode' }))
       }
     } catch (error) {
-      console.error('Error fetching pincode data:', error)
+      // Error fetching pincode data
       setErrors(prev => ({ ...prev, pincode: 'Failed to fetch address details' }))
     } finally {
       setPincodeLoading(false)
@@ -362,12 +362,12 @@ export default function OrderConfirmation({
 
       if (result.success && result.id) {
         customOrderId = result.id
-        console.log('Pickup request created with Order ID:', customOrderId)
+        // Pickup request created successfully
       } else {
-        console.error('API Error:', result)
+        // API Error occurred
       }
     } catch (error: unknown) {
-      console.error('Error confirming pickup:', error)
+      // Error confirming pickup
     } finally {
       apiFinished = true
       tryRedirect()

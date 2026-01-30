@@ -79,7 +79,7 @@ function canReschedule(pickupDate: string | undefined, pickupTime: string | unde
     // Allow rescheduling only if more than 2 hours remain
     return diffHours > 2
   } catch (error) {
-    console.error('Error checking reschedule eligibility:', error)
+    // Error checking reschedule eligibility
     return true // If there's an error, allow rescheduling to be safe
   }
 }
@@ -121,15 +121,15 @@ export default function ActiveOrders() {
       }
       const userPhone = user?.phoneNumber?.replace(/^\+91/, '') || ''
       
-      console.log('Fetching orders for user:', user.uid, 'phone:', userPhone)
+      // Fetching orders
       
       // Fetch both valuations and pickup requests
       const [valuations, pickupRequests] = await Promise.all([
-        getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
-        getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
+        getUserValuationsLegacy(user.uid).catch((e) => { return [] }),
+        getUserPickupRequests(user.uid, userPhone).catch((e) => { return [] }),
       ])
       
-      console.log('Fetched valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
+      // Orders fetched
 
       // Combine and filter for active orders (exclude completed, rejected, suspect, cancelled)
       const allOrders: ActiveOrderItem[] = [
@@ -180,7 +180,7 @@ export default function ActiveOrders() {
 
       setActiveOrders(allOrders)
     } catch (err: any) {
-      console.error('Error fetching active orders:', err)
+      // Error fetching active orders
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -269,7 +269,7 @@ export default function ActiveOrders() {
       setShowCancelModal(false)
       setSelectedOrder(null)
     } catch (error) {
-      console.error('Error cancelling order:', error)
+      // Error cancelling order
       alert('Failed to cancel order. Please try again.')
     } finally {
       setCancelling(false)
