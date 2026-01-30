@@ -570,12 +570,12 @@ function OrderSummaryContent() {
           className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2"
         >
           <motion.button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/dashboard')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="flex-1 px-6 py-4 bg-gradient-to-r from-brand-blue-600 to-brand-blue-700 text-white rounded-xl sm:rounded-2xl font-semibold hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            Back to Home
+            View order details
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </motion.button>
           <motion.button
