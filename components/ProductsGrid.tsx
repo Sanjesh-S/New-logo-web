@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react'
 import type { Product } from '@/lib/firebase/database'
 import { getProductsByBrand } from '@/lib/firebase/database'
 import { dataCache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
+import { sortProducts } from '@/lib/utils/productSort'
 import ProductCard from './ProductCard'
 import EnhancedSearch from './EnhancedSearch'
 import { ProductGridSkeleton } from './ui/Skeleton'
@@ -21,10 +22,13 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
   const cacheKey = CACHE_KEYS.PRODUCTS_BY_BRAND(category, brand)
   const cachedProducts = dataCache.get<Product[]>(cacheKey)
   
-  const [products, setProducts] = useState<Product[]>(cachedProducts || [])
+  // Sort cached products if available
+  const sortedCachedProducts = cachedProducts ? sortProducts(cachedProducts, brand) : []
+  
+  const [products, setProducts] = useState<Product[]>(sortedCachedProducts)
   const [loading, setLoading] = useState(!cachedProducts)
   const [error, setError] = useState<string | null>(null)
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(cachedProducts || [])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(sortedCachedProducts)
   const fetchedRef = useRef(false)
 
   const fetchProducts = async (forceRefresh = false) => {
@@ -34,8 +38,9 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
     if (!forceRefresh) {
       const cached = dataCache.get<Product[]>(cacheKey)
       if (cached) {
-        setProducts(cached)
-        setFilteredProducts(cached)
+        const sortedCached = sortProducts(cached, brand)
+        setProducts(sortedCached)
+        setFilteredProducts(sortedCached)
         setLoading(false)
         return
       }
@@ -47,11 +52,14 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
 
       const items = await getProductsByBrand(category, brand)
       
-      // Cache the results
-      dataCache.set(cacheKey, items, CACHE_TTL.MEDIUM)
+      // Sort products in logical order
+      const sortedItems = sortProducts(items, brand)
       
-      setProducts(items)
-      setFilteredProducts(items)
+      // Cache the results
+      dataCache.set(cacheKey, sortedItems, CACHE_TTL.MEDIUM)
+      
+      setProducts(sortedItems)
+      setFilteredProducts(sortedItems)
     } catch (err: any) {
       setError(err.message || 'Something went wrong while loading products.')
     } finally {
