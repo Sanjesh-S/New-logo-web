@@ -307,8 +307,29 @@ export default function OrderConfirmation({
     setShowSuccess(true)
     setRedirectCountdown(3)
     
-    // Create pickup request in background and get the custom Order ID
+    // Store the Order ID from the API call (will be set asynchronously)
     let customOrderId: string | undefined
+    
+    // Start countdown timer IMMEDIATELY - don't wait for API
+    let countdown = 3
+    const countdownInterval = setInterval(() => {
+      countdown -= 1
+      setRedirectCountdown(countdown)
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval)
+        // Redirect immediately when countdown reaches 0
+        // Include the custom Order ID from the pickup request (may or may not be set by now)
+        onConfirm({
+          ...formData,
+          pickupDate: selectedDate,
+          orderId: customOrderId,
+        })
+      }
+    }, 1000)
+    
+    // Create pickup request in background (non-blocking)
+    // This runs in parallel with the countdown
     try {
       const { createPickupRequest } = await import('@/lib/api/client')
       const result = await createPickupRequest({
@@ -339,28 +360,10 @@ export default function OrderConfirmation({
         console.error('API Error:', result)
         // Still proceed - the request data is saved locally
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error confirming pickup:', error)
       // Still proceed - don't block the user
     }
-    
-    // Start countdown timer - redirect exactly when countdown reaches 0
-    let countdown = 3
-    const countdownInterval = setInterval(() => {
-      countdown -= 1
-      setRedirectCountdown(countdown)
-      
-      if (countdown <= 0) {
-        clearInterval(countdownInterval)
-        // Redirect immediately when countdown reaches 0
-        // Include the custom Order ID from the pickup request
-        onConfirm({
-          ...formData,
-          pickupDate: selectedDate,
-          orderId: customOrderId,
-        })
-      }
-    }, 1000)
   }
 
   const formatPickupDate = (dateStr: string) => {
