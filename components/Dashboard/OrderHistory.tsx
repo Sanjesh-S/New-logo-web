@@ -7,21 +7,24 @@ import { getUserValuationsLegacy, getUserPickupRequests, type Valuation, type Pi
 import { Package, Calendar, IndianRupee, CheckCircle, XCircle, Clock, AlertCircle, Truck } from 'lucide-react'
 import Link from 'next/link'
 
-type StatusType = 'pending' | 'approved' | 'completed' | 'rejected' | 'cancelled' | 'confirmed' | 'hold' | 'verification'
+type StatusType = 'pending' | 'approved' | 'completed' | 'rejected' | 'reject' | 'cancelled' | 'confirmed' | 'hold' | 'verification' | 'suspect'
 
 const statusConfig: Record<StatusType, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200', label: 'Pending' },
   approved: { icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-200', label: 'Approved' },
   completed: { icon: CheckCircle, color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'Completed' },
   rejected: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Rejected' },
+  reject: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Rejected' },
   cancelled: { icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Cancelled' },
   confirmed: { icon: CheckCircle, color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'Confirmed' },
   hold: { icon: AlertCircle, color: 'text-orange-600 bg-orange-50 border-orange-200', label: 'On Hold' },
   verification: { icon: Clock, color: 'text-purple-600 bg-purple-50 border-purple-200', label: 'Verification' },
+  suspect: { icon: AlertCircle, color: 'text-red-600 bg-red-50 border-red-200', label: 'Suspect' },
 }
 
 interface OrderItem {
   id: string
+  orderId?: string // Custom Order ID for display
   type: 'valuation' | 'pickup'
   brand?: string
   model?: string
@@ -62,29 +65,43 @@ export default function OrderHistory() {
         
         console.log('Order history - valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
 
-        // Combine and sort by date - include ALL orders (including cancelled)
+        // Combine and filter for completed/rejected/suspect/cancelled orders only
         const allOrders: OrderItem[] = [
-          ...valuations.map(v => ({
-            id: v.id || '',
-            type: 'valuation' as const,
-            brand: v.brand,
-            model: v.model,
-            category: v.category,
-            estimatedValue: v.estimatedValue,
-            condition: v.condition,
-            status: v.status,
-            createdAt: v.createdAt,
-          })),
-          ...pickupRequests.map(pr => ({
-            id: pr.id,
-            type: 'pickup' as const,
-            productName: pr.productName,
-            price: pr.price,
-            status: pr.status || 'pending',
-            createdAt: pr.createdAt,
-            pickupDate: pr.pickupDate,
-            pickupTime: pr.pickupTime,
-          })),
+          ...valuations
+            .filter((v) => {
+              const status = v.status || 'pending'
+              // Only include completed or rejected orders (valuations don't have suspect/cancelled)
+              return status === 'completed' || status === 'rejected'
+            })
+            .map(v => ({
+              id: v.id || '',
+              orderId: v.orderId, // Custom Order ID
+              type: 'valuation' as const,
+              brand: v.brand,
+              model: v.model,
+              category: v.category,
+              estimatedValue: v.estimatedValue,
+              condition: v.condition,
+              status: v.status,
+              createdAt: v.createdAt,
+            })),
+          ...pickupRequests
+            .filter((pr) => {
+              const status = pr.status || 'pending'
+              // Only include completed, reject, suspect, or cancelled orders
+              return status === 'completed' || status === 'reject' || status === 'suspect' || status === 'cancelled'
+            })
+            .map(pr => ({
+              id: pr.id,
+              orderId: pr.orderId, // Custom Order ID
+              type: 'pickup' as const,
+              productName: pr.productName,
+              price: pr.price,
+              status: pr.status || 'pending',
+              createdAt: pr.createdAt,
+              pickupDate: pr.pickupDate,
+              pickupTime: pr.pickupTime,
+            })),
         ]
 
         // Sort by date (newest first)
@@ -207,7 +224,7 @@ export default function OrderHistory() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500 mb-1">Order ID</p>
-                      <p className="font-mono text-xs text-gray-900">{order.id?.substring(0, 8)}...</p>
+                      <p className="font-mono text-xs text-gray-900">{order.orderId || order.id?.substring(0, 8) + '...'}</p>
                     </div>
                     <div>
                       <p className="text-gray-500 mb-1">{order.type === 'pickup' ? 'Price' : 'Estimated Value'}</p>
@@ -233,9 +250,9 @@ export default function OrderHistory() {
                 </div>
 
                 <div className="flex sm:flex-col gap-2">
-                  {order.id && order.type === 'valuation' && (
+                  {order.id && (
                     <Link
-                      href={`/order-summary?id=${order.id}`}
+                      href={`/order-summary?id=${order.orderId || order.id}&price=${order.type === 'pickup' ? order.price : order.estimatedValue}`}
                       className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
                     >
                       View Details

@@ -131,12 +131,17 @@ export default function ActiveOrders() {
       
       console.log('Fetched valuations:', valuations.length, 'pickup requests:', pickupRequests.length)
 
-      // Combine and filter for active orders
+      // Combine and filter for active orders (exclude completed, rejected, suspect, cancelled)
       const allOrders: ActiveOrderItem[] = [
         ...valuations
-          .filter((v) => v.status === 'pending' || v.status === 'approved')
+          .filter((v) => {
+            const status = v.status || 'pending'
+            // Exclude completed, rejected - these go to Order History (valuations don't have suspect/cancelled)
+            return status !== 'completed' && status !== 'rejected'
+          })
           .map(v => ({
             id: v.id || '',
+            orderId: v.orderId, // Custom Order ID for display
             type: 'valuation' as const,
             brand: v.brand,
             model: v.model,
@@ -149,8 +154,9 @@ export default function ActiveOrders() {
         ...pickupRequests
           .filter((pr) => {
             const status = pr.status || 'pending'
-            // Include pending, confirmed, and other active statuses
-            return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+            // Exclude completed, reject, suspect, cancelled - these go to Order History
+            // Include pending, confirmed, hold, verification (active statuses)
+            return status !== 'completed' && status !== 'reject' && status !== 'suspect' && status !== 'cancelled'
           })
           .map(pr => ({
             id: pr.id,
@@ -217,9 +223,14 @@ export default function ActiveOrders() {
 
       const allOrders: ActiveOrderItem[] = [
         ...valuations
-          .filter((v) => v.status === 'pending' || v.status === 'approved')
+          .filter((v) => {
+            const status = v.status || 'pending'
+            // Exclude completed, rejected - these go to Order History (valuations don't have suspect/cancelled)
+            return status !== 'completed' && status !== 'rejected'
+          })
           .map(v => ({
             id: v.id || '',
+            orderId: v.orderId, // Custom Order ID for display
             type: 'valuation' as const,
             brand: v.brand,
             model: v.model,
@@ -232,7 +243,8 @@ export default function ActiveOrders() {
         ...pickupRequests
           .filter((pr) => {
             const status = pr.status || 'pending'
-            return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+            // Exclude completed, reject, suspect, cancelled - these go to Order History
+            return status !== 'completed' && status !== 'reject' && status !== 'suspect' && status !== 'cancelled'
           })
           .map(pr => ({
             id: pr.id,
@@ -296,9 +308,14 @@ export default function ActiveOrders() {
 
     const allOrders: ActiveOrderItem[] = [
       ...valuations
-        .filter((v) => v.status === 'pending' || v.status === 'approved')
+        .filter((v) => {
+          const status = v.status || 'pending'
+          // Exclude completed, rejected - these go to Order History (valuations don't have suspect/cancelled)
+          return status !== 'completed' && status !== 'rejected'
+        })
         .map(v => ({
           id: v.id || '',
+          orderId: v.orderId, // Custom Order ID for display
           type: 'valuation' as const,
           brand: v.brand,
           model: v.model,
@@ -311,7 +328,8 @@ export default function ActiveOrders() {
       ...pickupRequests
         .filter((pr) => {
           const status = pr.status || 'pending'
-          return status === 'pending' || status === 'confirmed' || status === 'hold' || status === 'verification'
+          // Exclude completed, reject, suspect, cancelled - these go to Order History
+          return status !== 'completed' && status !== 'reject' && status !== 'suspect' && status !== 'cancelled'
         })
         .map(pr => ({
           id: pr.id,
