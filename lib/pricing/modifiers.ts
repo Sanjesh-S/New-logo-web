@@ -67,6 +67,31 @@ export function calculatePrice(
   if (answers.trueTone && rules.questions.trueTone) {
     totalModifier += rules.questions.trueTone[answers.trueTone as 'yes' | 'no'] || 0
   }
+  // Samsung phone-specific questions
+  if (answers.fingerprintWorking && rules.questions.fingerprintWorking) {
+    totalModifier += rules.questions.fingerprintWorking[answers.fingerprintWorking as 'yes' | 'no'] || 0
+  }
+  if (answers.faceRecognitionWorking && rules.questions.faceRecognitionWorking) {
+    totalModifier += rules.questions.faceRecognitionWorking[answers.faceRecognitionWorking as 'yes' | 'no'] || 0
+  }
+  if (answers.display120Hz && rules.questions.display120Hz) {
+    totalModifier += rules.questions.display120Hz[answers.display120Hz as 'yes' | 'no'] || 0
+  }
+  if (answers.eyeComfortShield && rules.questions.eyeComfortShield) {
+    totalModifier += rules.questions.eyeComfortShield[answers.eyeComfortShield as 'yes' | 'no'] || 0
+  }
+  if (answers.sPenTipGood && rules.questions.sPenTipGood) {
+    totalModifier += rules.questions.sPenTipGood[answers.sPenTipGood as 'yes' | 'no'] || 0
+  }
+  if (answers.sPenWriting && rules.questions.sPenWriting) {
+    totalModifier += rules.questions.sPenWriting[answers.sPenWriting as 'yes' | 'no'] || 0
+  }
+  if (answers.sPenAirActions && rules.questions.sPenAirActions) {
+    totalModifier += rules.questions.sPenAirActions[answers.sPenAirActions as 'yes' | 'no'] || 0
+  }
+  if (answers.sPenCharging && rules.questions.sPenCharging) {
+    totalModifier += rules.questions.sPenCharging[answers.sPenCharging as 'yes' | 'no'] || 0
+  }
   if (answers.lensScratches && rules.questions.lensScratches) {
     totalModifier += rules.questions.lensScratches[answers.lensScratches as 'yes' | 'no'] || 0
   }
@@ -109,6 +134,10 @@ export function calculatePrice(
   // Phone condition ranges
   if (answers.batteryHealthRange && rules.batteryHealthRange) {
     totalModifier += rules.batteryHealthRange[answers.batteryHealthRange as keyof typeof rules.batteryHealthRange] || 0
+  }
+  // Samsung battery health (Normal/Good vs Action Required)
+  if (answers.batteryHealthSamsung && rules.batteryHealthSamsung) {
+    totalModifier += rules.batteryHealthSamsung[answers.batteryHealthSamsung as keyof typeof rules.batteryHealthSamsung] || 0
   }
   if (answers.cameraCondition && rules.cameraCondition) {
     totalModifier += rules.cameraCondition[answers.cameraCondition as keyof typeof rules.cameraCondition] || 0

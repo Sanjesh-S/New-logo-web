@@ -61,6 +61,14 @@ export interface Device {
   createdAt: Timestamp | Date
 }
 
+// Product variant (e.g. storage: 256 GB, 512 GB, 1 TB) – used for phones (iPhone, Samsung)
+export interface ProductVariant {
+  id: string
+  label: string
+  basePrice: number
+  internalBasePrice?: number
+}
+
 // Products used for listing (backed by `products` collection in Firestore)
 export interface Product {
   id: string
@@ -71,6 +79,7 @@ export interface Product {
   internalBasePrice?: number // Internal base price for calculations
   imageUrl?: string
   pricingRules?: PricingRules // Product-specific override rules
+  variants?: ProductVariant[] // Optional storage/variant options (phones)
 }
 
 export interface User {
@@ -409,6 +418,8 @@ export async function getProductsByBrand(
 
     const imageUrl = data.imageUrl ?? data.image
 
+    const variants = parseVariants(data.variants)
+
     return {
       id: docSnap.id,
       brand: data.brand,
@@ -416,6 +427,7 @@ export async function getProductsByBrand(
       modelName,
       basePrice,
       imageUrl,
+      variants,
     } as Product
   })
 
@@ -527,6 +539,8 @@ export async function getProductById(productId: string): Promise<Product | null>
 
   const pricingRules = data.pricingRules as PricingRules | undefined
 
+  const variants = parseVariants(data.variants)
+
   return {
     id: productSnap.id,
     brand: data.brand,
@@ -536,7 +550,24 @@ export async function getProductById(productId: string): Promise<Product | null>
     internalBasePrice,
     imageUrl,
     pricingRules,
+    variants,
   } as Product
+}
+
+function parseVariants(raw: unknown): ProductVariant[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const out: ProductVariant[] = []
+  for (const v of raw) {
+    if (v && typeof v === 'object' && typeof (v as any).id === 'string' && typeof (v as any).label === 'string' && typeof (v as any).basePrice === 'number') {
+      out.push({
+        id: (v as any).id,
+        label: (v as any).label,
+        basePrice: Number((v as any).basePrice),
+        internalBasePrice: typeof (v as any).internalBasePrice === 'number' ? (v as any).internalBasePrice : undefined,
+      })
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /**
@@ -619,6 +650,8 @@ export async function getAllProducts(): Promise<Product[]> {
 
     const pricingRules = data.pricingRules as PricingRules | undefined
 
+    const variants = parseVariants(data.variants)
+
     return {
       id: docSnap.id,
       brand: data.brand,
@@ -628,6 +661,7 @@ export async function getAllProducts(): Promise<Product[]> {
       internalBasePrice,
       imageUrl,
       pricingRules,
+      variants,
     } as Product
   })
 }
@@ -639,6 +673,7 @@ function mapDocToProduct(docSnap: QueryDocumentSnapshot): Product {
   const internalBasePrice = data.internalBasePrice ?? (basePrice * 0.5)
   const imageUrl = data.imageUrl ?? data.image
   const pricingRules = data.pricingRules as PricingRules | undefined
+  const variants = parseVariants(data.variants)
   return {
     id: docSnap.id,
     brand: data.brand,
@@ -648,6 +683,7 @@ function mapDocToProduct(docSnap: QueryDocumentSnapshot): Product {
     internalBasePrice,
     imageUrl,
     pricingRules,
+    variants,
   } as Product
 }
 

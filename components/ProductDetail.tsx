@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
-import { getProductById, type Product } from '@/lib/firebase/database'
+import { getProductById, type Product, type ProductVariant } from '@/lib/firebase/database'
 
 interface ProductDetailProps {
   productId: string
@@ -21,6 +21,7 @@ export default function ProductDetail({
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -34,6 +35,11 @@ export default function ProductDetail({
           return
         }
         setProduct(data)
+        if (data?.variants?.length) {
+          setSelectedVariantId(data.variants[0].id)
+        } else {
+          setSelectedVariantId(null)
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to load product')
       } finally {
@@ -77,13 +83,21 @@ export default function ProductDetail({
     )
   }
 
-  const displayPrice = product.basePrice.toLocaleString('en-IN', {
+  const hasVariants = product.variants && product.variants.length > 0
+  const selectedVariant: ProductVariant | undefined = hasVariants && selectedVariantId
+    ? product.variants!.find((v) => v.id === selectedVariantId)
+    : undefined
+  const effectivePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+
+  const displayPrice = effectivePrice.toLocaleString('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
   })
 
-  const assessmentUrl = `/assessment?id=${encodeURIComponent(product.id)}&category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}&model=${encodeURIComponent(product.modelName)}`
+  const assessmentUrl =
+    `/assessment?id=${encodeURIComponent(product.id)}&category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}&model=${encodeURIComponent(product.modelName)}` +
+    (selectedVariantId ? `&variantId=${encodeURIComponent(selectedVariantId)}` : '')
 
   return (
     <div className="min-h-screen bg-white pt-20 md:pt-24">
@@ -137,6 +151,31 @@ export default function ProductDetail({
                   {product.brand.charAt(0).toUpperCase() + product.brand.slice(1)} {product.category}
                 </p>
               </div>
+
+              {/* Variant Selection (Cashify-style) */}
+              {hasVariants && (
+                <div>
+                  <h3 className="text-sm font-semibold text-brand-blue-900 mb-3">Choose a variant</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {product.variants!.map((v) => (
+                      <motion.button
+                        key={v.id}
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedVariantId(v.id)}
+                        className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                          selectedVariantId === v.id
+                            ? 'border-brand-lime bg-brand-lime/20 text-brand-blue-900'
+                            : 'border-gray-200 bg-white text-brand-blue-900 hover:border-brand-lime'
+                        }`}
+                      >
+                        {v.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Price Section */}
               <div className="bg-gradient-to-br from-brand-blue-50 to-brand-lime-50 rounded-xl p-4 border border-brand-blue-100">

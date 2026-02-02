@@ -43,6 +43,8 @@ export const valuationSchema = z.object({
   estimatedValue: z.number().nonnegative().optional(),
   userId: z.string().optional().nullable(),
   productId: z.string().optional(),
+  variantId: z.string().optional(),
+  variantLabel: z.string().optional(),
   answers: z.record(z.string(), z.any()).optional(), // Assessment answers structure
   pickupAddress: z.string().optional(),
   userName: z.string().optional(),

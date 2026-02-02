@@ -336,18 +336,25 @@ export default function PricingCalculator() {
 
                 {/* Product Info */}
                 {selectedProduct && (
-                    <div className="mt-6 p-4 bg-gradient-to-r from-brand-blue-50 to-emerald-50 rounded-xl border border-brand-blue-100">
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div>
-                                <h4 className="font-bold text-gray-900">{selectedProduct.modelName}</h4>
-                                <p className="text-sm text-gray-600">{selectedProduct.brand} • {selectedProduct.category}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-sm text-gray-500">Internal Base Price</p>
-                                <p className="text-xl font-bold text-brand-blue-900">₹{(selectedProduct.internalBasePrice || selectedProduct.basePrice * 0.75).toLocaleString('en-IN')}</p>
+                    <>
+                        <div className="mt-6 p-4 bg-gradient-to-r from-brand-blue-50 to-emerald-50 rounded-xl border border-brand-blue-100">
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div>
+                                    <h4 className="font-bold text-gray-900">{selectedProduct.modelName}</h4>
+                                    <p className="text-sm text-gray-600">{selectedProduct.brand} • {selectedProduct.category}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-500">Internal Base Price</p>
+                                    <p className="text-xl font-bold text-brand-blue-900">₹{(selectedProduct.internalBasePrice || selectedProduct.basePrice * 0.75).toLocaleString('en-IN')}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                        {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                            <p className="mt-2 text-sm text-gray-500">
+                                This product has variants. Base prices are set in the Product form; modifiers below apply to all variants.
+                            </p>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -768,7 +775,7 @@ export default function PricingCalculator() {
                                 description="Deduct if device doesn't power on without charger"
                             />
                             <PricingInput
-                                label="Does the camera Function properly? (No)"
+                                label="Does the phone function properly? (No)"
                                 value={pricingRules.questions.cameraWorking?.no || 0}
                                 onChange={(v) => handleQuestionUpdate('cameraWorking', 'no', v)}
                                 description="Deduct if lenses, flash, or sensor have issues"

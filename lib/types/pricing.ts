@@ -26,6 +26,15 @@ export interface PricingRules {
         chargingWorking?: YesNoPrice
         // Tablet-specific questions
         batteryWorking?: YesNoPrice
+        // Samsung phone-specific questions
+        fingerprintWorking?: YesNoPrice
+        faceRecognitionWorking?: YesNoPrice
+        display120Hz?: YesNoPrice
+        eyeComfortShield?: YesNoPrice
+        sPenTipGood?: YesNoPrice
+        sPenWriting?: YesNoPrice
+        sPenAirActions?: YesNoPrice
+        sPenCharging?: YesNoPrice
         // Legacy fields for backward compatibility
         bodyDamage?: YesNoPrice
         lcdWorking?: YesNoPrice
@@ -47,9 +56,15 @@ export interface PricingRules {
         cracked: number
         // Phone display options
         goodWorking?: number
+        screenLine?: number
         minorCrack?: number
         majorDamage?: number
         notWorking?: number
+    }
+    // Samsung battery health (Normal/Good vs Action Required)
+    batteryHealthSamsung?: {
+        normalGood: number
+        actionRequired: number
     }
     bodyCondition: {
         excellent: number
@@ -131,6 +146,10 @@ export interface PricingRules {
         case: number
         bill: number
         warrantyCard: number
+        // Samsung accessories
+        superFastCharger?: number
+        sPen?: number
+        screenProtector?: number
     }
     age: {
         lessThan3Months: number
@@ -148,6 +167,7 @@ export interface PricingRules {
         cameraGood: number
         frontCameraNotWorking: number
         backCameraNotWorking: number
+        backCameraNotFocusing?: number
         bothCamerasNotWorking: number
     }
 }
@@ -195,6 +215,15 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         lensScratches: { yes: -1500, no: 0 },
         autofocusWorking: { yes: 0, no: -2500 },
         additionalLens: { yes: 1500, no: 0 },
+        // Samsung phone-specific
+        fingerprintWorking: { yes: 0, no: -1500 },
+        faceRecognitionWorking: { yes: 0, no: -1000 },
+        display120Hz: { yes: 0, no: -500 },
+        eyeComfortShield: { yes: 0, no: -300 },
+        sPenTipGood: { yes: 0, no: -800 },
+        sPenWriting: { yes: 0, no: -1500 },
+        sPenAirActions: { yes: 0, no: -500 },
+        sPenCharging: { yes: 0, no: -1000 },
     },
     lensCondition: {
         withoutLens: -2000,
@@ -209,9 +238,14 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         fair: -2500,
         cracked: -8000,
         goodWorking: 0,
+        screenLine: -500,
         minorCrack: -2000,
         majorDamage: -4000,
         notWorking: -6000,
+    },
+    batteryHealthSamsung: {
+        normalGood: 0,
+        actionRequired: -2000,
     },
     bodyCondition: {
         excellent: 0,
@@ -293,6 +327,9 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         case: 400,
         bill: 300,
         warrantyCard: 400,
+        superFastCharger: 500,
+        sPen: 800,
+        screenProtector: 200,
     },
     age: {
         lessThan3Months: 0,
@@ -309,6 +346,7 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         cameraGood: 0,
         frontCameraNotWorking: -1000,
         backCameraNotWorking: -2000,
+        backCameraNotFocusing: -1500,
         bothCamerasNotWorking: -4000,
     },
 }

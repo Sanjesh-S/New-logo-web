@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Product, updateProduct, createProduct } from '@/lib/firebase/database'
+import { Product, updateProduct, createProduct, type ProductVariant } from '@/lib/firebase/database'
+
+function variantIdFromLabel(label: string): string {
+  return label.replace(/\s+/g, '').toLowerCase().replace(/gb|tb/gi, (m) => m.toLowerCase())
+}
 
 interface ProductFormModalProps {
     product?: Product | null
@@ -38,7 +42,6 @@ export default function ProductFormModal({
     const [loading, setLoading] = useState(false)
     const isEditing = !!product
 
-    // Initial State
     const initialFormState = {
         brand: '',
         modelName: '',
@@ -46,6 +49,7 @@ export default function ProductFormModal({
         basePrice: 0,
         internalBasePrice: 0,
         imageUrl: '',
+        variants: [] as ProductVariant[],
     }
 
     const [formData, setFormData] = useState(initialFormState)
@@ -60,6 +64,7 @@ export default function ProductFormModal({
                 basePrice: product.basePrice || 0,
                 internalBasePrice: product.internalBasePrice || (product.basePrice * 0.75),
                 imageUrl: product.imageUrl || '',
+                variants: product.variants && product.variants.length > 0 ? [...product.variants] : [],
             })
         } else {
             setFormData(initialFormState)
@@ -73,13 +78,26 @@ export default function ProductFormModal({
         setLoading(true)
 
         try {
+            const validVariants = formData.variants.filter(v => v.label.trim() && v.basePrice > 0).map(v => ({
+                id: variantIdFromLabel(v.label) || v.id,
+                label: v.label.trim(),
+                basePrice: v.basePrice,
+                ...(v.internalBasePrice != null && v.internalBasePrice > 0 && { internalBasePrice: v.internalBasePrice }),
+            }))
+            const basePrice = validVariants.length > 0
+              ? Math.max(...validVariants.map(v => v.basePrice))
+              : Number(formData.basePrice)
+            const internalBasePrice = validVariants.length > 0
+              ? (validVariants[0].internalBasePrice ?? validVariants[0].basePrice * 0.5)
+              : Number(formData.internalBasePrice)
             const productData = {
                 brand: formData.brand,
                 modelName: formData.modelName,
                 category: formData.category,
-                basePrice: Number(formData.basePrice),
-                internalBasePrice: Number(formData.internalBasePrice),
+                basePrice,
+                internalBasePrice,
                 imageUrl: formData.imageUrl,
+                variants: validVariants.length > 0 ? validVariants : [],
             }
 
             if (isEditing && product) {
@@ -270,6 +288,79 @@ export default function ProductFormModal({
                                 Internal price auto-calculates to 75% of display price
                             </p>
                         </div>
+
+                        {/* Variants (Phone / iPad) */}
+                        {(formData.category === 'Phone' || formData.category === 'iPad') && (
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-100">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                    Variants (e.g. storage: 256 GB, 512 GB)
+                                </h3>
+                                <p className="text-xs text-gray-500 mb-3">
+                                    Add storage or other variants. Each variant has its own base price on the product page.
+                                </p>
+                                {formData.variants.map((v, index) => (
+                                    <div key={v.id} className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
+                                        <input
+                                            type="text"
+                                            value={v.label}
+                                            onChange={(e) => {
+                                                const label = e.target.value
+                                                const id = variantIdFromLabel(label) || v.id
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    variants: prev.variants.map((x, i) =>
+                                                        i === index ? { ...x, label, id } : x
+                                                    ),
+                                                }))
+                                            }}
+                                            placeholder="e.g. 256 GB"
+                                            className="flex-1 min-w-[80px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                                        />
+                                        <div className="relative flex-shrink-0">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                            <input
+                                                type="number"
+                                                value={v.basePrice}
+                                                onChange={(e) => setFormData(prev => ({
+                                                    ...prev,
+                                                    variants: prev.variants.map((x, i) =>
+                                                        i === index ? { ...x, basePrice: Number(e.target.value) || 0 } : x
+                                                    ),
+                                                }))}
+                                                placeholder="Price"
+                                                min="0"
+                                                className="w-24 pl-6 pr-2 py-2 border border-gray-200 rounded-lg text-sm"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                variants: prev.variants.filter((_, i) => i !== index),
+                                            }))}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg text-sm"
+                                            aria-label="Remove variant"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({
+                                        ...prev,
+                                        variants: [...prev.variants, {
+                                            id: `variant-${Date.now()}`,
+                                            label: '',
+                                            basePrice: 0,
+                                        }],
+                                    }))}
+                                    className="mt-2 px-3 py-2 text-sm font-medium text-brand-blue-700 bg-brand-blue-50 rounded-lg hover:bg-brand-blue-100"
+                                >
+                                    + Add variant
+                                </button>
+                            </div>
+                        )}
 
                         {/* Image URL */}
                         <div>

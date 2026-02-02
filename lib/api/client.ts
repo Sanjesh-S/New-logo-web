@@ -113,6 +113,8 @@ export async function createValuation(data: {
   estimatedValue?: number
   userId?: string
   productId?: string
+  variantId?: string
+  variantLabel?: string
   answers?: Record<string, unknown>
   pickupAddress?: string
   userName?: string

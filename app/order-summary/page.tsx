@@ -22,6 +22,7 @@ function OrderSummaryContent() {
   const brand = searchParams.get('brand')
   const model = searchParams.get('model')
   const category = searchParams.get('category')
+  const variantLabel = searchParams.get('variantLabel')
   
   const [copied, setCopied] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
@@ -176,9 +177,10 @@ function OrderSummaryContent() {
 
   // Use product data if available, otherwise use URL params or pickup request as fallback
   const productBrand = product?.brand || brand || ''
-  const productModel = orderType === 'pickup' && pickupRequest?.productName 
-    ? pickupRequest.productName 
+  const baseModel = orderType === 'pickup' && pickupRequest?.productName
+    ? pickupRequest.productName
     : product?.modelName || model || ''
+  const productModel = variantLabel ? `${baseModel} – ${variantLabel}` : baseModel
   const productCategory = product?.category || category || ''
   const productImage = product?.imageUrl
 

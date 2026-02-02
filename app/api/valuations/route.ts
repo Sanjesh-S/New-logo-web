@@ -155,6 +155,8 @@ export async function POST(request: NextRequest) {
       ...(body.pincode && { pincode: body.pincode }),
       // Store full assessment answers for admin and reporting
       ...(body.answers && typeof body.answers === 'object' && { answers: body.answers }),
+      ...(body.variantId && { variantId: body.variantId }),
+      ...(body.variantLabel && { variantLabel: body.variantLabel }),
     }
     
     // Use setDoc with custom Order ID instead of addDoc

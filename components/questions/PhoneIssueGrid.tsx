@@ -6,9 +6,10 @@ import { Volume2, Plug, CheckCircle, Wifi, Mic, Circle, Hand, WifiOff, Droplets,
 interface PhoneIssueGridProps {
   value?: string[]
   onChange: (value: string[]) => void
+  variant?: 'default' | 'samsung'
 }
 
-const phoneIssues = [
+const defaultPhoneIssues = [
   { id: 'microphoneIssue', label: 'Microphone not working', icon: Mic },
   { id: 'speakerIssue', label: 'Speaker not working', icon: Volume2 },
   { id: 'chargingPortIssue', label: 'Charging port issue', icon: Plug },
@@ -22,7 +23,19 @@ const phoneIssues = [
   { id: 'noIssues', label: '✓ No Functional Issues', icon: CheckCircle },
 ]
 
-export default function PhoneIssueGrid({ value = [], onChange }: PhoneIssueGridProps) {
+const samsungPhoneIssues = [
+  { id: 'microphoneIssue', label: 'Microphone / Speaker issues', icon: Mic },
+  { id: 'chargingPortIssue', label: 'Charging port / Wireless Charging issues', icon: Plug },
+  { id: 'touchScreenIssue', label: 'Touch screen unresponsive', icon: Hand },
+  { id: 'wifiIssue', label: 'WIFI / Bluetooth / NFC issues', icon: Wifi },
+  { id: 'buttonIssue', label: 'Buttons (Power/Volume)', icon: Circle },
+  { id: 'frameDamageIssue', label: 'Frame / Body / Water damage', icon: Smartphone },
+  { id: 'networkIssue', label: 'Network / SIM card issue', icon: WifiOff },
+  { id: 'noIssues', label: '✓ No Functional Issues', icon: CheckCircle },
+]
+
+export default function PhoneIssueGrid({ value = [], onChange, variant = 'default' }: PhoneIssueGridProps) {
+  const phoneIssues = variant === 'samsung' ? samsungPhoneIssues : defaultPhoneIssues
   const handleToggle = (issueId: string) => {
     if (issueId === 'noIssues') {
       onChange(['noIssues'])

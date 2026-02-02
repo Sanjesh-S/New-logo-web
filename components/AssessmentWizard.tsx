@@ -26,6 +26,7 @@ import LaptopAccessoryGrid from './questions/LaptopAccessoryGrid'
 import TabletAccessoryGrid from './questions/TabletAccessoryGrid'
 import AgeQuestion from './questions/AgeQuestion'
 import LensSelection from './questions/LensSelection'
+import SamsungDeviceConditionStep from './SamsungDeviceConditionStep'
 import AssessmentOTPModal from './AssessmentOTPModal'
 import OrderConfirmation, { type AddressData } from './OrderConfirmation'
 
@@ -34,6 +35,7 @@ interface AssessmentWizardProps {
   category: string
   brand: string
   model: string
+  variantId?: string
 }
 
 interface Step {
@@ -48,6 +50,7 @@ export default function AssessmentWizard({
   category,
   brand,
   model,
+  variantId,
 }: AssessmentWizardProps) {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
@@ -102,7 +105,12 @@ export default function AssessmentWizard({
         }
 
         setPricingRules(rulesToUse)
-        const internalBasePrice = productData.internalBasePrice || productData.basePrice * 0.5
+        const selectedVariant = productData.variants && variantId
+          ? productData.variants.find((v) => v.id === variantId)
+          : undefined
+        const internalBasePrice = selectedVariant
+          ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
+          : (productData.internalBasePrice || productData.basePrice * 0.5)
         setCalculatedPrice(internalBasePrice)
       } catch (err: any) {
         setError(err.message || 'Failed to load data')
@@ -114,16 +122,21 @@ export default function AssessmentWizard({
     if (productId) {
       loadData()
     }
-  }, [productId])
+  }, [productId, variantId])
 
-  // Recalculate price when answers change
+  // Recalculate price when answers change (use variant price when variantId set)
   useEffect(() => {
     if (product) {
-      const internalBasePrice = product.internalBasePrice || product.basePrice * 0.5
+      const selectedVariant = product.variants && variantId
+        ? product.variants.find((v) => v.id === variantId)
+        : undefined
+      const internalBasePrice = selectedVariant
+        ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
+        : (product.internalBasePrice || product.basePrice * 0.5)
       const newPrice = calculatePrice(internalBasePrice, answers, pricingRules)
       setCalculatedPrice(newPrice)
     }
-  }, [answers, product, pricingRules])
+  }, [answers, product, pricingRules, variantId])
 
   // Reset step and answers when category changes
   useEffect(() => {
@@ -168,11 +181,13 @@ export default function AssessmentWizard({
         brand: brand || product.brand,
         model: model || product.modelName,
         productId: product.id,
-        basePrice: product.basePrice,
-        internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
+        basePrice: displayPrice,
+        internalBasePrice,
         estimatedValue: calculatedPrice,
         answers,
         userId: user?.uid || undefined,
+        ...(variantId && { variantId }),
+        ...(selectedVariant && { variantLabel: selectedVariant.label }),
         // Include address data if provided
         ...(addressData && {
           pickupAddress: `${addressData.address}, ${addressData.landmark ? addressData.landmark + ', ' : ''}${addressData.city}, ${addressData.state} - ${addressData.pincode}`,
@@ -182,27 +197,19 @@ export default function AssessmentWizard({
       })
 
       if (data.success) {
-        // Calculate deductions for summary
-        const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
-        const deductions = calculatedPrice - internalBase
-        
-        // Redirect to order summary page with price breakdown and product info
-        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-        router.push(`/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
+        const deductions = calculatedPrice - internalBasePrice
+        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
+        router.push(`/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
       } else {
-        // Fallback: redirect even if there's an error (graceful degradation)
-        const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
-        const deductions = calculatedPrice - internalBase
-        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-        router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
+        const deductions = calculatedPrice - internalBasePrice
+        const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
+        router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
       }
     } catch (error) {
       console.error('Error submitting assessment:', error)
-      // Graceful fallback: redirect to order summary even on error
-      const internalBase = product.internalBasePrice || (product.basePrice ? product.basePrice * 0.5 : 0)
-      const deductions = calculatedPrice - internalBase
-      const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
+      const deductions = calculatedPrice - internalBasePrice
+      const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
     }
   }
 
@@ -246,11 +253,13 @@ export default function AssessmentWizard({
         brand: brand || product.brand,
         model: model || product.modelName,
         productId: product.id,
-        basePrice: product.basePrice,
-        internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
+        basePrice: displayPrice,
+        internalBasePrice,
         estimatedValue: calculatedPrice,
         answers,
         userId: user?.uid || undefined,
+        ...(variantId && { variantId }),
+        ...(selectedVariant && { variantLabel: selectedVariant.label }),
       })
 
       if (data.success && data.id) {
@@ -267,22 +276,14 @@ export default function AssessmentWizard({
   }
 
   const handleOrderConfirm = async (addressData: AddressData) => {
-    // After pickup is confirmed, redirect to order summary
     if (!product) return
-    
-    const internalBase = product.internalBasePrice || product.basePrice * 0.5
-    const deductions = calculatedPrice - internalBase
-    const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}`
-    
-    // Use the custom Order ID from the pickup request (generated with correct pincode)
-    // This is the authoritative Order ID that matches the customer's location
+    const deductions = calculatedPrice - internalBasePrice
+    const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
     const orderId = addressData.orderId || valuationId
-    
     if (orderId) {
-      router.push(`/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
+      router.push(`/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
     } else {
-      // Fallback: redirect without order ID
-      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBase}&deductions=${deductions}&${productParams}`)
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
     }
   }
 
@@ -312,8 +313,13 @@ export default function AssessmentWizard({
     )
   }
 
-  const internalBasePrice = product.internalBasePrice || product.basePrice * 0.5
-  const displayPrice = product.basePrice
+  const selectedVariant = product.variants && variantId
+    ? product.variants.find((v) => v.id === variantId)
+    : undefined
+  const internalBasePrice = selectedVariant
+    ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
+    : (product.internalBasePrice || product.basePrice * 0.5)
+  const displayPrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
 
   // Fixed lens camera detection
   const FIXED_LENS_KEYWORDS = [
@@ -326,15 +332,23 @@ export default function AssessmentWizard({
     return FIXED_LENS_KEYWORDS.some(keyword => modelLower.includes(keyword))
   }
 
-  // Get category-specific steps
+  // Samsung Ultra/Note models have S Pen – show S Pen questions only for these
+  const isSamsungSPenModel = (modelName: string): boolean => {
+    const m = (modelName || '').toLowerCase()
+    return m.includes('note') || m.includes('ultra')
+  }
+
+  // Get category-specific steps (branch phones by brand: Apple → iPhone flow, Samsung → Samsung flow)
   const getSteps = (): Step[] => {
     // Prioritize URL category parameter over product category
     const urlCategory = category?.toLowerCase()?.trim()
     const productCategory = product?.category?.toLowerCase()?.trim()
     const cat = urlCategory || productCategory || 'cameras'
+    const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
 
     // Handle variations in category names - check for phone/iphone first
     if (cat.includes('phone') || cat.includes('iphone')) {
+      if (brandNorm.includes('samsung')) return getSamsungPhoneSteps()
       return getPhoneSteps()
     } else if (cat.includes('laptop')) {
       return getLaptopSteps()
@@ -497,8 +511,8 @@ export default function AssessmentWizard({
             onChange={(value) => handleAnswer('powerOn', value)}
           />
           <YesNoQuestion
-            question="Does the camera Function properly?"
-            helperText="Test all lenses for clear focus, working flash, and no dark spots on the sensor"
+            question="Does the phone function properly?"
+            helperText="Ensure the device is fully responsive without lag"
             questionId="cameraWorking"
             value={answers.cameraWorking as string}
             onChange={(value) => handleAnswer('cameraWorking', value)}
@@ -568,6 +582,76 @@ export default function AssessmentWizard({
         <PhoneAccessoryGrid
           value={answers.accessories as string[]}
           onChange={(value) => handleAnswer('accessories', value)}
+        />
+      ),
+    },
+    {
+      id: 'age',
+      title: 'Device Age',
+      component: (
+        <AgeQuestion
+          value={answers.age as string}
+          onChange={(value) => handleAnswer('age', value)}
+        />
+      ),
+    },
+  ]
+
+  const getSamsungPhoneSteps = (): Step[] => [
+    {
+      id: 'basic-functionality',
+      title: 'Basic Functionality',
+      component: (
+        <div className="space-y-6">
+          <YesNoQuestion
+            question="Does the phone Power on?"
+            helperText="Verify the device power on without being plugged in to the charger"
+            questionId="powerOn"
+            value={answers.powerOn as string}
+            onChange={(value) => handleAnswer('powerOn', value)}
+          />
+          <YesNoQuestion
+            question="Does the camera Function properly?"
+            helperText="Test all lenses for clear focus, working flash, and no dark spots on the sensor"
+            questionId="cameraWorking"
+            value={answers.cameraWorking as string}
+            onChange={(value) => handleAnswer('cameraWorking', value)}
+          />
+        </div>
+      ),
+      required: true,
+    },
+    {
+      id: 'condition',
+      title: 'Device Condition',
+      component: (
+        <SamsungDeviceConditionStep
+          answers={answers}
+          onChange={handleAnswer}
+          showSPen={isSamsungSPenModel(model)}
+        />
+      ),
+      required: true,
+    },
+    {
+      id: 'functional-issues',
+      title: 'Functional Issues',
+      component: (
+        <PhoneIssueGrid
+          value={answers.functionalIssues as string[]}
+          onChange={(value) => handleAnswer('functionalIssues', value)}
+          variant="samsung"
+        />
+      ),
+    },
+    {
+      id: 'accessories',
+      title: 'Accessories',
+      component: (
+        <PhoneAccessoryGrid
+          value={answers.accessories as string[]}
+          onChange={(value) => handleAnswer('accessories', value)}
+          variant="samsung"
         />
       ),
     },
@@ -791,6 +875,10 @@ export default function AssessmentWizard({
             answers.speakerWorking
           return basicAnswers
         } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
+          const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
+          if (brandNorm.includes('samsung')) {
+            return answers.powerOn && answers.cameraWorking
+          }
           const imeiValid = !validateImei((answers.imeiNumber as string) || '')
           const serialValid = !validateSerial((answers.serialNumber as string) || '')
           return answers.powerOn && answers.cameraWorking && answers.biometricWorking && answers.trueTone && imeiValid && serialValid
@@ -809,6 +897,31 @@ export default function AssessmentWizard({
             answers.rubberGripsCondition &&
             answers.sensorViewfinderCondition &&
             answers.errorCodesCondition
+        }
+      }
+      // Check if Samsung device condition step is complete
+      if (step.id === 'condition') {
+        const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+        const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
+        if ((cat.includes('phone') || cat.includes('iphone')) && brandNorm.includes('samsung')) {
+          const conditionBase =
+            answers.displayCondition &&
+            answers.batteryHealthSamsung &&
+            answers.fingerprintWorking &&
+            answers.faceRecognitionWorking &&
+            answers.display120Hz &&
+            answers.eyeComfortShield &&
+            answers.cameraCondition
+          if (!conditionBase) return false
+          if (isSamsungSPenModel(model)) {
+            return (
+              answers.sPenTipGood &&
+              answers.sPenWriting &&
+              answers.sPenAirActions &&
+              answers.sPenCharging
+            )
+          }
+          return true
         }
       }
     }

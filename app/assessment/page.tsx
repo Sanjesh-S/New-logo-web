@@ -11,6 +11,7 @@ function AssessmentContent() {
   const category = searchParams.get('category') || ''
   const brand = searchParams.get('brand') || ''
   const model = searchParams.get('model') || ''
+  const variantId = searchParams.get('variantId') || ''
 
   if (!productId) {
     return (
@@ -33,6 +34,7 @@ function AssessmentContent() {
       category={category}
       brand={brand}
       model={model}
+      variantId={variantId || undefined}
     />
   )
 }
