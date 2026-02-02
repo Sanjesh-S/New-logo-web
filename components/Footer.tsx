@@ -39,7 +39,7 @@ export default function Footer() {
                             <img
                                 src={getAssetPath("/images/worthyten-logo-footer.png")}
                                 alt="WorthyTen"
-                                className="h-20 w-auto object-contain"
+                                className="h-32 w-auto object-contain max-w-[280px]"
                             />
                         </Link>
                         <p className="text-gray-600 text-sm leading-relaxed mb-4">
@@ -178,8 +178,8 @@ export default function Footer() {
                             <li className="flex items-start gap-3">
                                 <Phone className="w-4 h-4 mt-0.5 text-brand-blue-900 flex-shrink-0" />
                                 <div>
-                                    <a href="tel:+919843010705" className="text-brand-blue-900 hover:text-brand-blue-700 transition-colors text-sm font-semibold">
-                                        9843010705
+                                    <a href="tel:+919843010746" className="text-brand-blue-900 hover:text-brand-blue-700 transition-colors text-sm font-semibold">
+                                        9843010746
                                     </a>
                                     <p className="text-gray-500 text-xs mt-1">10AM - 6PM (Mon-Fri)</p>
                                 </div>
@@ -193,7 +193,7 @@ export default function Footer() {
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-4 h-4 mt-0.5 text-brand-blue-900 flex-shrink-0" />
                                 <span className="text-gray-700 text-sm">
-                                    Avinashi Rd, opp. to SMS HOTEL, Peelamedu, Masakalipalayam, Coimbatore, Tamil Nadu 641004
+                                    Peelamedu, Coimbatore, Tamil Nadu 641004
                                 </span>
                             </li>
                         </ul>

@@ -109,6 +109,7 @@ export async function createValuation(req: Request, res: Response): Promise<void
       ...(body.userPhone && { userPhone: body.userPhone }),
       ...(state && { state }),
       ...(pincode && { pincode }),
+      ...(answers && typeof answers === 'object' && Object.keys(answers).length > 0 && { answers }),
     }
 
     // Use auto-generated document ID

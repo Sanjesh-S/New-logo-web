@@ -153,6 +153,8 @@ export async function POST(request: NextRequest) {
       ...(body.userPhone && { userPhone: body.userPhone }),
       ...(body.state && { state: body.state }),
       ...(body.pincode && { pincode: body.pincode }),
+      // Store full assessment answers for admin and reporting
+      ...(body.answers && typeof body.answers === 'object' && { answers: body.answers }),
     }
     
     // Use setDoc with custom Order ID instead of addDoc
@@ -217,8 +219,15 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json()
-    
+    // Validate request size (same as POST)
+    const { body, error: bodyError } = await getRequestBody(request)
+    if (bodyError) {
+      return NextResponse.json(
+        { error: bodyError },
+        { status: 413 }
+      )
+    }
+
     // Validate request body
     const validation = validateSchema(valuationUpdateSchema, body)
     if (!validation.isValid) {

@@ -12,8 +12,10 @@ interface OrderConfirmationProps {
   productName: string
   phoneNumber: string
   valuationId?: string
-  category?: string  // For order ID generation (cameras, phones, laptops, tablets)
-  brand?: string     // For order ID generation (Apple, Samsung, Canon, etc.)
+  category?: string
+  brand?: string
+  /** Assessment answers to store with pickup request for admin view */
+  assessmentAnswers?: Record<string, unknown>
   onConfirm: (addressData: AddressData) => void
   onClose: () => void
 }
@@ -40,6 +42,7 @@ export default function OrderConfirmation({
   valuationId,
   category = 'cameras',
   brand = '',
+  assessmentAnswers,
   onConfirm,
   onClose,
 }: OrderConfirmationProps) {
@@ -312,9 +315,9 @@ export default function OrderConfirmation({
     let countdownFinished = false
     let apiFinished = false
     
-    // Function to redirect once both countdown and API are done
+    // Function to redirect once both countdown and API are done (only on success)
     const tryRedirect = () => {
-      if (countdownFinished && apiFinished) {
+      if (countdownFinished && apiFinished && customOrderId !== undefined) {
         onConfirm({
           ...formData,
           pickupDate: selectedDate,
@@ -356,18 +359,22 @@ export default function OrderConfirmation({
         pickupTime: formData.pickupTime || '',
         userId: user?.uid || null,
         valuationId: valuationId || null,
-        category: category,  // For custom order ID generation
-        brand: brand,        // For custom order ID generation
+        category,
+        brand,
+        assessmentAnswers: assessmentAnswers && Object.keys(assessmentAnswers).length > 0 ? assessmentAnswers : undefined,
       })
 
       if (result.success && result.id) {
         customOrderId = result.id
-        // Pickup request created successfully
       } else {
-        // API Error occurred
+        clearInterval(countdownInterval)
+        setShowSuccess(false)
+        setErrors({ address: 'Failed to create pickup request. Please try again.' })
       }
     } catch (error: unknown) {
-      // Error confirming pickup
+      clearInterval(countdownInterval)
+      setShowSuccess(false)
+      setErrors({ address: 'Could not submit pickup request. Please check your connection and try again.' })
     } finally {
       apiFinished = true
       tryRedirect()

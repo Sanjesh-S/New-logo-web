@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAllProducts, getAllPickupRequests, updatePickupRequest, getUserValuationsLegacy, type Product, type PickupRequest, type Valuation } from '@/lib/firebase/database'
+import { subscribeToProducts, subscribeToPickupRequests, updatePickupRequest, type Product, type PickupRequest } from '@/lib/firebase/database'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard'
+import AssessmentViewModal from '@/components/admin/AssessmentViewModal'
 
 // Icons
 const PackageIcon = () => (
@@ -60,77 +61,70 @@ export default function AdminProductsPage() {
     const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'rescheduled' | 'cancelled' | 'analytics'>('products')
     const [products, setProducts] = useState<Product[]>([])
     const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([])
-    const [rescheduledRequests, setRescheduledRequests] = useState<PickupRequest[]>([])
-    const [cancelledRequests, setCancelledRequests] = useState<PickupRequest[]>([])
     const [loading, setLoading] = useState(true)
-    const [pickupLoading, setPickupLoading] = useState(false)
-    const [rescheduledLoading, setRescheduledLoading] = useState(false)
-    const [cancelledLoading, setCancelledLoading] = useState(false)
+    const [pickupReady, setPickupReady] = useState(false)
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+    const [liveIndicator, setLiveIndicator] = useState(true)
+    const [assessmentModalRequest, setAssessmentModalRequest] = useState<PickupRequest | null>(null)
 
-    // Filters
+    // Filters (Product List)
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All')
 
-    const fetchProducts = async () => {
-        try {
-            setLoading(true)
-            const data = await getAllProducts()
-            setProducts(data)
-        } catch (error) {
-            console.error('Error fetching products:', error)
-            alert('Failed to load products')
-        } finally {
-            setLoading(false)
-        }
-    }
+    // Filters (Pickup Requests / Rescheduled / Cancelled)
+    const [pickupStatusFilter, setPickupStatusFilter] = useState<string>('All')
+    const [pickupSearchTerm, setPickupSearchTerm] = useState('')
 
-    const fetchPickupRequests = async () => {
-        try {
-            setPickupLoading(true)
-            const data = await getAllPickupRequests()
-            
-            // Filter out cancelled requests (they show in the Cancelled Orders tab)
-            const activeRequests = data.filter(request => request.status !== 'cancelled')
-            
-            // Try to link pickup requests to valuations if valuationId is missing
-            const requestsWithValuationId = await Promise.all(
-                activeRequests.map(async (request) => {
-                    if (request.valuationId) {
-                        return request
-                    }
-                    
-                    try {
-                        const customerPhone = request.customer?.phone?.replace(/\D/g, '') || request.userPhone?.replace(/\D/g, '') || ''
-                        if (customerPhone.length === 10) {
-                            // Simplified matching - return as-is for now
-                        }
-                    } catch (error) {
-                        console.warn('Error trying to match valuation:', error)
-                    }
-                    
-                    return request
-                })
-            )
-            
-            setPickupRequests(requestsWithValuationId)
-        } catch (error) {
-            console.error('Error fetching pickup requests:', error)
-            alert('Failed to load pickup requests')
-        } finally {
-            setPickupLoading(false)
-        }
-    }
+    // Real-time: active pickup requests (exclude cancelled; used for stats and Pickup tab)
+    const activePickupRequests = pickupRequests.filter((r) => r.status !== 'cancelled')
+    const rescheduledRequests = pickupRequests.filter((r) => r.rescheduled === true && r.status !== 'cancelled')
+    const cancelledRequests = pickupRequests.filter((r) => r.status === 'cancelled')
+
+    // Sort rescheduled by rescheduledAt (newest first)
+    const rescheduledSorted = [...rescheduledRequests].sort((a, b) => {
+        const aDate = a.rescheduledAt instanceof Date ? a.rescheduledAt.getTime() : (a.rescheduledAt as any)?.toDate?.()?.getTime() || 0
+        const bDate = b.rescheduledAt instanceof Date ? b.rescheduledAt.getTime() : (b.rescheduledAt as any)?.toDate?.()?.getTime() || 0
+        return bDate - aDate
+    })
+
+    // Real-time subscription: products (updates Total Products and list instantly)
+    useEffect(() => {
+        const unsubscribe = subscribeToProducts((data) => {
+            setProducts(data)
+            setLoading(false)
+        })
+        return () => unsubscribe()
+    }, [])
+
+    // Real-time subscription: pickup requests (updates Pending, Active Pickups, Completed, tab counts instantly)
+    useEffect(() => {
+        const unsubscribe = subscribeToPickupRequests((data) => {
+            setPickupRequests(data)
+            setPickupReady(true)
+        })
+        return () => unsubscribe()
+    }, [])
+
+    // Optional: pulse "Live" indicator every few seconds to show real-time is active
+    useEffect(() => {
+        const t = setInterval(() => setLiveIndicator((v) => !v), 2000)
+        return () => clearInterval(t)
+    }, [])
+
+    // Prevent scroll jumping on refresh: scroll to top and disable browser scroll restoration on this page
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        window.history.scrollRestoration = 'manual'
+        window.scrollTo(0, 0)
+    }, [])
 
     const handleStatusChange = async (requestId: string, newStatus: string) => {
         try {
-            console.log('Updating status in Firebase:', requestId, newStatus)
             await updatePickupRequest(requestId, { status: newStatus as any })
-            console.log('Status updated successfully in Firebase')
-            await fetchPickupRequests()
+            // State updates automatically via real-time subscription
         } catch (error) {
-            console.error('Error updating status in Firebase:', error)
+            console.error('Error updating status:', error)
             alert('Failed to update status: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
@@ -138,71 +132,33 @@ export default function AdminProductsPage() {
     const handleRemarksChange = async (requestId: string, remarks: string) => {
         try {
             await updatePickupRequest(requestId, { remarks })
-            await fetchPickupRequests()
+            // State updates automatically via real-time subscription
         } catch (error) {
             console.error('Error updating remarks:', error)
             alert('Failed to update remarks')
         }
     }
 
-    const fetchRescheduledRequests = async () => {
-        try {
-            setRescheduledLoading(true)
-            const data = await getAllPickupRequests()
-            // Filter for rescheduled requests that are not cancelled
-            const rescheduled = data.filter(request => request.rescheduled === true && request.status !== 'cancelled')
-            // Sort by rescheduledAt date (newest first)
-            rescheduled.sort((a, b) => {
-                const aDate = a.rescheduledAt instanceof Date 
-                    ? a.rescheduledAt.getTime() 
-                    : (a.rescheduledAt as any)?.toDate?.()?.getTime() || 0
-                const bDate = b.rescheduledAt instanceof Date 
-                    ? b.rescheduledAt.getTime() 
-                    : (b.rescheduledAt as any)?.toDate?.()?.getTime() || 0
-                return bDate - aDate
-            })
-            setRescheduledRequests(rescheduled)
-        } catch (error) {
-            console.error('Error fetching rescheduled requests:', error)
-            alert('Failed to load rescheduled orders')
-        } finally {
-            setRescheduledLoading(false)
-        }
-    }
-
-    const fetchCancelledRequests = async () => {
-        try {
-            setCancelledLoading(true)
-            const data = await getAllPickupRequests()
-            const cancelled = data.filter(request => request.status === 'cancelled')
-            setCancelledRequests(cancelled)
-        } catch (error) {
-            console.error('Error fetching cancelled requests:', error)
-            alert('Failed to load cancelled orders')
-        } finally {
-            setCancelledLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchProducts()
-    }, [])
-
-    useEffect(() => {
-        if (activeTab === 'pickup') {
-            fetchPickupRequests()
-        } else if (activeTab === 'rescheduled') {
-            fetchRescheduledRequests()
-        } else if (activeTab === 'cancelled') {
-            fetchCancelledRequests()
-        }
-    }, [activeTab])
-
     const filteredProducts = products.filter((product) => {
         const matchesSearch = product.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.brand.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory
         return matchesSearch && matchesCategory
+    })
+
+    // Filter pickup requests by status and search (Order ID, product, customer name/phone/email)
+    const filteredActivePickupRequests = activePickupRequests.filter((request) => {
+        const status = request.status || 'pending'
+        const matchesStatus = pickupStatusFilter === 'All' || status === pickupStatusFilter
+        if (!matchesStatus) return false
+        const q = pickupSearchTerm.trim().toLowerCase()
+        if (!q) return true
+        const orderId = (request.orderId || request.valuationId || request.id || '').toLowerCase()
+        const productName = (request.productName || request.device?.productName || '').toLowerCase()
+        const customerName = (request.customer?.name || request.userName || '').toLowerCase()
+        const customerPhone = (request.customer?.phone || request.userPhone || '').toLowerCase()
+        const customerEmail = (request.customer?.email || request.userEmail || '').toLowerCase()
+        return orderId.includes(q) || productName.includes(q) || customerName.includes(q) || customerPhone.includes(q) || customerEmail.includes(q)
     })
 
     const handleEdit = (product: Product) => {
@@ -223,18 +179,16 @@ export default function AdminProductsPage() {
     // Get unique categories for filter
     const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).sort()]
 
-    // Calculate stats
-    const pendingPickups = pickupRequests.filter(r => r.status === 'pending').length
-    const completedPickups = pickupRequests.filter(r => r.status === 'completed').length
+    // Stats from real-time data (update instantly when new requests arrive)
+    const pendingPickups = activePickupRequests.filter((r) => r.status === 'pending').length
+    const completedPickups = activePickupRequests.filter((r) => r.status === 'completed').length
     const totalProducts = products.length
-
-    const rescheduledCount = rescheduledRequests.length
 
     const tabs = [
         { id: 'products' as const, label: 'Product List', icon: PackageIcon, count: totalProducts },
         { id: 'calculator' as const, label: 'Price Calculator', icon: CalculatorIcon },
-        { id: 'pickup' as const, label: 'Pickup Requests', icon: TruckIcon, count: pickupRequests.length, highlight: pendingPickups > 0 },
-        { id: 'rescheduled' as const, label: 'Rescheduled', icon: CalendarIcon, count: rescheduledCount, warning: rescheduledCount > 0 },
+        { id: 'pickup' as const, label: 'Pickup Requests', icon: TruckIcon, count: activePickupRequests.length, highlight: pendingPickups > 0 },
+        { id: 'rescheduled' as const, label: 'Rescheduled', icon: CalendarIcon, count: rescheduledSorted.length, warning: rescheduledSorted.length > 0 },
         { id: 'cancelled' as const, label: 'Cancelled Orders', icon: XCircleIcon, count: cancelledRequests.length, danger: true },
         { id: 'analytics' as const, label: 'Analytics', icon: ChartIcon },
     ]
@@ -269,8 +223,14 @@ export default function AdminProductsPage() {
             <div className="bg-gradient-to-r from-brand-blue-900 via-brand-blue-800 to-brand-blue-700 rounded-2xl p-6 shadow-lg">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-white">Products Management</h1>
-                        <p className="text-brand-blue-200 mt-1">Manage your inventory, pricing, and pickup requests</p>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl md:text-3xl font-bold text-white">Products Management</h1>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-semibold">
+                                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${liveIndicator ? 'animate-pulse' : ''}`} />
+                                Live
+                            </span>
+                        </div>
+                        <p className="text-brand-blue-200 mt-1">Manage your inventory, pricing, and pickup requests — updates instantly</p>
                     </div>
                     {activeTab === 'products' && (
                         <button
@@ -283,18 +243,9 @@ export default function AdminProductsPage() {
                             Add Product
                         </button>
                     )}
-                    {activeTab === 'pickup' && (
-                        <button
-                            onClick={fetchPickupRequests}
-                            className="inline-flex items-center gap-2 bg-white/10 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all duration-200 font-medium border border-white/20"
-                        >
-                            <RefreshIcon />
-                            Refresh
-                        </button>
-                    )}
                 </div>
 
-                {/* Quick Stats */}
+                {/* Quick Stats — update in real time when new requests arrive */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                         <p className="text-brand-blue-200 text-sm">Total Products</p>
@@ -302,7 +253,7 @@ export default function AdminProductsPage() {
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                         <p className="text-brand-blue-200 text-sm">Active Pickups</p>
-                        <p className="text-2xl font-bold text-white mt-1">{pickupRequests.length}</p>
+                        <p className="text-2xl font-bold text-white mt-1">{activePickupRequests.length}</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                         <p className="text-brand-blue-200 text-sm">Pending</p>
@@ -470,37 +421,73 @@ export default function AdminProductsPage() {
                         isOpen={isFormOpen}
                         product={editingProduct}
                         onClose={handleCloseModal}
-                        onProductSaved={fetchProducts}
+                        onProductSaved={() => {}}
                     />
                 </div>
             )}
 
             {activeTab === 'calculator' && <PricingCalculator />}
 
-            {/* Pickup Requests Tab */}
+            {/* Pickup Requests Tab — real-time list */}
             {activeTab === 'pickup' && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    {pickupLoading ? (
+                <div className="space-y-4">
+                    {/* Pickup filters */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="flex-1 relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <SearchIcon />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search by Order ID, product, customer name, phone or email..."
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none transition-all"
+                                    value={pickupSearchTerm}
+                                    onChange={(e) => setPickupSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full sm:w-48">
+                                <select
+                                    value={pickupStatusFilter}
+                                    onChange={(e) => setPickupStatusFilter(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none bg-white transition-all"
+                                >
+                                    <option value="All">All statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="hold">Hold</option>
+                                    <option value="verification">Verification</option>
+                                    <option value="reject">Reject</option>
+                                    <option value="suspect">Suspect</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    {!pickupReady ? (
                         <div className="flex flex-col justify-center items-center py-20">
                             <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-blue-200 border-t-brand-blue-600"></div>
-                            <p className="mt-4 text-gray-500 text-sm">Loading pickup requests...</p>
+                            <p className="mt-4 text-gray-500 text-sm">Connecting to live updates...</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Request ID</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Order ID</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Product</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Customer</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Pickup Date</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Assessment</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {pickupRequests.map((request) => {
+                                    {filteredActivePickupRequests.map((request) => {
                                         const createdAt = request.createdAt instanceof Date 
                                             ? request.createdAt 
                                             : (request.createdAt as any)?.toDate?.() || new Date()
@@ -516,23 +503,30 @@ export default function AdminProductsPage() {
                                         const pincode = request.customer?.pincode || ''
                                         const pickupDate = request.pickupDate ? new Date(request.pickupDate) : null
                                         const status = request.status || 'pending'
-                                        const orderId = request.valuationId || request.id
-                                        const hasOrderId = !!request.valuationId
                                         const statusConfig = getStatusConfig(status)
+
+                                        // Prefer custom Order ID (TN/state format); fallback to Firebase doc id
+                                        const isCustomOrderId = (id: string | null | undefined) =>
+                                            id && /^[A-Z]{2}\d/.test(id)
+                                        const displayOrderId =
+                                            request.orderId ||
+                                            (isCustomOrderId(request.valuationId) ? request.valuationId : null) ||
+                                            request.id
+                                        const isLegacy = !request.orderId && !isCustomOrderId(request.valuationId)
 
                                         return (
                                             <tr key={request.id} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="space-y-1">
-                                                        <div className={`text-sm font-mono ${hasOrderId ? 'text-gray-900 font-semibold' : 'text-gray-600'}`}>
-                                                            {orderId?.substring(0, 16)}...
+                                                        <div className={`text-sm font-mono ${isLegacy ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+                                                            {displayOrderId}
                                                         </div>
-                                                        {!hasOrderId && (
+                                                        {isLegacy && (
                                                             <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                                                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                                                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                                                 </svg>
-                                                                Legacy
+                                                                Legacy (Firebase ID)
                                                             </span>
                                                         )}
                                                         <div className="text-xs text-gray-400">
@@ -603,6 +597,20 @@ export default function AdminProductsPage() {
                                                     </select>
                                                 </td>
                                                 <td className="px-6 py-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAssessmentModalRequest(request)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-blue-600 hover:text-brand-blue-700 hover:bg-brand-blue-50 rounded-lg transition-all border border-brand-blue-200"
+                                                    >
+                                                        <ChartIcon />
+                                                        {(request.assessmentAnswers && Object.keys(request.assessmentAnswers).length > 0) ||
+                                                        (request.device?.assessmentAnswers && Object.keys(request.device.assessmentAnswers).length > 0) ||
+                                                        (!!request.valuationId && String(request.valuationId).trim() !== '')
+                                                            ? 'View assessment'
+                                                            : 'No data'}
+                                                    </button>
+                                                </td>
+                                                <td className="px-6 py-4">
                                                     <textarea
                                                         defaultValue={request.remarks || ''}
                                                         onBlur={(e) => handleRemarksChange(request.id, e.target.value)}
@@ -614,15 +622,23 @@ export default function AdminProductsPage() {
                                             </tr>
                                         )
                                     })}
-                                    {pickupRequests.length === 0 && (
+                                    {filteredActivePickupRequests.length === 0 && (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-16 text-center">
+                                            <td colSpan={8} className="px-6 py-16 text-center">
                                                 <div className="flex flex-col items-center">
                                                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                                         <TruckIcon />
                                                     </div>
-                                                    <p className="text-gray-500 font-medium">No pickup requests found</p>
-                                                    <p className="text-gray-400 text-sm mt-1">New requests will appear here</p>
+                                                    <p className="text-gray-500 font-medium">
+                                                        {pickupSearchTerm.trim() || pickupStatusFilter !== 'All'
+                                                            ? 'No requests match your filters'
+                                                            : 'No pickup requests'}
+                                                    </p>
+                                                    <p className="text-gray-400 text-sm mt-1">
+                                                        {pickupSearchTerm.trim() || pickupStatusFilter !== 'All'
+                                                            ? 'Try changing search or status filter'
+                                                            : 'New requests appear here instantly'}
+                                                    </p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -631,56 +647,41 @@ export default function AdminProductsPage() {
                             </table>
                         </div>
                     )}
+                    </div>
                 </div>
             )}
 
-            {/* Rescheduled Orders Tab */}
+            {/* Rescheduled Orders Tab — real-time */}
             {activeTab === 'rescheduled' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    {/* Header */}
                     <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                                    <CalendarIcon />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-semibold text-orange-800">Rescheduled Orders</h2>
-                                    <p className="text-sm text-orange-600">Orders that have been rescheduled by customers</p>
-                                </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                                <CalendarIcon />
                             </div>
-                            <button
-                                onClick={fetchRescheduledRequests}
-                                className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-200 transition-all duration-200 font-medium text-sm"
-                            >
-                                <RefreshIcon />
-                                Refresh
-                            </button>
+                            <div>
+                                <h2 className="text-lg font-semibold text-orange-800">Rescheduled Orders</h2>
+                                <p className="text-sm text-orange-600">Updates in real time</p>
+                            </div>
                         </div>
                     </div>
 
-                    {rescheduledLoading ? (
-                        <div className="flex flex-col justify-center items-center py-20">
-                            <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-200 border-t-orange-600"></div>
-                            <p className="mt-4 text-gray-500 text-sm">Loading rescheduled orders...</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Request ID</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Product</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Customer</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Previous Pickup</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">New Pickup</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Rescheduled On</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {rescheduledRequests.map((request) => {
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-gray-50 border-b border-gray-100">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Order ID</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Product</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Customer</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Previous Pickup</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">New Pickup</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Rescheduled On</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {rescheduledSorted.map((request) => {
                                         const customerName = request.customer?.name || request.userName || 'N/A'
                                         const customerPhone = request.customer?.phone || request.userPhone || 'N/A'
                                         const customerEmail = request.customer?.email || request.userEmail || 'N/A'
@@ -694,16 +695,21 @@ export default function AdminProductsPage() {
                                                 : (request.rescheduledAt as any)?.toDate?.() || new Date())
                                             : null
                                         const status = request.status || 'pending'
-                                        const orderId = request.valuationId || request.id
                                         const statusConfig = getStatusConfig(status)
+                                        const isCustomOrderIdResched = (id: string | null | undefined) => id && /^[A-Z]{2}\d/.test(id)
+                                        const displayOrderIdResched = request.orderId || (isCustomOrderIdResched(request.valuationId) ? request.valuationId : null) || request.id
+                                        const isLegacyResched = !request.orderId && !isCustomOrderIdResched(request.valuationId)
 
                                         return (
                                             <tr key={request.id} className="hover:bg-orange-50/30 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="space-y-1">
-                                                        <div className="text-sm font-mono text-gray-700">
-                                                            {orderId?.substring(0, 16)}...
+                                                        <div className={`text-sm font-mono ${isLegacyResched ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+                                                            {displayOrderIdResched}
                                                         </div>
+                                                        {isLegacyResched && (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Legacy</span>
+                                                        )}
                                                         <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
                                                             <CalendarIcon />
                                                             Rescheduled
@@ -800,32 +806,30 @@ export default function AdminProductsPage() {
                                             </tr>
                                         )
                                     })}
-                                    {rescheduledRequests.length === 0 && (
-                                        <tr>
-                                            <td colSpan={8} className="px-6 py-16 text-center">
-                                                <div className="flex flex-col items-center">
-                                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    </div>
-                                                    <p className="text-gray-500 font-medium">No rescheduled orders</p>
-                                                    <p className="text-gray-400 text-sm mt-1">All orders are on their original schedule</p>
+                                {rescheduledSorted.length === 0 && (
+                                    <tr>
+                                        <td colSpan={8} className="px-6 py-16 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                                                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                                <p className="text-gray-500 font-medium">No rescheduled orders</p>
+                                                <p className="text-gray-400 text-sm mt-1">All orders are on their original schedule</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
-            {/* Cancelled Orders Tab */}
+            {/* Cancelled Orders Tab — real-time */}
             {activeTab === 'cancelled' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    {/* Header */}
                     <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-red-50 to-rose-50">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -833,22 +837,16 @@ export default function AdminProductsPage() {
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-red-800">Cancelled Orders</h2>
-                                <p className="text-sm text-red-600">Orders that have been cancelled by customers</p>
+                                <p className="text-sm text-red-600">Updates in real time</p>
                             </div>
                         </div>
                     </div>
 
-                    {cancelledLoading ? (
-                        <div className="flex flex-col justify-center items-center py-20">
-                            <div className="animate-spin rounded-full h-10 w-10 border-4 border-red-200 border-t-red-600"></div>
-                            <p className="mt-4 text-gray-500 text-sm">Loading cancelled orders...</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
+                    <div className="overflow-x-auto">
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order ID</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Order ID</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
@@ -865,13 +863,20 @@ export default function AdminProductsPage() {
                                         const cancelledDate = request.updatedAt 
                                             ? (request.updatedAt as any).toDate?.() || new Date(request.updatedAt as any)
                                             : null
-                                        const orderId = request.valuationId || request.id
+                                        const isCustomOrderIdCanc = (id: string | null | undefined) => id && /^[A-Z]{2}\d/.test(id)
+                                        const displayOrderIdCanc = request.orderId || (isCustomOrderIdCanc(request.valuationId) ? request.valuationId : null) || request.id
+                                        const isLegacyCanc = !request.orderId && !isCustomOrderIdCanc(request.valuationId)
 
                                         return (
                                             <tr key={request.id} className="hover:bg-red-50/30 transition-colors">
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm font-mono text-gray-700">
-                                                        {orderId?.substring(0, 16)}...
+                                                    <div className="space-y-1">
+                                                        <div className={`text-sm font-mono ${isLegacyCanc ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+                                                            {displayOrderIdCanc}
+                                                        </div>
+                                                        {isLegacyCanc && (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Legacy</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -940,13 +945,33 @@ export default function AdminProductsPage() {
                                     )}
                                 </tbody>
                             </table>
-                        </div>
-                    )}
+                    </div>
                 </div>
             )}
 
             {/* Analytics Tab */}
             {activeTab === 'analytics' && <AnalyticsDashboard />}
+
+            {/* Assessment view modal */}
+            <AssessmentViewModal
+                isOpen={!!assessmentModalRequest}
+                onClose={() => setAssessmentModalRequest(null)}
+                assessmentAnswers={
+                    assessmentModalRequest?.assessmentAnswers ||
+                    (assessmentModalRequest?.device?.assessmentAnswers as Record<string, unknown> | undefined)
+                }
+                valuationId={assessmentModalRequest?.valuationId ?? undefined}
+                orderId={
+                    assessmentModalRequest
+                        ? (assessmentModalRequest.orderId ||
+                            (/^[A-Z]{2}\d/.test(assessmentModalRequest.valuationId || '')
+                                ? assessmentModalRequest.valuationId || undefined
+                                : undefined) ||
+                            assessmentModalRequest.id)
+                        : undefined
+                }
+                productName={assessmentModalRequest?.productName || assessmentModalRequest?.device?.productName}
+            />
         </div>
     )
 }

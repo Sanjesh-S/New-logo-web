@@ -1,4 +1,4 @@
-import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 
 export type AnswerMap = Record<string, string | string[]> & {
   hasAdditionalLens?: string // yes/no
@@ -20,13 +20,12 @@ export type AnswerMap = Record<string, string | string[]> & {
 export function calculatePrice(
   internalBasePrice: number,
   answers: AnswerMap,
-  rules: PricingRules = DEFAULT_PRICING_RULES
+  rules: PricingRules = ZERO_PRICING_RULES
 ): number {
   let totalModifier = 0
 
-  // Basic Functionality Questions (Yes/No) - Camera questions
-  // All pricing values should come from Firebase (product-specific or global rules)
-  // DEFAULT_PRICING_RULES is only used as a last-resort fallback
+  // All pricing values come from Firebase (Admin Pricing Calculator: per-product or global)
+  // ZERO_PRICING_RULES used only when no rules passed (e.g. default param)
   if (answers.powerOn && rules.questions.powerOn) {
     totalModifier += rules.questions.powerOn[answers.powerOn as 'yes' | 'no'] || 0
   }
@@ -55,6 +54,18 @@ export function calculatePrice(
   }
   if (answers.lcdWorking && rules.questions.lcdWorking) {
     totalModifier += rules.questions.lcdWorking[answers.lcdWorking as 'yes' | 'no'] || 0
+  }
+  if (answers.batteryHealth && rules.questions.batteryHealth) {
+    totalModifier += rules.questions.batteryHealth[answers.batteryHealth as 'yes' | 'no'] || 0
+  }
+  if (answers.biometricWorking && rules.questions.biometricWorking) {
+    totalModifier += rules.questions.biometricWorking[answers.biometricWorking as 'yes' | 'no'] || 0
+  }
+  if (answers.cameraWorking && rules.questions.cameraWorking) {
+    totalModifier += rules.questions.cameraWorking[answers.cameraWorking as 'yes' | 'no'] || 0
+  }
+  if (answers.trueTone && rules.questions.trueTone) {
+    totalModifier += rules.questions.trueTone[answers.trueTone as 'yes' | 'no'] || 0
   }
   if (answers.lensScratches && rules.questions.lensScratches) {
     totalModifier += rules.questions.lensScratches[answers.lensScratches as 'yes' | 'no'] || 0
@@ -93,6 +104,14 @@ export function calculatePrice(
 
   if (answers.errorCondition) {
     totalModifier += rules.errorCondition[answers.errorCondition as keyof typeof rules.errorCondition] || 0
+  }
+
+  // Phone condition ranges
+  if (answers.batteryHealthRange && rules.batteryHealthRange) {
+    totalModifier += rules.batteryHealthRange[answers.batteryHealthRange as keyof typeof rules.batteryHealthRange] || 0
+  }
+  if (answers.cameraCondition && rules.cameraCondition) {
+    totalModifier += rules.cameraCondition[answers.cameraCondition as keyof typeof rules.cameraCondition] || 0
   }
 
   // New Body Conditions (Camera-specific)

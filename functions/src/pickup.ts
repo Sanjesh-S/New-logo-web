@@ -52,7 +52,7 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
       return
     }
 
-    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId } = validation.data!
+    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId, assessmentAnswers } = validation.data!
     
     // Extract category and brand from productName for order ID generation
     // Default to 'cameras' if not determinable
@@ -96,6 +96,9 @@ export async function createPickupRequest(req: Request, res: Response): Promise<
       valuationId: valuationId || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'pending',
+    }
+    if (assessmentAnswers && typeof assessmentAnswers === 'object' && Object.keys(assessmentAnswers).length > 0) {
+      pickupData.assessmentAnswers = assessmentAnswers
     }
 
     // Add custom order ID if generated

@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Battery, Volume2, Plug, MousePointer2, CheckCircle, Wifi, Camera, Mic, UserCircle, Circle, Hand } from 'lucide-react'
+import { Volume2, Plug, CheckCircle, Wifi, Mic, Circle, Hand, WifiOff, Droplets, Box, Smartphone } from 'lucide-react'
 
 interface PhoneIssueGridProps {
   value?: string[]
@@ -9,15 +9,16 @@ interface PhoneIssueGridProps {
 }
 
 const phoneIssues = [
-  { id: 'batteryIssue', label: 'Battery drains fast', icon: Battery },
-  { id: 'speakerIssue', label: 'Speaker not working', icon: Volume2 },
   { id: 'microphoneIssue', label: 'Microphone not working', icon: Mic },
+  { id: 'speakerIssue', label: 'Speaker not working', icon: Volume2 },
   { id: 'chargingPortIssue', label: 'Charging port issue', icon: Plug },
-  { id: 'cameraIssue', label: 'Camera not working', icon: Camera },
   { id: 'touchScreenIssue', label: 'Touch screen unresponsive', icon: Hand },
   { id: 'wifiIssue', label: 'WiFi / Bluetooth issue', icon: Wifi },
-  { id: 'faceIdTouchIdIssue', label: 'Face ID / Touch ID not working', icon: UserCircle },
   { id: 'buttonIssue', label: 'Buttons not working', icon: Circle },
+  { id: 'frameDamageIssue', label: 'Frame damage', icon: Smartphone },
+  { id: 'bodyDamageIssue', label: 'Body damage', icon: Box },
+  { id: 'waterDamageIssue', label: 'Water damage', icon: Droplets },
+  { id: 'networkIssue', label: 'Network issue', icon: WifiOff },
   { id: 'noIssues', label: '✓ No Functional Issues', icon: CheckCircle },
 ]
 

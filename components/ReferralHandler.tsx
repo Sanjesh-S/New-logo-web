@@ -35,11 +35,14 @@ export default function ReferralHandler() {
       })
 
       if (response.ok) {
-        // Remove from localStorage after successful application
         localStorage.removeItem('pendingReferralCode')
       }
+      // 404 = API not available (e.g. static export); keep pending code for when server is used
     } catch (error) {
-      console.error('Error applying referral code:', error)
+      // Silently ignore network/404 so app works on static export; referral will apply when server is available
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.warn('Referral API unavailable (e.g. static export). Code kept in localStorage.', error)
+      }
     }
   }
 

@@ -54,6 +54,8 @@ const config: Config = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'gradient-brand': 'linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #f7fee7 100%)',
+        'gradient-brand-accent': 'linear-gradient(135deg, #3b82f6 0%, #84cc16 100%)',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',

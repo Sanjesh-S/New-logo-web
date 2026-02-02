@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.errors!)
     }
     
-    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId } = validation.data!
+    const { productName, price, customer, pickupDate, pickupTime, userId, valuationId, assessmentAnswers } = validation.data!
 
     logger.info('Creating pickup request', { 
       productName, 
@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       pickupTime,
       userId: userId || null,
       valuationId: valuationId || null,
+      ...(assessmentAnswers && typeof assessmentAnswers === 'object' && Object.keys(assessmentAnswers).length > 0 && { assessmentAnswers }),
       createdAt: Timestamp.now(),
       status: 'pending',
     })

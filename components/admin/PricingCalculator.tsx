@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getAllProducts, type Product, getPricingRules, saveProductPricingRules, getProductById, saveProductPricingToCollection, getProductPricingFromCollection } from '@/lib/firebase/database'
-import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { getAllProducts, type Product, getPricingRules, savePricingRules, saveProductPricingRules, getProductById, saveProductPricingToCollection, getProductPricingFromCollection } from '@/lib/firebase/database'
+import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { getCurrentUser } from '@/lib/firebase/auth'
 
 // Icons
@@ -94,7 +94,7 @@ export default function PricingCalculator() {
     const [selectedCategory, setSelectedCategory] = useState<string>('All')
     const [selectedBrand, setSelectedBrand] = useState<string>('All')
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-    const [pricingRules, setPricingRules] = useState<PricingRules>(DEFAULT_PRICING_RULES)
+    const [pricingRules, setPricingRules] = useState<PricingRules>(ZERO_PRICING_RULES)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -121,6 +121,7 @@ export default function PricingCalculator() {
                     setPricingRules(globalRules)
                 } catch (error) {
                     console.error('Error loading global rules:', error)
+                    setPricingRules(ZERO_PRICING_RULES)
                 }
                 return
             }
@@ -142,10 +143,10 @@ export default function PricingCalculator() {
             } catch (error) {
                 console.error('Error loading product rules:', error)
                 try {
-                    const globalRules = await getPricingRules()
-                    setPricingRules(globalRules)
+                    setPricingRules(await getPricingRules())
                 } catch (e) {
                     console.error('Error loading global rules:', e)
+                    setPricingRules(ZERO_PRICING_RULES)
                 }
             }
         }
@@ -189,22 +190,19 @@ export default function PricingCalculator() {
     }
 
     const handleSave = async () => {
-        if (!selectedProduct) {
-            setSaveMessage({ type: 'error', text: 'Please select a product first' })
-            setTimeout(() => setSaveMessage(null), 3000)
-            return
-        }
-
         setSaving(true)
         setSaveMessage(null)
         try {
-            const currentUser = getCurrentUser()
-            const updatedBy = currentUser?.email || 'admin'
-
-            await saveProductPricingRules(selectedProduct.id, pricingRules)
-            await saveProductPricingToCollection(selectedProduct.id, selectedProduct, pricingRules, updatedBy)
-
-            setSaveMessage({ type: 'success', text: `Pricing rules saved for ${selectedProduct.modelName}!` })
+            if (!selectedProduct) {
+                await savePricingRules(pricingRules)
+                setSaveMessage({ type: 'success', text: 'Global default pricing rules saved. Products without their own rules will use these.' })
+            } else {
+                const currentUser = getCurrentUser()
+                const updatedBy = currentUser?.email || 'admin'
+                await saveProductPricingRules(selectedProduct.id, pricingRules)
+                await saveProductPricingToCollection(selectedProduct.id, selectedProduct, pricingRules, updatedBy)
+                setSaveMessage({ type: 'success', text: `Pricing rules saved for ${selectedProduct.modelName}!` })
+            }
             setTimeout(() => setSaveMessage(null), 3000)
         } catch (error) {
             console.error('Error saving pricing rules:', error)
@@ -253,11 +251,15 @@ export default function PricingCalculator() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-white">Product Pricing Calculator</h2>
-                        <p className="text-emerald-100 mt-1">Configure deductions for each assessment question and option</p>
+                        <p className="text-emerald-100 mt-1">
+                            {selectedProduct
+                                ? `Configure per-question prices for ${selectedProduct.modelName}. Client price = internal base + modifiers from selected options.`
+                                : 'All prices are loaded from Firebase. Set global default here, or select a product to set per-product rules.'}
+                        </p>
                     </div>
                     <button
                         onClick={handleSave}
-                        disabled={saving || !selectedProduct}
+                        disabled={saving}
                         className="inline-flex items-center gap-2 bg-white text-emerald-700 px-5 py-2.5 rounded-xl hover:bg-emerald-50 transition-all duration-200 font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {saving ? (
@@ -271,7 +273,7 @@ export default function PricingCalculator() {
                         ) : (
                             <>
                                 <SaveIcon />
-                                Save Changes
+                                {selectedProduct ? 'Save for this product' : 'Save as global default'}
                             </>
                         )}
                     </button>
@@ -357,9 +359,50 @@ export default function PricingCalculator() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                     </div>
-                    <p className="text-gray-500 font-medium">Select a product to configure pricing rules</p>
-                    <p className="text-gray-400 text-sm mt-1">Choose a category, brand, and product above</p>
+                    <p className="text-gray-500 font-medium">Edit global default pricing or select a product for per-product rules</p>
+                    <p className="text-gray-400 text-sm mt-1">Edit the sections below and click &quot;Save as global default&quot;. Products without their own rules will use these. Or select a product to set question-wise prices for that product only.</p>
                 </div>
+            )}
+
+            {/* Global default sections when no product selected */}
+            {!selectedProduct && (
+                <>
+                    <CollapsibleSection title="Global default – Basic questions" description="Used when a product has no rules. Set modifier (₹) for each option." badge="Global" badgeColor="bg-gray-200 text-gray-800" defaultOpen={true}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PricingInput label="Power on? (No)" value={pricingRules.questions.powerOn?.no || 0} onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)} />
+                            <PricingInput label="Camera/Function? (No)" value={pricingRules.questions.cameraFunction?.no || 0} onChange={(v) => handleQuestionUpdate('cameraFunction', 'no', v)} />
+                            <PricingInput label="Buttons working? (No)" value={pricingRules.questions.buttonsWorking?.no || 0} onChange={(v) => handleQuestionUpdate('buttonsWorking', 'no', v)} />
+                            <PricingInput label="Water damage? (No)" value={pricingRules.questions.waterDamage?.no || 0} onChange={(v) => handleQuestionUpdate('waterDamage', 'no', v)} />
+                            <PricingInput label="Flash working? (No)" value={pricingRules.questions.flashWorking?.no || 0} onChange={(v) => handleQuestionUpdate('flashWorking', 'no', v)} />
+                            <PricingInput label="Memory card slot? (No)" value={pricingRules.questions.memoryCardSlotWorking?.no || 0} onChange={(v) => handleQuestionUpdate('memoryCardSlotWorking', 'no', v)} />
+                            <PricingInput label="Speaker working? (No)" value={pricingRules.questions.speakerWorking?.no || 0} onChange={(v) => handleQuestionUpdate('speakerWorking', 'no', v)} />
+                        </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Global default – Body & display" badge="Global" badgeColor="bg-gray-200 text-gray-800">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Body: Excellent" value={pricingRules.bodyCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'excellent', v)} />
+                            <PricingInput label="Body: Good" value={pricingRules.bodyCondition?.good || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'good', v)} />
+                            <PricingInput label="Body: Fair" value={pricingRules.bodyCondition?.fair || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'fair', v)} />
+                            <PricingInput label="Body: Poor" value={pricingRules.bodyCondition?.poor || 0} onChange={(v) => handleConditionUpdate('bodyCondition', 'poor', v)} />
+                            <PricingInput label="Display: Excellent" value={pricingRules.displayCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'excellent', v)} />
+                            <PricingInput label="Display: Good" value={pricingRules.displayCondition?.good || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'good', v)} />
+                            <PricingInput label="Display: Fair" value={pricingRules.displayCondition?.fair || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'fair', v)} />
+                            <PricingInput label="Display: Cracked" value={pricingRules.displayCondition?.cracked || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'cracked', v)} />
+                        </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Global default – Accessories & age" badge="Global" badgeColor="bg-gray-200 text-gray-800">
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <PricingInput label="Battery" value={pricingRules.accessories?.battery || 0} onChange={(v) => handleConditionUpdate('accessories', 'battery', v)} />
+                            <PricingInput label="Charger" value={pricingRules.accessories?.charger || 0} onChange={(v) => handleConditionUpdate('accessories', 'charger', v)} />
+                            <PricingInput label="Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
+                            <PricingInput label="Bill" value={pricingRules.accessories?.bill || 0} onChange={(v) => handleConditionUpdate('accessories', 'bill', v)} />
+                            <PricingInput label="Warranty Card" value={pricingRules.accessories?.warrantyCard || 0} onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)} />
+                            <PricingInput label="Age: &lt;3 months" value={pricingRules.age?.lessThan3Months || 0} onChange={(v) => handleConditionUpdate('age', 'lessThan3Months', v)} />
+                            <PricingInput label="Age: 4–12 months" value={pricingRules.age?.fourToTwelveMonths || 0} onChange={(v) => handleConditionUpdate('age', 'fourToTwelveMonths', v)} />
+                            <PricingInput label="Age: &gt;12 months" value={pricingRules.age?.aboveTwelveMonths || 0} onChange={(v) => handleConditionUpdate('age', 'aboveTwelveMonths', v)} />
+                        </div>
+                    </CollapsibleSection>
+                </>
             )}
 
             {/* Camera Pricing Sections */}
@@ -468,7 +511,7 @@ export default function PricingCalculator() {
                                 label="Poor"
                                 value={pricingRules.lcdDisplayCondition?.poor || 0}
                                 onChange={(v) => handleConditionUpdate('lcdDisplayCondition', 'poor', v)}
-                                description="Cracked screen, dead pixels, or discoloration"
+                                description="Cracked screen or vintage"
                             />
                         </div>
                     </CollapsibleSection>
@@ -495,7 +538,7 @@ export default function PricingCalculator() {
                                 label="Poor"
                                 value={pricingRules.rubberGripsCondition?.poor || 0}
                                 onChange={(v) => handleConditionUpdate('rubberGripsCondition', 'poor', v)}
-                                description="Handgrip rubber is loose, sticky, or expanding"
+                                description="Handgrip rubber is loose or missing"
                             />
                         </div>
                     </CollapsibleSection>
@@ -719,49 +762,56 @@ export default function PricingCalculator() {
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <PricingInput
-                                label="Phone powers on? (No)"
+                                label="Does the phone Power on? (No)"
                                 value={pricingRules.questions.powerOn?.no || 0}
                                 onChange={(v) => handleQuestionUpdate('powerOn', 'no', v)}
+                                description="Deduct if device doesn't power on without charger"
                             />
                             <PricingInput
-                                label="Screen working without cracks? (No)"
-                                value={pricingRules.questions.lcdWorking?.no || 0}
-                                onChange={(v) => handleQuestionUpdate('lcdWorking', 'no', v)}
-                            />
-                            <PricingInput
-                                label="Body free from major damage? (No)"
-                                value={pricingRules.questions.bodyDamage?.no || 0}
-                                onChange={(v) => handleQuestionUpdate('bodyDamage', 'no', v)}
-                            />
-                            <PricingInput
-                                label="Battery health above 80%? (No)"
-                                value={pricingRules.questions.batteryHealth?.no || 0}
-                                onChange={(v) => handleQuestionUpdate('batteryHealth', 'no', v)}
-                            />
-                            <PricingInput
-                                label="Face ID / Touch ID working? (No)"
-                                value={pricingRules.questions.biometricWorking?.no || 0}
-                                onChange={(v) => handleQuestionUpdate('biometricWorking', 'no', v)}
-                            />
-                            <PricingInput
-                                label="All cameras working? (No)"
+                                label="Does the camera Function properly? (No)"
                                 value={pricingRules.questions.cameraWorking?.no || 0}
                                 onChange={(v) => handleQuestionUpdate('cameraWorking', 'no', v)}
+                                description="Deduct if lenses, flash, or sensor have issues"
                             />
                             <PricingInput
-                                label="Free from water damage? (No)"
-                                value={pricingRules.questions.waterDamage?.no || 0}
-                                onChange={(v) => handleQuestionUpdate('waterDamage', 'no', v)}
+                                label="Face ID working properly? (No)"
+                                value={pricingRules.questions.biometricWorking?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('biometricWorking', 'no', v)}
+                                description="Deduct if Face ID shows Hardware Issue"
+                            />
+                            <PricingInput
+                                label="True Tone available in Control Center? (No)"
+                                value={pricingRules.questions.trueTone?.no || 0}
+                                onChange={(v) => handleQuestionUpdate('trueTone', 'no', v)}
+                                description="Deduct if True Tone not available (brightness slider)"
                             />
                         </div>
                     </CollapsibleSection>
 
-                    <CollapsibleSection title="Display Condition" description="Screen/Display physical condition">
+                    <CollapsibleSection title="Display Condition" description="Screen/Display physical condition (phone options)">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <PricingInput label="Excellent" value={pricingRules.displayCondition?.excellent || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'excellent', v)} />
-                            <PricingInput label="Good" value={pricingRules.displayCondition?.good || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'good', v)} />
-                            <PricingInput label="Fair" value={pricingRules.displayCondition?.fair || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'fair', v)} />
-                            <PricingInput label="Cracked" value={pricingRules.displayCondition?.cracked || 0} onChange={(v) => handleConditionUpdate('displayCondition', 'cracked', v)} />
+                            <PricingInput label="Good Working" value={pricingRules.displayCondition?.goodWorking ?? pricingRules.displayCondition?.good ?? 0} onChange={(v) => handleConditionUpdate('displayCondition', 'goodWorking', v)} />
+                            <PricingInput label="Minor crack" value={pricingRules.displayCondition?.minorCrack ?? pricingRules.displayCondition?.fair ?? 0} onChange={(v) => handleConditionUpdate('displayCondition', 'minorCrack', v)} />
+                            <PricingInput label="Major damage" value={pricingRules.displayCondition?.majorDamage ?? 0} onChange={(v) => handleConditionUpdate('displayCondition', 'majorDamage', v)} />
+                            <PricingInput label="Not Working" value={pricingRules.displayCondition?.notWorking ?? pricingRules.displayCondition?.cracked ?? 0} onChange={(v) => handleConditionUpdate('displayCondition', 'notWorking', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Battery health" description="Phone battery health range">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="90% above" value={pricingRules.batteryHealthRange?.battery90Above ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery90Above', v)} />
+                            <PricingInput label="80% to 90%" value={pricingRules.batteryHealthRange?.battery80to90 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery80to90', v)} />
+                            <PricingInput label="50% to 80%" value={pricingRules.batteryHealthRange?.battery50to80 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery50to80', v)} />
+                            <PricingInput label="Below 50%" value={pricingRules.batteryHealthRange?.batteryBelow50 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'batteryBelow50', v)} />
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Camera condition" description="Phone camera condition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <PricingInput label="Good Condition" value={pricingRules.cameraCondition?.cameraGood ?? 0} onChange={(v) => handleConditionUpdate('cameraCondition', 'cameraGood', v)} />
+                            <PricingInput label="Front camera not working" value={pricingRules.cameraCondition?.frontCameraNotWorking ?? 0} onChange={(v) => handleConditionUpdate('cameraCondition', 'frontCameraNotWorking', v)} />
+                            <PricingInput label="Back camera not working" value={pricingRules.cameraCondition?.backCameraNotWorking ?? 0} onChange={(v) => handleConditionUpdate('cameraCondition', 'backCameraNotWorking', v)} />
+                            <PricingInput label="Both not working" value={pricingRules.cameraCondition?.bothCamerasNotWorking ?? 0} onChange={(v) => handleConditionUpdate('cameraCondition', 'bothCamerasNotWorking', v)} />
                         </div>
                     </CollapsibleSection>
 
@@ -790,9 +840,10 @@ export default function PricingCalculator() {
                     <CollapsibleSection title="Accessories (Bonus)" badge="Bonus" badgeColor="bg-green-100 text-green-700">
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                             <PricingInput label="Original Charger" value={pricingRules.accessories?.charger || 0} onChange={(v) => handleConditionUpdate('accessories', 'charger', v)} />
-                            <PricingInput label="Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
-                            <PricingInput label="Bill" value={pricingRules.accessories?.bill || 0} onChange={(v) => handleConditionUpdate('accessories', 'bill', v)} />
-                            <PricingInput label="Warranty Card" value={pricingRules.accessories?.warrantyCard || 0} onChange={(v) => handleConditionUpdate('accessories', 'warrantyCard', v)} />
+                            <PricingInput label="Original Box" value={pricingRules.accessories?.box || 0} onChange={(v) => handleConditionUpdate('accessories', 'box', v)} />
+                            <PricingInput label="Original Cable" value={pricingRules.accessories?.cable || 0} onChange={(v) => handleConditionUpdate('accessories', 'cable', v)} />
+                            <PricingInput label="Original manual" value={pricingRules.accessories?.manual || 0} onChange={(v) => handleConditionUpdate('accessories', 'manual', v)} />
+                            <PricingInput label="Phone case" value={pricingRules.accessories?.case || 0} onChange={(v) => handleConditionUpdate('accessories', 'case', v)} />
                         </div>
                     </CollapsibleSection>
                 </>

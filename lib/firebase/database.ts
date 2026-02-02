@@ -9,6 +9,8 @@ import {
   orderBy,
   limit,
   startAfter,
+  onSnapshot,
+  Unsubscribe,
   QueryDocumentSnapshot,
   Timestamp,
   addDoc,
@@ -17,7 +19,7 @@ import {
   Firestore,
 } from 'firebase/firestore'
 import { db } from './config'
-import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('Database')
@@ -45,6 +47,7 @@ export interface Valuation {
   paymentMethod?: string
   state?: string
   pincode?: string
+  answers?: Record<string, unknown>
 }
 
 export interface Device {
@@ -629,6 +632,39 @@ export async function getAllProducts(): Promise<Product[]> {
   })
 }
 
+function mapDocToProduct(docSnap: QueryDocumentSnapshot): Product {
+  const data: any = docSnap.data()
+  const modelName = data.modelName ?? data['Model Name'] ?? data.name ?? ''
+  const basePrice = data.basePrice ?? data.price ?? data['Price (₹)'] ?? 0
+  const internalBasePrice = data.internalBasePrice ?? (basePrice * 0.5)
+  const imageUrl = data.imageUrl ?? data.image
+  const pricingRules = data.pricingRules as PricingRules | undefined
+  return {
+    id: docSnap.id,
+    brand: data.brand,
+    category: data.category,
+    modelName,
+    basePrice,
+    internalBasePrice,
+    imageUrl,
+    pricingRules,
+  } as Product
+}
+
+/**
+ * Subscribe to products list in real-time (for admin dashboard live updates)
+ */
+export function subscribeToProducts(onUpdate: (products: Product[]) => void): Unsubscribe {
+  const productsRef = collection(getDb(), 'products')
+  const q = query(productsRef)
+  return onSnapshot(q, (snapshot) => {
+    const products = snapshot.docs.map(mapDocToProduct)
+    onUpdate(products)
+  }, (error) => {
+    console.error('subscribeToProducts error:', error)
+  })
+}
+
 export async function createProduct(product: Omit<Product, 'id'>): Promise<string> {
   const productsRef = collection(getDb(), 'products')
   const docRef = await addDoc(productsRef, product)
@@ -648,14 +684,12 @@ export async function getPricingRules(): Promise<PricingRules> {
 
     if (docSnap.exists()) {
       return docSnap.data() as PricingRules
-    } else {
-      // Seed default rules if not exists
-      await setDoc(docRef, DEFAULT_PRICING_RULES)
-      return DEFAULT_PRICING_RULES
     }
+    // No rules in Firebase: return zeros so price = internalBasePrice until admin sets rules
+    return ZERO_PRICING_RULES
   } catch (error) {
     console.error('Error fetching pricing rules:', error)
-    return DEFAULT_PRICING_RULES
+    return ZERO_PRICING_RULES
   }
 }
 
@@ -780,6 +814,8 @@ export interface PickupRequest {
   pickupTime?: string
   status?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'hold' | 'verification' | 'reject' | 'suspect'
   remarks?: string
+  /** Assessment answers (body conditions, lens, accessories, age, etc.) for admin view */
+  assessmentAnswers?: Record<string, unknown>
   createdAt?: Timestamp | Date
   updatedAt?: Timestamp | Date
   // Reschedule tracking
@@ -921,6 +957,42 @@ export async function getAllPickupRequests(): Promise<PickupRequest[]> {
     console.error('Error fetching pickup requests:', error)
     throw error
   }
+}
+
+/**
+ * Subscribe to pickup requests in real-time (for admin dashboard live updates)
+ * Returns an unsubscribe function. Call it when the component unmounts.
+ */
+export function subscribeToPickupRequests(
+  onUpdate: (requests: PickupRequest[]) => void
+): Unsubscribe {
+  const pickupRequestsRef = collection(getDb(), 'pickupRequests')
+  let q
+  try {
+    q = query(pickupRequestsRef, orderBy('createdAt', 'desc'))
+  } catch {
+    q = query(pickupRequestsRef)
+  }
+  return onSnapshot(q, (snapshot) => {
+    const requests = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as PickupRequest[]
+    if (requests.length > 0 && requests[0].createdAt) {
+      requests.sort((a, b) => {
+        const aDate = a.createdAt instanceof Date
+          ? a.createdAt.getTime()
+          : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+        const bDate = b.createdAt instanceof Date
+          ? b.createdAt.getTime()
+          : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+        return bDate - aDate
+      })
+    }
+    onUpdate(requests)
+  }, (error) => {
+    console.error('subscribeToPickupRequests error:', error)
+  })
 }
 
 /**

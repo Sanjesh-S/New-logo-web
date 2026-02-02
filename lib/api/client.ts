@@ -99,6 +99,7 @@ export async function calculatePrice(params: {
 
 /**
  * Create a valuation
+ * Tries Next.js API first (custom Order ID); falls back to Firebase when static export (e.g. GitHub Pages).
  */
 export async function createValuation(data: {
   category: 'cameras' | 'phones' | 'laptops'
@@ -119,27 +120,43 @@ export async function createValuation(data: {
   state?: string
   pincode?: string
 }) {
-  // ALWAYS use Next.js API route (supports custom Order ID generation)
-  // DO NOT fallback to Firebase Functions - they use auto-generated IDs
-  const response = await fetch('/api/valuations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  })
+  // Try Next.js API first (supports custom Order ID when deployed with server)
+  try {
+    const response = await fetch('/api/valuations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
 
-  const responseData = await response.json()
+    // 404 = API route not available (static export); fallback to Firebase without parsing body
+    if (response.status === 404) {
+      return callFunction<{ success: boolean; id: string; message: string }>('valuations', {
+        method: 'POST',
+        body: data,
+      })
+    }
 
-  if (!response.ok) {
+    const responseData = await response.json().catch(() => ({}))
+    if (response.ok) {
+      return responseData
+    }
+
     const errorMsg = responseData.error || responseData.details || `API route failed: ${response.statusText}`
     const error = new Error(errorMsg)
-    // Attach response data for better error handling
     ;(error as any).response = responseData
     throw error
+  } catch (err: any) {
+    // Network error or fetch failed (e.g. static export, no server) → use Firebase
+    if (err?.message === 'Failed to fetch' || err?.name === 'TypeError') {
+      return callFunction<{ success: boolean; id: string; message: string }>('valuations', {
+        method: 'POST',
+        body: data,
+      })
+    }
+    throw err
   }
-
-  return responseData
 }
 
 /**
@@ -210,8 +227,9 @@ export async function createPickupRequest(data: {
   pickupTime: string
   userId?: string | null
   valuationId?: string | null
-  category?: string  // For order ID generation (cameras, phones, laptops, tablets)
-  brand?: string     // For order ID generation (Apple, Samsung, Canon, etc.)
+  category?: string
+  brand?: string
+  assessmentAnswers?: Record<string, unknown>
 }) {
   // Use Firebase Function - notifications are handled server-side in Firebase Functions
   return callFunction<{

@@ -38,13 +38,13 @@ export default function Navigation() {
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <img
                 src={getAssetPath("/images/worthyten-logo.svg")}
                 alt="WorthyTen"
-                className="h-10 md:h-12 w-auto object-contain"
+                className="h-14 md:h-16 w-auto object-contain"
               />
             </Link>
 
@@ -131,7 +131,7 @@ export default function Navigation() {
               ) : (
                 <button
                   onClick={() => setShowLogin(true)}
-                  className="px-6 py-2.5 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-all shadow-md hover:shadow-lg"
+                  className="px-6 py-2.5 bg-brand-lime text-white rounded-lg font-semibold hover:bg-brand-lime-500 transition-all shadow-md hover:shadow-lg"
                 >
                   Login
                 </button>
@@ -236,7 +236,7 @@ export default function Navigation() {
                         setShowLogin(true)
                         setMobileMenuOpen(false)
                       }}
-                      className="w-full px-4 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold text-center"
+                      className="w-full px-4 py-3 bg-brand-lime text-white rounded-lg font-semibold text-center"
                     >
                       Login
                     </button>

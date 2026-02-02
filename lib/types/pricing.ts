@@ -17,6 +17,7 @@ export interface PricingRules {
         batteryHealth?: YesNoPrice
         biometricWorking?: YesNoPrice
         cameraWorking?: YesNoPrice
+        trueTone?: YesNoPrice
         // Laptop-specific questions
         screenCondition?: YesNoPrice
         keyboardWorking?: YesNoPrice
@@ -44,6 +45,11 @@ export interface PricingRules {
         good: number
         fair: number
         cracked: number
+        // Phone display options
+        goodWorking?: number
+        minorCrack?: number
+        majorDamage?: number
+        notWorking?: number
     }
     bodyCondition: {
         excellent: number
@@ -104,18 +110,25 @@ export interface PricingRules {
         frequentErrors: number
     }
     functionalIssues: {
-        batteryIssue: number
-        flashlightIssue: number
-        memoryCardIssue: number
+        microphoneIssue: number
         speakerIssue: number
-        connectorIssue: number
+        chargingPortIssue: number
+        touchScreenIssue: number
+        wifiIssue: number
         buttonIssue: number
+        frameDamageIssue: number
+        bodyDamageIssue: number
+        waterDamageIssue: number
+        networkIssue: number
         noIssues: number
     }
     accessories: {
         battery: number
         charger: number
         box: number
+        cable: number
+        manual: number
+        case: number
         bill: number
         warrantyCard: number
     }
@@ -123,6 +136,19 @@ export interface PricingRules {
         lessThan3Months: number
         fourToTwelveMonths: number
         aboveTwelveMonths: number
+    }
+    // Phone-specific condition ranges
+    batteryHealthRange?: {
+        battery90Above: number
+        battery80to90: number
+        battery50to80: number
+        batteryBelow50: number
+    }
+    cameraCondition?: {
+        cameraGood: number
+        frontCameraNotWorking: number
+        backCameraNotWorking: number
+        bothCamerasNotWorking: number
     }
 }
 
@@ -154,6 +180,7 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         batteryHealth: { yes: 0, no: -3000 },
         biometricWorking: { yes: 0, no: -2500 },
         cameraWorking: { yes: 0, no: -3000 },
+        trueTone: { yes: 0, no: -1500 },
         // Laptop-specific questions
         screenCondition: { yes: 0, no: -4000 },
         keyboardWorking: { yes: 0, no: -3000 },
@@ -181,6 +208,10 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         good: -1000,
         fair: -2500,
         cracked: -8000,
+        goodWorking: 0,
+        minorCrack: -2000,
+        majorDamage: -4000,
+        notWorking: -6000,
     },
     bodyCondition: {
         excellent: 0,
@@ -241,18 +272,25 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         frequentErrors: -5000,
     },
     functionalIssues: {
-        batteryIssue: -2000,
-        flashlightIssue: -1000,
-        memoryCardIssue: -1500,
+        microphoneIssue: -800,
         speakerIssue: -800,
-        connectorIssue: -1200,
+        chargingPortIssue: -1200,
+        touchScreenIssue: -3000,
+        wifiIssue: -1000,
         buttonIssue: -1500,
+        frameDamageIssue: -2000,
+        bodyDamageIssue: -2000,
+        waterDamageIssue: -4000,
+        networkIssue: -1500,
         noIssues: 0,
     },
     accessories: {
         battery: 800,
         charger: 500,
         box: 1000,
+        cable: 300,
+        manual: 300,
+        case: 400,
         bill: 300,
         warrantyCard: 400,
     },
@@ -261,4 +299,37 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         fourToTwelveMonths: -2000,
         aboveTwelveMonths: -4000,
     },
+    batteryHealthRange: {
+        battery90Above: 0,
+        battery80to90: -500,
+        battery50to80: -1500,
+        batteryBelow50: -3000,
+    },
+    cameraCondition: {
+        cameraGood: 0,
+        frontCameraNotWorking: -1000,
+        backCameraNotWorking: -2000,
+        bothCamerasNotWorking: -4000,
+    },
 }
+
+/** Recursively set all number values in an object to 0. Used when no rules exist in Firebase. */
+function zeroAllNumbers<T>(obj: T): T {
+  if (typeof obj === 'number') return 0 as T
+  if (Array.isArray(obj)) return obj.map(zeroAllNumbers) as T
+  if (obj != null && typeof obj === 'object') {
+    const out = {} as T
+    for (const k of Object.keys(obj) as (keyof T)[]) {
+      (out as Record<string, unknown>)[k as string] = zeroAllNumbers((obj as Record<string, unknown>)[k as string])
+    }
+    return out
+  }
+  return obj
+}
+
+/**
+ * ZERO_PRICING_RULES - Same structure as PricingRules but every modifier is 0.
+ * Used when no pricing is set in Firebase so that final price = internalBasePrice until admin configures rules.
+ * All prices must be set in Admin → Pricing Calculator (per product or global default) and stored in Firebase.
+ */
+export const ZERO_PRICING_RULES: PricingRules = zeroAllNumbers({ ...DEFAULT_PRICING_RULES }) as PricingRules

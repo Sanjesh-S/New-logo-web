@@ -43,11 +43,11 @@ export default function PrivacyPolicyPage() {
                     <p className="text-brand-blue-900 font-semibold">10AM - 6PM (Monday-Friday)</p>
                   </div>
                   <a 
-                    href="tel:+919843010705" 
+                    href="tel:+919843010746" 
                     className="inline-flex items-center gap-2 px-6 py-2 bg-brand-blue-900 text-white rounded-lg font-semibold hover:bg-brand-blue-800 transition-colors"
                   >
                     <Phone className="w-4 h-4" />
-                    9843010705
+                    9843010746
                   </a>
                 </div>
               </div>
@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-brand-blue-900 mb-4">Who are we?</h2>
                   <p className="text-gray-700 leading-relaxed">
-                    Worthyten, a company having its registered office at Avinashi Rd, opp. to SMS HOTEL, Peelamedu, Masakalipalayam, Coimbatore, Tamil Nadu 641004, We takes the security of your personal data very seriously and is committed to protecting and respecting the privacy of the users of our Worthyten Website and App (the "Platform").
+                    Worthyten, a company having its registered office at Peelamedu, Coimbatore, Tamil Nadu 641004, We takes the security of your personal data very seriously and is committed to protecting and respecting the privacy of the users of our Worthyten Website and App (the "Platform").
                   </p>
                 </div>
               </div>

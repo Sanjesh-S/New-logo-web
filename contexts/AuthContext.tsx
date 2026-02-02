@@ -23,10 +23,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const isMountedRef = useRef(true)
+  const loadingStillTrueRef = useRef(true)
 
   useEffect(() => {
     isMountedRef.current = true
-    
+    loadingStillTrueRef.current = true
+
     // Check current user immediately to reduce initial loading time
     try {
       const currentUser = getCurrentUser()
@@ -42,9 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       unsubscribe = onAuthStateChange((authUser) => {
-        // Guard against updates after unmount
         if (!isMountedRef.current) return
-        
+        loadingStillTrueRef.current = false
         setUser(authUser)
         setLoading(false)
         setError(null)
@@ -52,14 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Error setting up auth state listener:', err)
       if (isMountedRef.current) {
+        loadingStillTrueRef.current = false
         setError(err instanceof Error ? err : new Error('Failed to initialize auth'))
         setLoading(false)
       }
     }
 
-    // Set a timeout to prevent infinite loading state
+    // Set a timeout to prevent infinite loading state (use ref to avoid stale closure)
     const timeoutId = setTimeout(() => {
-      if (isMountedRef.current && loading) {
+      if (isMountedRef.current && loadingStillTrueRef.current) {
+        loadingStillTrueRef.current = false
         setLoading(false)
       }
     }, 10000) // 10 second timeout

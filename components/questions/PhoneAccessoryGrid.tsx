@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Zap, Box, Cable, Headphones, FileText, Smartphone } from 'lucide-react'
+import { Zap, Box, Cable, FileText, Smartphone } from 'lucide-react'
 import { getAssetPath } from '@/lib/utils'
 
 interface PhoneAccessoryGridProps {
@@ -13,9 +13,8 @@ const phoneAccessories = [
   { id: 'charger', label: 'Original Charger', icon: Zap },
   { id: 'box', label: 'Original Box', icon: Box },
   { id: 'cable', label: 'Original Cable', icon: Cable },
-  { id: 'earphones', label: 'Original Earphones', icon: Headphones },
-  { id: 'manual', label: 'Original Manual', icon: FileText },
-  { id: 'case', label: 'Phone Case', icon: Smartphone },
+  { id: 'manual', label: 'Original manual', icon: FileText },
+  { id: 'case', label: 'Phone case', icon: Smartphone },
 ]
 
 export default function PhoneAccessoryGrid({ value = [], onChange }: PhoneAccessoryGridProps) {

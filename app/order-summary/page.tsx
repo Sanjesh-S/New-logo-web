@@ -36,9 +36,9 @@ function OrderSummaryContent() {
   // Get the Order ID to display (prefer orderId from valuation/pickupRequest, fallback to valuationId)
   const displayOrderId = valuation?.orderId || pickupRequest?.orderId || valuationId || ''
 
-  const finalPrice = price ? parseInt(price) : (pickupRequest?.price || valuation?.estimatedValue || 0)
-  const internalBase = basePrice ? parseInt(basePrice) : 0
-  const totalDeductions = deductions ? parseInt(deductions) : 0
+  const finalPrice = (price ? parseInt(price, 10) : (pickupRequest?.price ?? valuation?.estimatedValue ?? 0)) || 0
+  const internalBase = (basePrice ? parseInt(basePrice, 10) : 0) || 0
+  const totalDeductions = (deductions ? parseInt(deductions, 10) : 0) || 0
 
   // Fetch product information if productId is available
   useEffect(() => {

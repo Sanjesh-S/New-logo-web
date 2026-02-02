@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   title: "WorthyTen - Know Your Device's Worth in Seconds",
   description: 'Trade in your cameras, phones, and laptops. Get instant valuation and free doorstep pickup.',
   icons: {
-    icon: '/icon.png',
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' }],
+    shortcut: '/favicon.ico',
+    apple: '/favicon-32x32.png',
   },
 }
 

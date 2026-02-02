@@ -3,7 +3,7 @@
 // ... (previous imports)
 import { useState, useEffect } from 'react'
 import { getPricingRules, savePricingRules, getAllProducts, type Product, saveProductPricingRules } from '@/lib/firebase/database'
-import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 
 export default function PricingConfig() {
     const [products, setProducts] = useState<Product[]>([])

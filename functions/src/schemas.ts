@@ -25,6 +25,7 @@ export const pickupRequestSchema = z.object({
   pickupTime: z.string().min(1, 'Pickup time is required'),
   userId: z.string().optional().nullable(),
   valuationId: z.string().optional().nullable(),
+  assessmentAnswers: z.record(z.string(), z.any()).optional(),
 })
 
 // Valuation schema

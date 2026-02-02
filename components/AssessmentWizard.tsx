@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 import { getProductById, type Product, getPricingRules, getProductPricingFromCollection } from '@/lib/firebase/database'
 import { calculatePrice, type AnswerMap } from '@/lib/pricing/modifiers'
-import { PricingRules, DEFAULT_PRICING_RULES } from '@/lib/types/pricing'
+import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { useAuth } from '@/contexts/AuthContext'
 import YesNoQuestion from './questions/YesNoQuestion'
+import TextQuestion, { validateImei, validateSerial } from './questions/TextQuestion'
 import SingleSelectQuestion from './questions/SingleSelectQuestion'
 import ConditionGrid from './questions/ConditionGrid'
 import BodyConditionsGrid from './questions/BodyConditionsGrid'
@@ -60,7 +61,7 @@ export default function AssessmentWizard({
   const [showPrice, setShowPrice] = useState(false)
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [pricingRules, setPricingRules] = useState<PricingRules>(DEFAULT_PRICING_RULES)
+  const [pricingRules, setPricingRules] = useState<PricingRules>(ZERO_PRICING_RULES)
   const [valuationId, setValuationId] = useState<string | null>(null)
 
   // Fetch product data and pricing rules
@@ -80,26 +81,24 @@ export default function AssessmentWizard({
 
         setProduct(productData)
 
-        // Load pricing rules with priority: product-specific > global > default
-        let rulesToUse: PricingRules = DEFAULT_PRICING_RULES
+        // Load pricing rules from Firebase only: product-specific > global > zeros
+        let rulesToUse: PricingRules = ZERO_PRICING_RULES
 
         try {
-          // First try: Load from productPricing collection (preferred storage)
+          // First: productPricing collection (per-product rules set in Admin Pricing Calculator)
           const productPricingData = await getProductPricingFromCollection(productId)
           if (productPricingData?.pricingRules) {
             rulesToUse = productPricingData.pricingRules
           } else if (productData.pricingRules) {
-            // Second try: Load from product document's pricingRules field
+            // Second: product document's pricingRules field
             rulesToUse = productData.pricingRules
           } else {
-            // Third try: Load global pricing rules from Firebase
-            const globalRules = await getPricingRules()
-            rulesToUse = globalRules
+            // Third: global rules from Firebase (settings/pricing)
+            rulesToUse = await getPricingRules()
           }
         } catch (rulesError) {
-          // Error loading pricing rules, using defaults
-          // Fallback to DEFAULT_PRICING_RULES if all else fails
-          rulesToUse = DEFAULT_PRICING_RULES
+          // Error loading: use zeros so price = internalBasePrice until rules are set in Firebase
+          rulesToUse = ZERO_PRICING_RULES
         }
 
         setPricingRules(rulesToUse)
@@ -396,7 +395,7 @@ export default function AssessmentWizard({
             />
             <YesNoQuestion
               question="Is the flash working properly?"
-              helperText="Test the pop-up flash or hot shoe connection."
+              helperText="Test the pop-up flash."
               questionId="flashWorking"
               value={answers.flashWorking as string}
               onChange={(value) => handleAnswer('flashWorking', value)}
@@ -491,53 +490,51 @@ export default function AssessmentWizard({
       component: (
         <div className="space-y-6">
           <YesNoQuestion
-            question="Does your phone power on and function properly?"
-            helperText="We currently only accept devices that switch on"
+            question="Does the phone Power on?"
+            helperText="Verify the device power on without being plugged in to the charger"
             questionId="powerOn"
             value={answers.powerOn as string}
             onChange={(value) => handleAnswer('powerOn', value)}
           />
           <YesNoQuestion
-            question="Is the screen working without cracks or touch issues?"
-            helperText="Check for any cracks, dead spots, or unresponsive areas"
-            questionId="lcdWorking"
-            value={answers.lcdWorking as string}
-            onChange={(value) => handleAnswer('lcdWorking', value)}
-          />
-          <YesNoQuestion
-            question="Is the phone body/frame free from major damage or bending?"
-            helperText="Check the frame, back panel, and edges carefully"
-            questionId="bodyDamage"
-            value={answers.bodyDamage as string}
-            onChange={(value) => handleAnswer('bodyDamage', value)}
-          />
-          <YesNoQuestion
-            question="Is the battery health above 80%?"
-            helperText="Check Settings > Battery > Battery Health (iPhone)"
-            questionId="batteryHealth"
-            value={answers.batteryHealth as string}
-            onChange={(value) => handleAnswer('batteryHealth', value)}
-          />
-          <YesNoQuestion
-            question="Is Face ID / Touch ID working properly?"
-            helperText="Test Face ID or Touch ID functionality"
-            questionId="biometricWorking"
-            value={answers.biometricWorking as string}
-            onChange={(value) => handleAnswer('biometricWorking', value)}
-          />
-          <YesNoQuestion
-            question="Are all cameras (front and back) working properly?"
-            helperText="Test all camera lenses for clarity and focus"
+            question="Does the camera Function properly?"
+            helperText="Test all lenses for clear focus, working flash, and no dark spots on the sensor"
             questionId="cameraWorking"
             value={answers.cameraWorking as string}
             onChange={(value) => handleAnswer('cameraWorking', value)}
           />
           <YesNoQuestion
-            question="Is the phone free from water damage?"
-            helperText="Check water damage indicators (usually in SIM tray)"
-            questionId="waterDamage"
-            value={answers.waterDamage as string}
-            onChange={(value) => handleAnswer('waterDamage', value)}
+            question="Face ID working properly?"
+            helperText='Go to Settings to ensure Face ID can successfully scan a face without "Hardware Issue" alerts'
+            questionId="biometricWorking"
+            value={answers.biometricWorking as string}
+            onChange={(value) => handleAnswer('biometricWorking', value)}
+          />
+          <YesNoQuestion
+            question="Is True Tone available in the Control Center?"
+            helperText="Long-press the brightness slider, check the true tone is there"
+            questionId="trueTone"
+            value={answers.trueTone as string}
+            onChange={(value) => handleAnswer('trueTone', value)}
+          />
+          <TextQuestion
+            question="IMEI number"
+            helperText="Dial *#06# on your phone to get the IMEI"
+            questionId="imeiNumber"
+            value={(answers.imeiNumber as string) ?? ''}
+            onChange={(value) => handleAnswer('imeiNumber', value)}
+            placeholder="Enter 15-digit IMEI"
+            validation="imei"
+          />
+          <TextQuestion
+            question="Serial Number"
+            helperText="Found in Settings > General > About"
+            questionId="serialNumber"
+            value={(answers.serialNumber as string) ?? ''}
+            onChange={(value) => handleAnswer('serialNumber', value)}
+            placeholder="Enter serial number"
+            validation="serial"
+            maxLength={30}
           />
         </div>
       ),
@@ -794,7 +791,9 @@ export default function AssessmentWizard({
             answers.speakerWorking
           return basicAnswers
         } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
-          return answers.powerOn && answers.lcdWorking && answers.bodyDamage && answers.batteryHealth && answers.biometricWorking && answers.cameraWorking && answers.waterDamage
+          const imeiValid = !validateImei((answers.imeiNumber as string) || '')
+          const serialValid = !validateSerial((answers.serialNumber as string) || '')
+          return answers.powerOn && answers.cameraWorking && answers.biometricWorking && answers.trueTone && imeiValid && serialValid
         } else if (cat === 'tablets' || cat === 'tablet' || cat.includes('tablet')) {
           return answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.batteryWorking && answers.cameraWorking
         } else if (cat === 'laptops' || cat === 'laptop' || cat.includes('laptop')) {
@@ -906,6 +905,7 @@ export default function AssessmentWizard({
             valuationId={valuationId || undefined}
             category={category || product.category}
             brand={brand || product.brand}
+            assessmentAnswers={answers}
             onConfirm={handleOrderConfirm}
             onClose={() => setShowOrderConfirmation(false)}
           />

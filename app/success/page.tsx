@@ -36,19 +36,23 @@ function SuccessContent() {
           We've received your trade-in request
         </p>
 
-        {value && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-brand-blue-700 to-brand-lime-600 rounded-2xl p-6 mb-8 glass"
-          >
-            <div className="text-white/80 text-sm mb-1">Estimated Value</div>
-            <div className="text-4xl font-bold text-white">
-              ₹{parseInt(value).toLocaleString('en-IN')}
-            </div>
-          </motion.div>
-        )}
+        {value && (() => {
+          const numValue = parseInt(value, 10)
+          if (Number.isNaN(numValue)) return null
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-br from-brand-blue-700 to-brand-lime-600 rounded-2xl p-6 mb-8 glass"
+            >
+              <div className="text-white/80 text-sm mb-1">Estimated Value</div>
+              <div className="text-4xl font-bold text-white">
+                ₹{numValue.toLocaleString('en-IN')}
+              </div>
+            </motion.div>
+          )
+        })()}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
