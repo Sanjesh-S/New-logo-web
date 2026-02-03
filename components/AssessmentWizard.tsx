@@ -67,6 +67,7 @@ export default function AssessmentWizard({
   const [pricingRules, setPricingRules] = useState<PricingRules>(ZERO_PRICING_RULES)
   const [powerOnPercentage, setPowerOnPercentage] = useState<number | null>(null)
   const [valuationId, setValuationId] = useState<string | null>(null)
+  const [stepBeforeSkip, setStepBeforeSkip] = useState<number | null>(null) // Track step before skipping to accessories
 
   // Fetch product data and pricing rules
   useEffect(() => {
@@ -183,12 +184,17 @@ export default function AssessmentWizard({
         // Only skip if we're on the basic-functionality step (step 0) and accessories step exists
         // and we haven't already skipped (check if we're not already at or past accessories)
         if (currentStepId === 'basic-functionality' && currentStep === 0 && accessoriesStepIndex !== -1 && currentStep < accessoriesStepIndex) {
+          // Store the current step before skipping
+          setStepBeforeSkip(currentStep)
           // Use setTimeout to ensure this happens after state updates
           setTimeout(() => {
             setCurrentStep(accessoriesStepIndex)
           }, 100)
         }
       }
+    } else if (answers.powerOn === 'yes' && stepBeforeSkip !== null) {
+      // If user changes powerOn back to "yes", clear the skip tracking
+      setStepBeforeSkip(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers.powerOn, currentStep])
@@ -200,6 +206,33 @@ export default function AssessmentWizard({
   }
 
   const handleBack = () => {
+    const steps = getSteps()
+    const currentStepId = steps[currentStep]?.id
+    const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+    const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
+    const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
+    
+    // If we're on accessories step and we skipped here (either via stepBeforeSkip or powerOn === 'no'), go back to basic-functionality (step 0)
+    if (currentStepId === 'accessories' && (isPhone || isDSLR)) {
+      // Check if we skipped here by checking powerOn or stepBeforeSkip
+      if (answers.powerOn === 'no' || stepBeforeSkip !== null) {
+        // Find basic-functionality step index (should be 0)
+        const basicFunctionalityIndex = steps.findIndex(step => step.id === 'basic-functionality')
+        if (basicFunctionalityIndex !== -1) {
+          setCurrentStep(basicFunctionalityIndex)
+        } else {
+          // Fallback: go to step 0
+          setCurrentStep(0)
+        }
+        // Clear stepBeforeSkip after navigating back
+        if (stepBeforeSkip !== null) {
+          setStepBeforeSkip(null)
+        }
+        return // Exit early to prevent further navigation
+      }
+    }
+    
+    // Normal back navigation
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
@@ -1205,7 +1238,12 @@ export default function AssessmentWizard({
             ) : (
               <button
                 onClick={handleFinish}
-                className="px-6 py-3 rounded-lg font-semibold bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg transition-all flex items-center gap-2"
+                disabled={!canProceed()}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                  !canProceed()
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg'
+                }`}
               >
                 Finish
                 <ArrowRight className="w-5 h-5" />

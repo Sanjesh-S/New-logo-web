@@ -246,7 +246,7 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed">
-              Get an Instant Price Quote, enjoy Free Doorstep Pickup, and receive Same-Day Payment. Trusted by over 5000 happy customers.
+              Get an Instant Price Quote, enjoy Free Doorstep Pickup, and receive Same-Day Payment. Trusted by over 10K+ happy customers.
             </p>
 
             {/* Premium Search Box */}
