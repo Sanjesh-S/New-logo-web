@@ -108,7 +108,7 @@ export async function getPricingRules(): Promise<PricingRules> {
     const docRef = db.collection('settings').doc('pricing')
     const docSnap = await docRef.get()
 
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       return docSnap.data() as PricingRules
     }
     return ZERO_PRICING_RULES
