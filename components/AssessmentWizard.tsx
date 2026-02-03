@@ -208,7 +208,7 @@ export default function AssessmentWizard({
   const handleBack = () => {
     const steps = getSteps()
     const currentStepId = steps[currentStep]?.id
-    const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+    const cat = (category?.toLowerCase() || product?.category?.toLowerCase() || '').trim()
     const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
     const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
     
