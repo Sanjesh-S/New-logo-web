@@ -76,9 +76,9 @@ const nextConfig = {
     // deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     // imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  // Only use basePath in production (if needed for subdirectory deployment)
-  basePath: isProd ? '/New-logo-web' : '',
-  assetPrefix: isProd ? '/New-logo-web/' : '',
+  // Use basePath only for GitHub Pages; Firebase Hosting is served at root
+  basePath: isProd && process.env.NEXT_PUBLIC_DEPLOY_TARGET !== 'firebase' ? '/New-logo-web' : '',
+  assetPrefix: isProd && process.env.NEXT_PUBLIC_DEPLOY_TARGET !== 'firebase' ? '/New-logo-web/' : '',
   // Security headers (Note: These work on Vercel/Netlify, not on static export)
   async headers() {
     return [

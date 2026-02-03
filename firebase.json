@@ -15,13 +15,6 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "redirects": [
-      {
-        "source": "/",
-        "destination": "/New-logo-web/",
-        "type": 302
-      }
     ]
   }
 }
