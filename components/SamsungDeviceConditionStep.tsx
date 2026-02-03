@@ -107,44 +107,6 @@ export default function SamsungDeviceConditionStep({
         </div>
       </div>
 
-      {/* Biometrics */}
-      <div>
-        <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">Biometrics</h3>
-        <div className="space-y-4">
-          <YesNoQuestion
-            question="Fingerprint working properly (In-display sensor)"
-            questionId="fingerprintWorking"
-            value={answers.fingerprintWorking as string}
-            onChange={(value) => onChange('fingerprintWorking', value)}
-          />
-          <YesNoQuestion
-            question="Face Recognition working"
-            questionId="faceRecognitionWorking"
-            value={answers.faceRecognitionWorking as string}
-            onChange={(value) => onChange('faceRecognitionWorking', value)}
-          />
-        </div>
-      </div>
-
-      {/* Display Features */}
-      <div>
-        <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">Display Features</h3>
-        <div className="space-y-4">
-          <YesNoQuestion
-            question="120Hz / High Refresh Rate available and smooth"
-            questionId="display120Hz"
-            value={answers.display120Hz as string}
-            onChange={(value) => onChange('display120Hz', value)}
-          />
-          <YesNoQuestion
-            question="Eye Comfort Shield (Blue light filter) working"
-            questionId="eyeComfortShield"
-            value={answers.eyeComfortShield as string}
-            onChange={(value) => onChange('eyeComfortShield', value)}
-          />
-        </div>
-      </div>
-
       {/* S Pen (only for Ultra/Note) */}
       {showSPen && (
         <div>

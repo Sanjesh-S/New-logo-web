@@ -611,11 +611,64 @@ export default function AssessmentWizard({
             onChange={(value) => handleAnswer('powerOn', value)}
           />
           <YesNoQuestion
-            question="Does the camera Function properly?"
-            helperText="Test all lenses for clear focus, working flash, and no dark spots on the sensor"
+            question="Does the phone Function properly?"
+            helperText="Ensure the device is fully responsive without lag"
             questionId="cameraWorking"
             value={answers.cameraWorking as string}
             onChange={(value) => handleAnswer('cameraWorking', value)}
+          />
+          <div>
+            <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">Biometrics</h3>
+            <div className="space-y-4">
+              <YesNoQuestion
+                question="Fingerprint working properly (In-display sensor)"
+                questionId="fingerprintWorking"
+                value={answers.fingerprintWorking as string}
+                onChange={(value) => handleAnswer('fingerprintWorking', value)}
+              />
+              <YesNoQuestion
+                question="Face Recognition working"
+                questionId="faceRecognitionWorking"
+                value={answers.faceRecognitionWorking as string}
+                onChange={(value) => handleAnswer('faceRecognitionWorking', value)}
+              />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">Display Features</h3>
+            <div className="space-y-4">
+              <YesNoQuestion
+                question="120Hz / High Refresh Rate available and smooth"
+                questionId="display120Hz"
+                value={answers.display120Hz as string}
+                onChange={(value) => handleAnswer('display120Hz', value)}
+              />
+              <YesNoQuestion
+                question="Eye Comfort Shield (Blue light filter) working"
+                questionId="eyeComfortShield"
+                value={answers.eyeComfortShield as string}
+                onChange={(value) => handleAnswer('eyeComfortShield', value)}
+              />
+            </div>
+          </div>
+          <TextQuestion
+            question="IMEI number"
+            helperText="Dial *#06# on your phone to get the IMEI"
+            questionId="imeiNumber"
+            value={(answers.imeiNumber as string) ?? ''}
+            onChange={(value) => handleAnswer('imeiNumber', value)}
+            placeholder="Enter 15-digit IMEI"
+            validation="imei"
+          />
+          <TextQuestion
+            question="Serial Number"
+            helperText="Found in Settings > About phone > Status"
+            questionId="serialNumber"
+            value={(answers.serialNumber as string) ?? ''}
+            onChange={(value) => handleAnswer('serialNumber', value)}
+            placeholder="Enter serial number"
+            validation="serial"
+            maxLength={30}
           />
         </div>
       ),
@@ -877,7 +930,18 @@ export default function AssessmentWizard({
         } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
           const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
           if (brandNorm.includes('samsung')) {
-            return answers.powerOn && answers.cameraWorking
+            const imeiValid = !validateImei((answers.imeiNumber as string) || '')
+            const serialValid = !validateSerial((answers.serialNumber as string) || '')
+            return (
+              answers.powerOn &&
+              answers.cameraWorking &&
+              answers.fingerprintWorking &&
+              answers.faceRecognitionWorking &&
+              answers.display120Hz &&
+              answers.eyeComfortShield &&
+              imeiValid &&
+              serialValid
+            )
           }
           const imeiValid = !validateImei((answers.imeiNumber as string) || '')
           const serialValid = !validateSerial((answers.serialNumber as string) || '')
@@ -907,10 +971,6 @@ export default function AssessmentWizard({
           const conditionBase =
             answers.displayCondition &&
             answers.batteryHealthSamsung &&
-            answers.fingerprintWorking &&
-            answers.faceRecognitionWorking &&
-            answers.display120Hz &&
-            answers.eyeComfortShield &&
             answers.cameraCondition
           if (!conditionBase) return false
           if (isSamsungSPenModel(model)) {

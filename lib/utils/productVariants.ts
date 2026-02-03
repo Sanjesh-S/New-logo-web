@@ -27,15 +27,69 @@ const APPLE = (b: string) => b.includes('apple')
 const SAMSUNG = (b: string) => b.includes('samsung')
 
 const VARIANT_RULES: VariantRule[] = [
-  // —— Apple iPhone (model-specific) ——
+  // —— Apple iPhone (verified storage by model) ——
   { test: (c, b, m) => PHONE(c) && APPLE(b) && (m.includes('se') || m.includes(' iphone se')), variants: ['64 GB', '128 GB', '256 GB'] },
-  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('pro max'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
-  { test: (c, b, m) => PHONE(c) && APPLE(b) && (m.includes('pro ') || m.endsWith(' pro')), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
-  { test: (c, b, m) => PHONE(c) && APPLE(b) && (m.includes('plus') || m.includes(' plus')), variants: ['128 GB', '256 GB', '512 GB'] },
+  // 16 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('16 pro max'), variants: ['256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('16 pro'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('16 plus'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 16'), variants: ['128 GB', '256 GB', '512 GB'] },
+  // 15 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('15 pro max'), variants: ['256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('15 pro'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('15 plus'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 15'), variants: ['128 GB', '256 GB', '512 GB'] },
+  // 14 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('14 pro max'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('14 pro'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('14 plus'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 14'), variants: ['128 GB', '256 GB', '512 GB'] },
+  // 13 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('13 pro max'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('13 pro'), variants: ['128 GB', '256 GB', '512 GB', '1 TB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('13 mini'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 13'), variants: ['128 GB', '256 GB', '512 GB'] },
+  // 12 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('12 pro max'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('12 pro'), variants: ['128 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('12 mini'), variants: ['64 GB', '128 GB', '256 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 12'), variants: ['64 GB', '128 GB', '256 GB'] },
+  // 11 series
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('11 pro max'), variants: ['64 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('11 pro'), variants: ['64 GB', '256 GB', '512 GB'] },
+  { test: (c, b, m) => PHONE(c) && APPLE(b) && m.includes('iphone 11'), variants: ['64 GB', '128 GB', '256 GB'] },
+  // Fallback for other iPhones (older or future)
   { test: (c, b, m) => PHONE(c) && APPLE(b), variants: ['128 GB', '256 GB', '512 GB'] },
-  // —— Samsung phones (model-specific) ——
-  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('ultra') || m.includes('note')), variants: ['256 GB', '512 GB', '1 TB'] },
-  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('galaxy s') || m.includes('galaxy z')), variants: ['128 GB', '256 GB', '512 GB'] },
+  // —— Samsung Galaxy (verified RAM + storage by model) ——
+  // S24 series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s24 ultra'), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB', '12GB RAM + 1TB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('s24+') || m.includes('s24 +')), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s24'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  // S23 series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s23 ultra'), variants: ['8GB RAM + 256GB', '12GB RAM + 256GB', '12GB RAM + 512GB', '12GB RAM + 1TB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('s23+') || m.includes('s23 +')), variants: ['8GB RAM + 256GB', '8GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s23'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  // S22 series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s22 ultra'), variants: ['8GB RAM + 128GB', '12GB RAM + 256GB', '12GB RAM + 512GB', '12GB RAM + 1TB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('s22+') || m.includes('s22 +')), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s22'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  // S21 series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s21 ultra'), variants: ['12GB RAM + 128GB', '12GB RAM + 256GB', '16GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('s21+') || m.includes('s21 +')), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('s21'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  // Z Flip series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z flip 5'), variants: ['8GB RAM + 256GB', '8GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z flip 4'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB', '8GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z flip 3'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z flip'), variants: ['8GB RAM + 128GB', '8GB RAM + 256GB'] },
+  // Z Fold series
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z fold 5'), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB', '12GB RAM + 1TB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z fold 4'), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z fold 3'), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB'] },
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && m.includes('z fold'), variants: ['12GB RAM + 256GB', '12GB RAM + 512GB'] },
+  // Note / other Ultra
+  { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('note') || m.includes('ultra')), variants: ['8GB RAM + 256GB', '12GB RAM + 512GB', '12GB RAM + 1TB'] },
+  // Galaxy A/M/F
   { test: (c, b, m) => PHONE(c) && SAMSUNG(b) && (m.includes('galaxy a') || m.includes('galaxy m') || m.includes('galaxy f')), variants: ['64 GB', '128 GB', '256 GB'] },
   { test: (c, b, m) => PHONE(c) && SAMSUNG(b), variants: ['128 GB', '256 GB', '512 GB'] },
   // —— Other phones ——
