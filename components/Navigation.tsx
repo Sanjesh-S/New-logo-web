@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, startTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -68,8 +68,10 @@ export default function Navigation() {
                             element.scrollIntoView({ behavior: 'smooth', block: 'start' })
                           }
                         } else {
-                          // Navigate to homepage with anchor
-                          router.push(link.href)
+                          // Navigate to homepage with anchor - use startTransition for non-urgent update
+                          startTransition(() => {
+                            router.push(link.href)
+                          })
                         }
                       }}
                       className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium cursor-pointer"
@@ -82,6 +84,7 @@ export default function Navigation() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    prefetch={true}
                     className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
                   >
                     {link.label}
@@ -183,8 +186,10 @@ export default function Navigation() {
                               element.scrollIntoView({ behavior: 'smooth', block: 'start' })
                             }
                           } else {
-                            // Navigate to homepage with anchor
-                            router.push(link.href)
+                            // Navigate to homepage with anchor - use startTransition for non-urgent update
+                            startTransition(() => {
+                              router.push(link.href)
+                            })
                           }
                         }}
                         className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors cursor-pointer"
@@ -197,6 +202,7 @@ export default function Navigation() {
                     <Link
                       key={link.href}
                       href={link.href}
+                      prefetch={true}
                       onClick={() => setMobileMenuOpen(false)}
                       className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
                     >

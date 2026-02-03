@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 
 interface ProductCardProps {
   imageUrl?: string
@@ -33,12 +32,8 @@ export default function ProductCard({
     : '#'
 
   return (
-    <Link href={productDetailUrl} className="block">
-      <motion.article
-        whileHover={{ y: -2 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col overflow-hidden group cursor-pointer"
-      >
+    <Link href={productDetailUrl} className="block" prefetch={true}>
+      <article className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ease-out flex flex-col overflow-hidden group cursor-pointer will-change-transform">
         {/* Product Image */}
         <div className="relative w-full aspect-square bg-gray-50">
           {imageUrl ? (
@@ -48,6 +43,7 @@ export default function ProductCard({
               fill
               sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
               className="object-contain p-3"
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
@@ -70,15 +66,11 @@ export default function ProductCard({
           </div>
 
           {/* Check Price Button */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full py-2.5 px-4 bg-brand-blue-900 text-white rounded-lg font-semibold text-sm hover:bg-brand-blue-800 transition-colors shadow-sm text-center"
-          >
+          <div className="w-full py-2.5 px-4 bg-brand-blue-900 text-white rounded-lg font-semibold text-sm hover:bg-brand-blue-800 active:scale-[0.98] transition-all duration-150 shadow-sm text-center">
             Check Price
-          </motion.div>
+          </div>
         </div>
-      </motion.article>
+      </article>
     </Link>
   )
 }

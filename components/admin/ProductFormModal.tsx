@@ -47,7 +47,6 @@ export default function ProductFormModal({
         modelName: '',
         category: 'Phone',
         basePrice: 0,
-        internalBasePrice: 0,
         imageUrl: '',
         variants: [] as ProductVariant[],
     }
@@ -62,7 +61,6 @@ export default function ProductFormModal({
                 modelName: product.modelName || '',
                 category: product.category || 'Phone',
                 basePrice: product.basePrice || 0,
-                internalBasePrice: product.internalBasePrice || (product.basePrice * 0.75),
                 imageUrl: product.imageUrl || '',
                 variants: product.variants && product.variants.length > 0 ? [...product.variants] : [],
             })
@@ -78,24 +76,22 @@ export default function ProductFormModal({
         setLoading(true)
 
         try {
-            const validVariants = formData.variants.filter(v => v.label.trim() && v.basePrice > 0).map(v => ({
-                id: variantIdFromLabel(v.label) || v.id,
-                label: v.label.trim(),
-                basePrice: v.basePrice,
-                ...(v.internalBasePrice != null && v.internalBasePrice > 0 && { internalBasePrice: v.internalBasePrice }),
-            }))
+            // Validate and prepare variants
+            const validVariants = formData.variants
+                .filter(v => v.label.trim() && v.basePrice > 0)
+                .map(v => ({
+                    id: variantIdFromLabel(v.label) || v.id,
+                    label: v.label.trim(),
+                    basePrice: v.basePrice,
+                }))
             const basePrice = validVariants.length > 0
               ? Math.max(...validVariants.map(v => v.basePrice))
               : Number(formData.basePrice)
-            const internalBasePrice = validVariants.length > 0
-              ? (validVariants[0].internalBasePrice ?? validVariants[0].basePrice * 0.5)
-              : Number(formData.internalBasePrice)
             const productData = {
                 brand: formData.brand,
                 modelName: formData.modelName,
                 category: formData.category,
                 basePrice,
-                internalBasePrice,
                 imageUrl: formData.imageUrl,
                 variants: validVariants.length > 0 ? validVariants : [],
             }
@@ -116,15 +112,6 @@ export default function ProductFormModal({
         }
     }
 
-    // Auto-calculate internal base price if not manually set
-    const handleBasePriceChange = (value: number) => {
-        const internal = value * 0.75
-        setFormData(prev => ({
-            ...prev,
-            basePrice: value,
-            internalBasePrice: prev.internalBasePrice === 0 || prev.internalBasePrice === prev.basePrice * 0.75 ? internal : prev.internalBasePrice
-        }))
-    }
 
     const categories = [
         { value: 'Phone', label: 'Phone', icon: '📱' },
@@ -242,51 +229,30 @@ export default function ProductFormModal({
                         <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-100">
                             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                                 <span className="w-6 h-6 bg-brand-blue-100 rounded-lg flex items-center justify-center text-brand-blue-600 text-xs">₹</span>
-                                Pricing Details
+                                Price
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Display Price */}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                                        Display Price
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</span>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                                    Product Price
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</span>
                                         <input
                                             type="number"
                                             value={formData.basePrice}
-                                            onChange={(e) => handleBasePriceChange(Number(e.target.value))}
+                                            onChange={(e) => setFormData({ ...formData, basePrice: Number(e.target.value) })}
                                             className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none transition-all bg-white"
                                             required
                                             min="0"
                                         />
-                                    </div>
                                 </div>
-
-                                {/* Internal Base Price */}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                                        Internal Base Price
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</span>
-                                        <input
-                                            type="number"
-                                            value={formData.internalBasePrice}
-                                            onChange={(e) => setFormData({ ...formData, internalBasePrice: Number(e.target.value) })}
-                                            className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none transition-all bg-white"
-                                            required
-                                            min="0"
-                                        />
-                                    </div>
-                                </div>
+                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    All price calculations and modifiers will be applied to this price
+                                </p>
                             </div>
-                            <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                </svg>
-                                Internal price auto-calculates to 75% of display price
-                            </p>
                         </div>
 
                         {/* Variants (Phone / iPad) */}
@@ -296,7 +262,7 @@ export default function ProductFormModal({
                                     Variants (e.g. storage: 256 GB, 512 GB)
                                 </h3>
                                 <p className="text-xs text-gray-500 mb-3">
-                                    Add storage or other variants. Each variant has its own base price on the product page.
+                                    Add storage or other variants. Each variant has its own price on the product page.
                                 </p>
                                 {formData.variants.map((v, index) => (
                                     <div key={v.id} className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
@@ -330,6 +296,7 @@ export default function ProductFormModal({
                                                 placeholder="Price"
                                                 min="0"
                                                 className="w-24 pl-6 pr-2 py-2 border border-gray-200 rounded-lg text-sm"
+                                                required
                                             />
                                         </div>
                                         <button

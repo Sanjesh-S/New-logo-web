@@ -154,10 +154,8 @@ export function addVariantsToProduct(product: Product): Partial<Product> {
   const variants = buildVariantsWithRandomPrices(product)
   if (variants.length === 0) return {}
   const basePrice = Math.max(...variants.map((v) => v.basePrice))
-  const internalBasePrice = product.internalBasePrice ?? basePrice * 0.5
   return {
     variants,
     basePrice,
-    internalBasePrice,
   }
 }

@@ -65,8 +65,7 @@ export interface Device {
 export interface ProductVariant {
   id: string
   label: string
-  basePrice: number
-  internalBasePrice?: number
+  basePrice: number // Single price for the variant
 }
 
 // Products used for listing (backed by `products` collection in Firestore)
@@ -75,8 +74,7 @@ export interface Product {
   brand: string
   category: string
   modelName: string
-  basePrice: number // Display price (boom price)
-  internalBasePrice?: number // Internal base price for calculations
+  basePrice: number // Single price - all calculations use this price
   imageUrl?: string
   pricingRules?: PricingRules // Product-specific override rules
   variants?: ProductVariant[] // Optional storage/variant options (phones)
@@ -531,10 +529,6 @@ export async function getProductById(productId: string): Promise<Product | null>
     data['Price (₹)'] ??
     0
 
-  const internalBasePrice =
-    data.internalBasePrice ??
-    (basePrice * 0.5) // Fallback to 50% of display price if not set
-
   const imageUrl = data.imageUrl ?? data.image
 
   const pricingRules = data.pricingRules as PricingRules | undefined
@@ -547,7 +541,6 @@ export async function getProductById(productId: string): Promise<Product | null>
     category: data.category,
     modelName,
     basePrice,
-    internalBasePrice,
     imageUrl,
     pricingRules,
     variants,
@@ -563,7 +556,6 @@ function parseVariants(raw: unknown): ProductVariant[] | undefined {
         id: (v as any).id,
         label: (v as any).label,
         basePrice: Number((v as any).basePrice),
-        internalBasePrice: typeof (v as any).internalBasePrice === 'number' ? (v as any).internalBasePrice : undefined,
       })
     }
   }
@@ -642,10 +634,6 @@ export async function getAllProducts(): Promise<Product[]> {
       data['Price (₹)'] ??
       0
 
-    const internalBasePrice =
-      data.internalBasePrice ??
-      (basePrice * 0.5)
-
     const imageUrl = data.imageUrl ?? data.image
 
     const pricingRules = data.pricingRules as PricingRules | undefined
@@ -658,7 +646,6 @@ export async function getAllProducts(): Promise<Product[]> {
       category: data.category,
       modelName,
       basePrice,
-      internalBasePrice,
       imageUrl,
       pricingRules,
       variants,
@@ -670,7 +657,6 @@ function mapDocToProduct(docSnap: QueryDocumentSnapshot): Product {
   const data: any = docSnap.data()
   const modelName = data.modelName ?? data['Model Name'] ?? data.name ?? ''
   const basePrice = data.basePrice ?? data.price ?? data['Price (₹)'] ?? 0
-  const internalBasePrice = data.internalBasePrice ?? (basePrice * 0.5)
   const imageUrl = data.imageUrl ?? data.image
   const pricingRules = data.pricingRules as PricingRules | undefined
   const variants = parseVariants(data.variants)
@@ -680,7 +666,6 @@ function mapDocToProduct(docSnap: QueryDocumentSnapshot): Product {
     category: data.category,
     modelName,
     basePrice,
-    internalBasePrice,
     imageUrl,
     pricingRules,
     variants,
@@ -721,7 +706,7 @@ export async function getPricingRules(): Promise<PricingRules> {
     if (docSnap.exists()) {
       return docSnap.data() as PricingRules
     }
-    // No rules in Firebase: return zeros so price = internalBasePrice until admin sets rules
+    // No rules in Firebase: return zeros so price = basePrice until admin sets rules
     return ZERO_PRICING_RULES
   } catch (error) {
     console.error('Error fetching pricing rules:', error)
@@ -756,9 +741,10 @@ export interface ProductPricingData {
   productId: string
   productBrand: string
   productName: string
-  displayPrice: number
-  internalBasePrice: number
+  basePrice: number // Single price
   pricingRules: PricingRules
+  variantRules?: Record<string, PricingRules> // Variant-specific pricing rules: variantId -> PricingRules
+  powerOnPercentage?: number // Percentage for powerOn deduction (60-95), if set, overrides fixed amount
   updatedAt: Timestamp | Date
   updatedBy?: string
 }
@@ -767,7 +753,9 @@ export async function saveProductPricingToCollection(
   productId: string,
   product: Product,
   pricingRules: PricingRules,
-  updatedBy?: string
+  updatedBy?: string,
+  variantRules?: Record<string, PricingRules>,
+  powerOnPercentage?: number | null
 ): Promise<void> {
   try {
     const productPricingRef = collection(getDb(), 'productPricing')
@@ -780,11 +768,20 @@ export async function saveProductPricingToCollection(
       productId,
       productBrand: product.brand,
       productName: product.modelName,
-      displayPrice: product.basePrice,
-      internalBasePrice: product.internalBasePrice || product.basePrice * 0.5,
+      basePrice: product.basePrice,
       pricingRules,
       updatedAt: Timestamp.now(),
       updatedBy: updatedBy || 'admin',
+    }
+    
+    // Add variant rules if provided
+    if (variantRules && Object.keys(variantRules).length > 0) {
+      pricingData.variantRules = variantRules
+    }
+    
+    // Add powerOn percentage if provided
+    if (powerOnPercentage !== undefined && powerOnPercentage !== null) {
+      pricingData.powerOnPercentage = powerOnPercentage
     }
 
     if (!querySnapshot.empty) {
@@ -815,8 +812,7 @@ export async function getProductPricingFromCollection(productId: string): Promis
         productId: docData.productId,
         productBrand: docData.productBrand,
         productName: docData.productName,
-        displayPrice: docData.displayPrice,
-        internalBasePrice: docData.internalBasePrice,
+        basePrice: docData.basePrice ?? docData.displayPrice ?? 0,
         pricingRules: docData.pricingRules,
         updatedAt: docData.updatedAt,
         updatedBy: docData.updatedBy,
@@ -826,6 +822,137 @@ export async function getProductPricingFromCollection(productId: string): Promis
   } catch (error) {
     console.error('Error getting product pricing from collection:', error)
     return null
+  }
+}
+
+/**
+ * Find a product by brand and model name
+ * Used by legacy calculate API endpoints
+ */
+export async function getProductByBrandAndModel(brand: string, model: string): Promise<Product | null> {
+  try {
+    const productsRef = collection(getDb(), 'products')
+    const normalizedBrand = brand.trim()
+    const normalizedModel = model.trim()
+    
+    // Query by brand first (case-insensitive matching)
+    const brandQuery = query(productsRef, where('brand', '==', normalizedBrand))
+    const brandSnapshot = await getDocs(brandQuery)
+    
+    if (brandSnapshot.empty) {
+      return null
+    }
+    
+    // Find product with matching model name (case-insensitive)
+    const product = brandSnapshot.docs
+      .map(docSnap => {
+        const data: any = docSnap.data()
+        const modelName =
+          data.modelName ??
+          data['Model Name'] ??
+          data.name ??
+          ''
+        
+        const basePrice =
+          data.basePrice ??
+          data.price ??
+          data['Price (₹)'] ??
+          0
+        
+        const imageUrl = data.imageUrl ?? data.image
+        const pricingRules = data.pricingRules as PricingRules | undefined
+        const variants = parseVariants(data.variants)
+        
+        return {
+          id: docSnap.id,
+          brand: data.brand,
+          category: data.category,
+          modelName,
+          basePrice,
+          imageUrl,
+          pricingRules,
+          variants,
+        } as Product
+      })
+      .find(p => p.modelName.toLowerCase().trim() === normalizedModel.toLowerCase().trim())
+    
+    return product || null
+  } catch (error) {
+    logger.error('Error finding product by brand and model:', error)
+    return null
+  }
+}
+
+/**
+ * Load pricing rules for a product (same priority as AssessmentWizard)
+ * Priority: productPricing collection > product.pricingRules > global settings > ZERO_PRICING_RULES
+ */
+export async function loadPricingRulesForProduct(productId: string, product?: Product): Promise<PricingRules> {
+  try {
+    // First: productPricing collection (per-product rules set in Admin Pricing Calculator)
+    const productPricingData = await getProductPricingFromCollection(productId)
+    if (productPricingData?.pricingRules) {
+      return productPricingData.pricingRules
+    }
+    
+    // Second: product document's pricingRules field
+    if (product?.pricingRules) {
+      return product.pricingRules
+    }
+    
+    // Third: global rules from Firebase (settings/pricing)
+    return await getPricingRules()
+  } catch (error) {
+    logger.error('Error loading pricing rules for product:', error)
+    // Fallback to zeros so price = basePrice until rules are set
+    return ZERO_PRICING_RULES
+  }
+}
+
+/**
+ * Load full product pricing data including variant rules and powerOn percentage
+ */
+export async function loadProductPricingData(productId: string, variantId?: string): Promise<{ rules: PricingRules, powerOnPercentage?: number | null }> {
+  try {
+    const productPricingData = await getProductPricingFromCollection(productId)
+    
+    if (productPricingData) {
+      // If variantId is provided and variant-specific rules exist, use those
+      if (variantId && productPricingData.variantRules && productPricingData.variantRules[variantId]) {
+        return {
+          rules: productPricingData.variantRules[variantId],
+          powerOnPercentage: productPricingData.powerOnPercentage
+        }
+      }
+      
+      // Otherwise use product-level rules
+      if (productPricingData.pricingRules) {
+        return {
+          rules: productPricingData.pricingRules,
+          powerOnPercentage: productPricingData.powerOnPercentage
+        }
+      }
+    }
+    
+    // Fallback to product document or global rules
+    const product = await getProductById(productId)
+    if (product?.pricingRules) {
+      return {
+        rules: product.pricingRules,
+        powerOnPercentage: null
+      }
+    }
+    
+    return {
+      rules: await getPricingRules(),
+      powerOnPercentage: null
+    }
+  } catch (error) {
+    logger.error('Error loading product pricing data:', error)
+    return {
+      rules: ZERO_PRICING_RULES,
+      powerOnPercentage: null
+    }
   }
 }
 

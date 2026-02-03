@@ -1,7 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Zap, Box, Cable, FileText, Smartphone, PenLine, Shield } from 'lucide-react'
+import { Zap, Box, Cable, FileText, Smartphone, PenLine, Shield, X } from 'lucide-react'
 import { getAssetPath } from '@/lib/utils'
 
 interface PhoneAccessoryGridProps {
@@ -27,8 +28,22 @@ const samsungPhoneAccessories = [
   { id: 'screenProtector', label: 'Screen protector', icon: Shield },
 ]
 
-export default function PhoneAccessoryGrid({ value = [], onChange, variant = 'default' }: PhoneAccessoryGridProps) {
+export default function PhoneAccessoryGrid({ value, onChange, variant = 'default' }: PhoneAccessoryGridProps) {
+  // Initialize with empty array if value is undefined, but track that it's not user interaction
+  const accessoriesValue = value || []
+  const [hasInteracted, setHasInteracted] = useState(false)
+  const [explicitlyNoAccessories, setExplicitlyNoAccessories] = useState(false)
+  
   const phoneAccessories = variant === 'samsung' ? samsungPhoneAccessories : defaultPhoneAccessories
+  
+  useEffect(() => {
+    // Track if user has selected any accessories
+    if (accessoriesValue.length > 0) {
+      setHasInteracted(true)
+      setExplicitlyNoAccessories(false)
+    }
+  }, [accessoriesValue])
+  
   const getPhoneAccessoryImage = (accessoryId: string): string | null => {
     const imageMap: Record<string, string> = {
       'charger': getAssetPath('/images/conditions/phone-accessory-charger.webp'),
@@ -39,28 +54,29 @@ export default function PhoneAccessoryGrid({ value = [], onChange, variant = 'de
   }
 
   const handleToggle = (accessoryId: string) => {
-    if (value.includes(accessoryId)) {
-      onChange(value.filter((id) => id !== accessoryId))
+    setHasInteracted(true)
+    setExplicitlyNoAccessories(false)
+    if (accessoriesValue.includes(accessoryId)) {
+      onChange(accessoriesValue.filter((id) => id !== accessoryId))
     } else {
-      onChange([...value, accessoryId])
+      onChange([...accessoriesValue, accessoryId])
     }
   }
 
-  const isSelected = (accessoryId: string) => value.includes(accessoryId)
+  const handleNoAccessories = () => {
+    setHasInteracted(true)
+    setExplicitlyNoAccessories(true)
+    onChange([])
+  }
+
+  const isSelected = (accessoryId: string) => accessoriesValue.includes(accessoryId)
+  const shouldHighlightNoAccessories = explicitlyNoAccessories && accessoriesValue.length === 0
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-brand-blue-900">
-          Add the items you have — each gives a bonus.
-        </h3>
-        <button
-          onClick={() => onChange([])}
-          className="px-4 py-2 rounded-lg border-2 border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-lime transition-colors"
-        >
-          No accessories
-        </button>
-      </div>
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">
+        Add the items you have — each gives a bonus.
+      </h3>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {phoneAccessories.map((accessory) => {
@@ -91,6 +107,23 @@ export default function PhoneAccessoryGrid({ value = [], onChange, variant = 'de
             </motion.button>
           )
         })}
+      </div>
+
+      {/* No accessories button - Full width, below grid (same as DSLR) */}
+      <div className="mt-4">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={handleNoAccessories}
+          className={`w-full p-4 rounded-xl border-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            shouldHighlightNoAccessories
+              ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+              : 'bg-white border-gray-200 text-gray-700 hover:border-brand-lime'
+          }`}
+        >
+          <X className="w-4 h-4" />
+          No accessories
+        </motion.button>
       </div>
     </div>
   )

@@ -43,7 +43,7 @@ export default function Footer() {
                             />
                         </Link>
                         <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                            India's trusted platform for trading your cameras, phones, and gadgets. Get instant pickup and same day payment.
+                            India's Trusted Platform for Trading your Cameras, Phones, and Gadgets. Get Instant Pickup and Same day Payment.
                         </p>
 
                         {/* Social Links */}

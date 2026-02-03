@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       usage, 
       accessories, 
       basePrice, 
-      internalBasePrice,
       estimatedValue, 
       userId,
       productId,

@@ -35,8 +35,19 @@ export default function ProductDetail({
           return
         }
         setProduct(data)
+        // For DSLR and Phone, don't auto-select variant - user must select one
+        const cat = (data.category || '').toLowerCase().trim()
+        const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
+        const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
+        
         if (data?.variants?.length) {
-          setSelectedVariantId(data.variants[0].id)
+          // Only auto-select for non-DSLR/Phone products
+          if (!isDSLR && !isPhone) {
+            setSelectedVariantId(data.variants[0].id)
+          } else {
+            // For DSLR/Phone, don't select any variant initially
+            setSelectedVariantId(null)
+          }
         } else {
           setSelectedVariantId(null)
         }
@@ -87,6 +98,17 @@ export default function ProductDetail({
   const selectedVariant: ProductVariant | undefined = hasVariants && selectedVariantId
     ? product.variants!.find((v) => v.id === selectedVariantId)
     : undefined
+  
+  // Check if this is DSLR or Phone
+  const cat = (category || product.category || '').toLowerCase().trim()
+  const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
+  const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
+  
+  // For DSLR/Phone with variants, only show price if variant is selected
+  const shouldShowPrice = hasVariants && (isDSLR || isPhone) 
+    ? selectedVariantId !== null 
+    : true
+  
   const effectivePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
 
   const displayPrice = effectivePrice.toLocaleString('en-IN', {
@@ -105,6 +127,7 @@ export default function ProductDetail({
         {/* Back Button */}
         <Link
           href={`/products?category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}`}
+          prefetch={true}
           className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-blue-900 mb-4 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -115,7 +138,7 @@ export default function ProductDetail({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
           className="bg-white rounded-2xl shadow-lg overflow-hidden"
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 p-4 md:p-6">
@@ -177,29 +200,38 @@ export default function ProductDetail({
                 </div>
               )}
 
-              {/* Price Section */}
-              <div className="bg-gradient-to-br from-brand-blue-50 to-brand-lime-50 rounded-xl p-4 border border-brand-blue-100">
-                <p className="text-xs font-medium text-gray-600 mb-1">Get Upto</p>
-                <p className="text-3xl md:text-4xl font-bold text-brand-blue-900 mb-3">
-                  {displayPrice}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Users className="w-3 h-3 text-brand-lime" />
-                  <span>3250+ already sold on WorthyTen</span>
+              {/* Price Section - Only show if variant is selected for DSLR/Phone */}
+              {shouldShowPrice && (
+                <div className="bg-gradient-to-br from-brand-blue-50 to-brand-lime-50 rounded-xl p-4 border border-brand-blue-100">
+                  <p className="text-xs font-medium text-gray-600 mb-1">Get Upto</p>
+                  <p className="text-3xl md:text-4xl font-bold text-brand-blue-900 mb-3">
+                    {displayPrice}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Users className="w-3 h-3 text-brand-lime" />
+                    <span>3250+ already sold on WorthyTen</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* CTA Button */}
-              <Link href={assessmentUrl}>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full py-3 px-5 bg-brand-blue-600 text-white rounded-lg font-semibold text-base shadow-md hover:bg-brand-blue-700 transition-all flex items-center justify-center gap-2"
+              {/* CTA Button - Disabled if variant not selected for DSLR/Phone */}
+              {hasVariants && (isDSLR || isPhone) && !selectedVariantId ? (
+                <button
+                  disabled
+                  className="w-full py-3 px-5 bg-gray-300 text-gray-500 rounded-lg font-semibold text-base cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Get Exact Value
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </motion.button>
-              </Link>
+                  Select a variant to continue
+                </button>
+              ) : (
+                <Link href={assessmentUrl} prefetch={true}>
+                  <button
+                    className="w-full py-3 px-5 bg-brand-blue-600 text-white rounded-lg font-semibold text-base shadow-md hover:bg-brand-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 will-change-transform"
+                  >
+                    Get Exact Value
+                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                  </button>
+                </Link>
+              )}
 
               {/* Features */}
               <div className="grid grid-cols-2 gap-3">

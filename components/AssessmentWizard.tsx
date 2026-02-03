@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
-import { getProductById, type Product, getPricingRules, getProductPricingFromCollection } from '@/lib/firebase/database'
+import { getProductById, type Product, getPricingRules, getProductPricingFromCollection, loadProductPricingData } from '@/lib/firebase/database'
 import { calculatePrice, type AnswerMap } from '@/lib/pricing/modifiers'
 import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { useAuth } from '@/contexts/AuthContext'
@@ -65,6 +65,7 @@ export default function AssessmentWizard({
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [pricingRules, setPricingRules] = useState<PricingRules>(ZERO_PRICING_RULES)
+  const [powerOnPercentage, setPowerOnPercentage] = useState<number | null>(null)
   const [valuationId, setValuationId] = useState<string | null>(null)
 
   // Fetch product data and pricing rules
@@ -84,34 +85,42 @@ export default function AssessmentWizard({
 
         setProduct(productData)
 
-        // Load pricing rules from Firebase only: product-specific > global > zeros
+        // Load pricing rules and powerOnPercentage from Firebase
         let rulesToUse: PricingRules = ZERO_PRICING_RULES
+        let powerOnPercent: number | null = null
 
         try {
-          // First: productPricing collection (per-product rules set in Admin Pricing Calculator)
-          const productPricingData = await getProductPricingFromCollection(productId)
-          if (productPricingData?.pricingRules) {
-            rulesToUse = productPricingData.pricingRules
-          } else if (productData.pricingRules) {
-            // Second: product document's pricingRules field
-            rulesToUse = productData.pricingRules
-          } else {
-            // Third: global rules from Firebase (settings/pricing)
-            rulesToUse = await getPricingRules()
-          }
+          // Use the new function that loads variant-specific rules if variantId is provided
+          const pricingData = await loadProductPricingData(productId, variantId || undefined)
+          rulesToUse = pricingData.rules
+          powerOnPercent = pricingData.powerOnPercentage || null
         } catch (rulesError) {
-          // Error loading: use zeros so price = internalBasePrice until rules are set in Firebase
-          rulesToUse = ZERO_PRICING_RULES
+          // Fallback: try old method
+          try {
+            const productPricingData = await getProductPricingFromCollection(productId)
+            if (productPricingData?.pricingRules) {
+              rulesToUse = productPricingData.pricingRules
+              powerOnPercent = productPricingData.powerOnPercentage || null
+            } else if (productData.pricingRules) {
+              rulesToUse = productData.pricingRules
+            } else {
+              rulesToUse = await getPricingRules()
+            }
+          } catch (e) {
+            // Error loading: use zeros so price = basePrice until rules are set in Firebase
+            rulesToUse = ZERO_PRICING_RULES
+          }
         }
 
         setPricingRules(rulesToUse)
+        setPowerOnPercentage(powerOnPercent)
         const selectedVariant = productData.variants && variantId
           ? productData.variants.find((v) => v.id === variantId)
           : undefined
-        const internalBasePrice = selectedVariant
-          ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
-          : (productData.internalBasePrice || productData.basePrice * 0.5)
-        setCalculatedPrice(internalBasePrice)
+        const basePrice = selectedVariant
+          ? selectedVariant.basePrice
+          : productData.basePrice
+        setCalculatedPrice(basePrice)
       } catch (err: any) {
         setError(err.message || 'Failed to load data')
       } finally {
@@ -130,13 +139,13 @@ export default function AssessmentWizard({
       const selectedVariant = product.variants && variantId
         ? product.variants.find((v) => v.id === variantId)
         : undefined
-      const internalBasePrice = selectedVariant
-        ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
-        : (product.internalBasePrice || product.basePrice * 0.5)
-      const newPrice = calculatePrice(internalBasePrice, answers, pricingRules)
+      const basePrice = selectedVariant
+        ? selectedVariant.basePrice
+        : product.basePrice
+      const newPrice = calculatePrice(basePrice, answers, pricingRules, product.brand, powerOnPercentage)
       setCalculatedPrice(newPrice)
     }
-  }, [answers, product, pricingRules, variantId])
+  }, [answers, product, pricingRules, variantId, powerOnPercentage])
 
   // Reset step and answers when category changes
   useEffect(() => {
@@ -158,6 +167,32 @@ export default function AssessmentWizard({
     }))
   }
 
+  // Skip to accessories step if powerOn is "no" for DSLR or Phone
+  useEffect(() => {
+    if (answers.powerOn === 'no' && product && currentStep !== undefined) {
+      const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+      const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
+      const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
+      
+      if (isDSLR || isPhone) {
+        // Calculate steps with current answers to find accessories step
+        const steps = getSteps()
+        const accessoriesStepIndex = steps.findIndex(step => step.id === 'accessories')
+        const currentStepId = steps[currentStep]?.id
+        
+        // Only skip if we're on the basic-functionality step (step 0) and accessories step exists
+        // and we haven't already skipped (check if we're not already at or past accessories)
+        if (currentStepId === 'basic-functionality' && currentStep === 0 && accessoriesStepIndex !== -1 && currentStep < accessoriesStepIndex) {
+          // Use setTimeout to ensure this happens after state updates
+          setTimeout(() => {
+            setCurrentStep(accessoriesStepIndex)
+          }, 100)
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers.powerOn, currentStep])
+
   const handleNext = (stepsLength: number) => {
     if (currentStep < stepsLength - 1) {
       setCurrentStep(currentStep + 1)
@@ -176,13 +211,17 @@ export default function AssessmentWizard({
     try {
       // Submit assessment with address data if provided
       const { createValuation } = await import('@/lib/api/client')
+      const selectedVariant = product.variants && variantId
+        ? product.variants.find((v) => v.id === variantId)
+        : undefined
+      const basePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+      
       const data = await createValuation({
         category: (category || product.category) as 'cameras' | 'phones' | 'laptops',
         brand: brand || product.brand,
         model: model || product.modelName,
         productId: product.id,
-        basePrice: displayPrice,
-        internalBasePrice,
+        basePrice: basePrice,
         estimatedValue: calculatedPrice,
         answers,
         userId: user?.uid || undefined,
@@ -197,19 +236,23 @@ export default function AssessmentWizard({
       })
 
       if (data.success) {
-        const deductions = calculatedPrice - internalBasePrice
+        const deductions = calculatedPrice - basePrice
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
-        router.push(`/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
+        router.push(`/order-summary?id=${data.id}&price=${calculatedPrice}&basePrice=${basePrice}&deductions=${deductions}&${productParams}`)
       } else {
-        const deductions = calculatedPrice - internalBasePrice
+        const deductions = calculatedPrice - basePrice
         const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
-        router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
+        router.push(`/order-summary?price=${calculatedPrice}&basePrice=${basePrice}&deductions=${deductions}&${productParams}`)
       }
     } catch (error) {
       console.error('Error submitting assessment:', error)
-      const deductions = calculatedPrice - internalBasePrice
+      const selectedVariant = product.variants && variantId
+        ? product.variants.find((v) => v.id === variantId)
+        : undefined
+      const basePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+      const deductions = calculatedPrice - basePrice
       const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
-      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${basePrice}&deductions=${deductions}&${productParams}`)
     }
   }
 
@@ -248,13 +291,17 @@ export default function AssessmentWizard({
     // Create valuation in background
     try {
       const { createValuation } = await import('@/lib/api/client')
+      const selectedVariant = product.variants && variantId
+        ? product.variants.find((v) => v.id === variantId)
+        : undefined
+      const basePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+      
       const data = await createValuation({
         category: (category || product.category) as 'cameras' | 'phones' | 'laptops',
         brand: brand || product.brand,
         model: model || product.modelName,
         productId: product.id,
-        basePrice: displayPrice,
-        internalBasePrice,
+        basePrice: basePrice,
         estimatedValue: calculatedPrice,
         answers,
         userId: user?.uid || undefined,
@@ -277,13 +324,17 @@ export default function AssessmentWizard({
 
   const handleOrderConfirm = async (addressData: AddressData) => {
     if (!product) return
-    const deductions = calculatedPrice - internalBasePrice
+    const selectedVariant = product.variants && variantId
+      ? product.variants.find((v) => v.id === variantId)
+      : undefined
+    const basePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+    const deductions = calculatedPrice - basePrice
     const productParams = `productId=${encodeURIComponent(product.id)}&brand=${encodeURIComponent(product.brand)}&model=${encodeURIComponent(product.modelName)}&category=${encodeURIComponent(product.category)}${variantId ? `&variantId=${encodeURIComponent(variantId)}` : ''}${selectedVariant ? `&variantLabel=${encodeURIComponent(selectedVariant.label)}` : ''}`
     const orderId = addressData.orderId || valuationId
     if (orderId) {
-      router.push(`/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
+      router.push(`/order-summary?id=${orderId}&price=${calculatedPrice}&basePrice=${basePrice}&deductions=${deductions}&${productParams}`)
     } else {
-      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${internalBasePrice}&deductions=${deductions}&${productParams}`)
+      router.push(`/order-summary?price=${calculatedPrice}&basePrice=${basePrice}&deductions=${deductions}&${productParams}`)
     }
   }
 
@@ -316,10 +367,7 @@ export default function AssessmentWizard({
   const selectedVariant = product.variants && variantId
     ? product.variants.find((v) => v.id === variantId)
     : undefined
-  const internalBasePrice = selectedVariant
-    ? (selectedVariant.internalBasePrice ?? selectedVariant.basePrice * 0.5)
-    : (product.internalBasePrice || product.basePrice * 0.5)
-  const displayPrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
+  const basePrice = selectedVariant ? selectedVariant.basePrice : product.basePrice
 
   // Fixed lens camera detection
   const FIXED_LENS_KEYWORDS = [
@@ -912,10 +960,12 @@ export default function AssessmentWizard({
 
   const canProceed = () => {
     const step = steps[currentStep]
+    const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+    const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
+    
     if (step.required) {
       // Check if required questions are answered
       if (step.id === 'basic-functionality') {
-        const cat = (category?.toLowerCase() || product.category?.toLowerCase() || 'cameras').trim()
         // Handle variations in category names
         if (cat === 'cameras' || cat === 'camera') {
           const basicAnswers =
@@ -927,7 +977,7 @@ export default function AssessmentWizard({
             answers.memoryCardSlotWorking &&
             answers.speakerWorking
           return basicAnswers
-        } else if (cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')) {
+        } else if (isPhone) {
           const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
           if (brandNorm.includes('samsung')) {
             const imeiValid = !validateImei((answers.imeiNumber as string) || '')
@@ -954,7 +1004,6 @@ export default function AssessmentWizard({
       }
       // Check if body conditions step is complete (for cameras)
       if (step.id === 'body-conditions') {
-        const cat = (category?.toLowerCase() || product.category?.toLowerCase() || 'cameras').trim()
         if (cat === 'cameras' || cat === 'camera') {
           return answers.bodyPhysicalCondition &&
             answers.lcdDisplayCondition &&
@@ -965,9 +1014,8 @@ export default function AssessmentWizard({
       }
       // Check if Samsung device condition step is complete
       if (step.id === 'condition') {
-        const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
         const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
-        if ((cat.includes('phone') || cat.includes('iphone')) && brandNorm.includes('samsung')) {
+        if (isPhone && brandNorm.includes('samsung')) {
           const conditionBase =
             answers.displayCondition &&
             answers.batteryHealthSamsung &&
@@ -985,11 +1033,54 @@ export default function AssessmentWizard({
         }
       }
     }
+    
+    // Phone-specific step validations (require selection before proceeding)
+    if (isPhone) {
+      // Device Condition step - require displayCondition, batteryHealthRange, and cameraCondition
+      if (step.id === 'condition') {
+        const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
+        // Skip validation for Samsung phones (handled above)
+        if (!brandNorm.includes('samsung')) {
+          return (
+            answers.displayCondition &&
+            answers.batteryHealthRange &&
+            answers.cameraCondition
+          )
+        }
+      }
+      
+      // Functional Issues step - require at least one selection (including "noIssues")
+      if (step.id === 'functional-issues') {
+        const functionalIssues = answers.functionalIssues as string[] | undefined
+        return functionalIssues && functionalIssues.length > 0
+      }
+      
+      // Accessories step - require explicit interaction (either selection or "No accessories" click)
+      // The PhoneAccessoryGrid component calls onChange when user interacts, so we check if it's been set
+      // Note: answers.accessories might be [] (empty array) if user clicked "No accessories"
+      // or an array with items if user selected accessories
+      // We need to distinguish between "not set" (undefined) and "explicitly empty" ([])
+      // Since PhoneAccessoryGrid uses default parameter value = [], we check if the key exists in answers
+      if (step.id === 'accessories') {
+        // Check if accessories key exists in answers object (means user has interacted)
+        return 'accessories' in answers
+      }
+      
+      // Device Age step - require explicit selection
+      if (step.id === 'age') {
+        // Check if age is set and is a valid option
+        const ageValue = answers.age as string | undefined
+        const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
+        return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
+      }
+    }
+    
     // For lens selection step, at least one lens should be selected if user answered yes
     if (step.id === 'additional-lens-selection') {
       const additionalLenses = answers.additionalLenses as string[] | undefined
       return additionalLenses && additionalLenses.length > 0
     }
+    
     return true
   }
 

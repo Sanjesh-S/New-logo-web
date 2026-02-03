@@ -1,18 +1,19 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Check, Camera, Smartphone, Laptop, Tablet, TrendingUp, Users, Star, X } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
+import { Search, Check, TrendingUp, Users, Star, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getAssetPath } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getAllProducts, type Product } from '@/lib/firebase/database'
 
 const categories = [
-  { id: 'cameras', name: 'Camera / DSLR', icon: Camera, active: true },
-  { id: 'phones', name: 'Phone', icon: Smartphone, active: true },
-  { id: 'laptops', name: 'Laptop', icon: Laptop, active: true },
-  { id: 'tablets', name: 'Tablet', icon: Tablet, active: true },
+  { id: 'cameras', name: 'Camera / DSLR', image: '/Icons/DSLR.webp', active: true },
+  { id: 'phones', name: 'Phone', image: '/Icons/phone.webp', active: true },
+  { id: 'laptops', name: 'Laptop', image: '/Icons/Laptop.webp', active: true },
+  { id: 'tablets', name: 'Tablet', image: '/Icons/Tablet.webp', active: true },
 ]
 
 const stats = [
@@ -61,6 +62,62 @@ export default function HeroSection() {
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Advanced Parallax State
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mouseX = useMotionValue(0)
+  const mouseY = useMotionValue(0)
+
+  // Smooth springs for 3D rotation
+  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [7, -7]), { stiffness: 150, damping: 20 })
+  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-7, 7]), { stiffness: 150, damping: 20 })
+
+  // Layer transforms for parallax depth
+  const layer1X = useSpring(useTransform(mouseX, [-0.5, 0.5], [-20, 20]), { stiffness: 100, damping: 20 })
+  const layer1Y = useSpring(useTransform(mouseY, [-0.5, 0.5], [-20, 20]), { stiffness: 100, damping: 20 })
+
+  const layer2X = useSpring(useTransform(mouseX, [-0.5, 0.5], [-40, 40]), { stiffness: 100, damping: 20 })
+  const layer2Y = useSpring(useTransform(mouseY, [-0.5, 0.5], [-40, 40]), { stiffness: 100, damping: 20 })
+
+  // Throttle mouse move for better performance
+  const lastUpdateRef = useRef(0)
+  const rafRef = useRef<number | null>(null)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return
+    
+    // Cancel previous RAF if pending
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+    }
+    
+    // Use requestAnimationFrame for smooth updates
+    rafRef.current = requestAnimationFrame(() => {
+      const now = Date.now()
+      // Throttle to ~60fps (16ms)
+      if (now - lastUpdateRef.current < 16) return
+      lastUpdateRef.current = now
+      
+      const rect = containerRef.current!.getBoundingClientRect()
+      const width = rect.width
+      const height = rect.height
+      const mouseXPos = e.clientX - rect.left
+      const mouseYPos = e.clientY - rect.top
+      const xPct = mouseXPos / width - 0.5
+      const yPct = mouseYPos / height - 0.5
+      mouseX.set(xPct)
+      mouseY.set(yPct)
+    })
+  }, [mouseX, mouseY])
+
+  const handleMouseLeave = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    mouseX.set(0)
+    mouseY.set(0)
+  }, [mouseX, mouseY])
 
   // Ensure component is mounted before animations run (fixes hydration issues)
   useEffect(() => {
@@ -136,217 +193,298 @@ export default function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-[90vh] md:min-h-screen bg-gradient-to-br from-brand-blue-50 via-white to-brand-lime-50/30 pt-24 pb-8 md:pb-12 overflow-hidden">
-      {/* Background: soft orbs + edge accents */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-[480px] h-[480px] bg-brand-lime/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-brand-blue-400/15 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-24 w-72 h-72 bg-brand-blue-400/10 rounded-full blur-3xl" />
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-brand-lime/40 via-brand-blue-500/30 to-transparent hidden lg:block" />
-        <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-brand-lime/30 to-brand-blue-500/40 hidden lg:block" />
+    <section
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative min-h-[90vh] md:min-h-screen bg-slate-50 pt-24 pb-8 md:pb-12 overflow-hidden perspective-[2000px]"
+    >
+      {/* Advanced Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none bg-grid-slate-900/[0.04]">
+        {/* Dynamic Orbs with independent motion */}
+        <motion.div
+          animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-[20%] -right-[10%] w-[800px] h-[800px] bg-gradient-radial from-brand-lime/20 to-transparent blur-[80px]"
+        />
+        <motion.div
+          animate={{ x: [0, -30, 0], y: [0, 50, 0], scale: [1, 1.2, 1] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "linear", delay: 2 }}
+          className="absolute top-[20%] -left-[10%] w-[600px] h-[600px] bg-gradient-radial from-brand-blue-400/10 to-transparent blur-[80px]"
+        />
+        {/* Shimmering mesh overlay */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.2]" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left - Copy + CTA */}
           <motion.div
             initial={mounted ? { opacity: 0, x: -24 } : false}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="space-y-7"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="space-y-8 relative z-20"
           >
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-white via-brand-lime-50/90 to-brand-blue-50/90 backdrop-blur-sm border border-brand-lime/30 text-brand-blue-900 font-semibold text-sm shadow-sm">
-              <span className="w-2 h-2 bg-brand-lime rounded-full animate-pulse shadow-sm shadow-brand-lime/50" />
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md border border-brand-blue-100/50 text-brand-blue-900 font-semibold text-sm shadow-sm ring-1 ring-white/50"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-lime opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-lime"></span>
+              </span>
               India&apos;s #1 Device Trade-In Platform
-            </div>
+            </motion.div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-brand-blue-900 leading-[1.1] tracking-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-brand-blue-900 leading-[1.1] tracking-tight">
               Trade-In Your{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue-600 to-brand-lime">
-                Camera & Gadgets
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue-600 to-brand-lime font-extrabold relative">
+                Gadgets
               </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-600 max-w-lg">
-              Get instant price, free doorstep pickup, and same-day payment. Trusted by thousands.
+            <p className="text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed">
+              Get an Instant Price Quote, enjoy Free Doorstep Pickup, and receive Same-Day Payment. Trusted by over 5000 happy customers.
             </p>
 
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 mt-8">
-              <div ref={searchRef} className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setShowSuggestions(false)
-                      inputRef.current?.focus()
-                    }}
-                    className="absolute right-12 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={handleInputFocus}
-                  placeholder="Search your device (e.g. Canon EOS 90D)"
-                  className="w-full pl-12 pr-10 py-4 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-lime focus:ring-4 focus:ring-brand-lime/25 text-gray-900 shadow-md hover:shadow-lg transition-all placeholder:text-gray-400"
-                />
-                <AnimatePresence>
-                  {showSuggestions && suggestions.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50 max-h-80 overflow-y-auto ring-2 ring-brand-lime/10"
+            {/* Premium Search Box */}
+            <div className="relative group max-w-xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-brand-lime to-brand-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+              <form onSubmit={handleSearch} className="relative flex flex-col sm:flex-row gap-2 bg-white p-2 rounded-xl shadow-xl ring-1 ring-slate-900/5">
+                <div ref={searchRef} className="flex-1 relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setShowSuggestions(false)
+                        inputRef.current?.focus()
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors z-10"
                     >
-                      {suggestions.map((product, index) => (
-                        <motion.button
-                          key={product.id}
-                          type="button"
-                          onClick={() => handleSuggestionClick(product)}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="w-full px-4 py-3 text-left hover:bg-brand-blue-50/50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center gap-3 group"
-                        >
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-brand-lime/20 transition-colors">
-                            <Search className="w-4 h-4 text-gray-500 group-hover:text-brand-lime" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-900 truncate">{product.modelName}</div>
-                            <div className="text-sm text-gray-500">
-                              {product.brand} {product.category && `• ${product.category}`}
-                            </div>
-                          </div>
-                        </motion.button>
-                      ))}
-                    </motion.div>
+                      <X className="w-4 h-4" />
+                    </button>
                   )}
-                </AnimatePresence>
-              </div>
-              <button
-                type="submit"
-                className="px-8 py-4 bg-gradient-to-r from-brand-lime to-brand-lime-400 text-brand-blue-900 font-bold rounded-xl hover:shadow-lg hover:shadow-brand-lime/25 focus:outline-none focus:ring-4 focus:ring-brand-lime/30 transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap border border-brand-lime-300/50"
-              >
-                Check Price
-              </button>
-            </form>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={handleInputFocus}
+                    placeholder="Search your device (e.g. iPhone 13)"
+                    className="w-full pl-12 pr-10 py-3 bg-transparent border-none text-slate-900 placeholder:text-slate-400 focus:ring-0 text-lg"
+                  />
+                  <AnimatePresence>
+                    {showSuggestions && suggestions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-full left-0 right-0 mt-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 max-h-80 overflow-y-auto"
+                      >
+                        {suggestions.map((product, index) => (
+                          <motion.button
+                            key={product.id}
+                            type="button"
+                            onClick={() => handleSuggestionClick(product)}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="w-full px-5 py-3.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 flex items-center gap-4 group"
+                          >
+                            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-brand-lime/20 group-hover:scale-110 transition-all duration-300">
+                              <Search className="w-4 h-4 text-slate-500 group-hover:text-brand-lime-700" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-slate-900">{product.modelName}</div>
+                              <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mt-0.5">
+                                {product.brand}
+                              </div>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <button
+                  type="submit"
+                  className="px-8 py-3 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  Check Value
+                </button>
+              </form>
+            </div>
 
-            <div className="flex flex-wrap gap-5 md:gap-8">
+            <div className="flex flex-wrap gap-6 text-sm font-medium text-slate-600 pt-2">
               {['Instant Quote', 'Free Pickup', 'Same-Day Payment'].map((benefit) => (
-                <div key={benefit} className="flex items-center gap-2.5 text-gray-700">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-lime to-brand-lime-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-lime/30">
-                    <Check className="w-3.5 h-3.5 text-brand-blue-900" strokeWidth={2.5} />
+                <div key={benefit} className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-brand-blue-100 flex items-center justify-center text-brand-blue-600">
+                    <Check className="w-3 h-3" strokeWidth={3} />
                   </div>
-                  <span className="font-semibold">{benefit}</span>
+                  {benefit}
                 </div>
               ))}
             </div>
 
-            {/* Stats - card style with subtle gradients */}
+            {/* Glass Stats */}
             <motion.div
               initial={mounted ? { opacity: 0, y: 16 } : false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-              className="grid grid-cols-3 gap-4 pt-8 mt-8 border-t border-gray-200/80"
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="grid grid-cols-3 gap-4 pt-8 mt-8 border-t border-slate-200"
             >
               {stats.map((stat, index) => {
                 const Icon = stat.icon
                 return (
-                  <div
-                    key={index}
-                    className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-b from-white/80 to-brand-blue-50/40 backdrop-blur-sm border border-brand-blue-100/60 shadow-sm hover:shadow-md hover:border-brand-lime/20 transition-all duration-200"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-blue-100 to-brand-blue-50 flex items-center justify-center mb-2">
-                      <Icon className="w-5 h-5 text-brand-blue-700" />
-                    </div>
-                    <div className="text-2xl md:text-3xl font-bold text-brand-blue-900">
+                  <div key={index} className="group cursor-default">
+                    <div className="text-3xl font-bold text-slate-900 mb-1 group-hover:text-brand-blue-600 transition-colors">
                       <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                     </div>
-                    <div className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">{stat.label}</div>
+                    <div className="flex items-center gap-2 text-brand-blue-600 text-sm">
+                      <Icon className="w-4 h-4 text-brand-blue-600" />
+                      {stat.label}
+                    </div>
                   </div>
                 )
               })}
             </motion.div>
           </motion.div>
 
-          {/* Right - Hero visual: no outer box, content on gradient */}
+          {/* Right - Advanced 3D Interactive Visual */}
           <motion.div
-            initial={mounted ? { opacity: 0, x: 24 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative hidden lg:flex items-center justify-center flex-1 min-h-[500px] rounded-2xl bg-gradient-to-l from-white via-brand-lime-50/40 to-brand-blue-100/50"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            style={{
+              rotateX,
+              rotateY,
+              transformStyle: "preserve-3d" // CRITICAL for 3D effect
+            }}
+            className="hidden lg:flex relative h-[650px] items-center justify-center pointer-events-none"
           >
-            <div className="relative w-full max-w-lg min-h-[420px] flex items-center justify-center">
-              {/* Soft glow behind image (no box) */}
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-lime/15 via-transparent to-brand-blue-400/15 blur-2xl pointer-events-none" />
-              {/* Decorative orbs */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 -left-8 w-40 h-40 rounded-full bg-brand-blue-300/20 blur-2xl" />
-                <div className="absolute bottom-1/4 -right-8 w-48 h-48 rounded-full bg-brand-lime/15 blur-2xl" />
-              </div>
-              {/* Corner accents */}
-              <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-brand-lime/50 pointer-events-none" />
-              <div className="absolute top-6 right-6 w-1.5 h-1.5 rounded-full bg-brand-blue-400/40 pointer-events-none" />
-              <div className="absolute bottom-6 left-6 w-2 h-2 rounded-full bg-brand-blue-400/40 pointer-events-none" />
-              <div className="absolute bottom-4 left-4 w-1.5 h-1.5 rounded-full bg-brand-lime/50 pointer-events-none" />
-              {/* Main image with shadow */}
-              <div className="relative z-10 w-full flex justify-center px-4">
-                <div style={{ filter: 'drop-shadow(0 20px 40px rgba(30, 58, 138, 0.12)) drop-shadow(0 8px 16px rgba(132, 204, 22, 0.08))' }}>
+            {/* 3D Container Content */}
+            <div className="relative w-full max-w-[600px] aspect-square transform-style-3d">
+
+              {/* Layer 0: Ambient Glow (Deep Background) */}
+              <div className="absolute inset-0 bg-gradient-conic from-brand-blue-500/20 via-brand-lime/20 to-brand-blue-500/20 blur-3xl opacity-60 animate-pulse-slow rounded-full mix-blend-multiply transition-transform duration-75" />
+
+              {/* Layer 1: Main Product Image (Mid depth) */}
+              <motion.div
+                style={{ x: layer1X, y: layer1Y, z: 20 }}
+                className="absolute inset-0 flex items-center justify-center z-10"
+              >
+                <div className="relative w-full transform transition-all duration-500 hover:scale-105">
+                  {/* Shadow for floating effect */}
+                  <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-2/3 h-12 bg-black/20 blur-2xl rounded-[100%]" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getAssetPath('/images/hero-web-img1.png')}
-                    alt="Cameras, laptops, phones and gadgets - Trade in for instant value"
-                    className="w-full h-auto max-h-[400px] object-contain object-center"
+                    alt="Trade in your devices"
+                    className="w-full h-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
                   />
                 </div>
-              </div>
-              {/* Instant value badge */}
-              <div className="absolute bottom-4 right-4 z-10 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm border border-brand-lime/30 shadow-sm">
-                <span className="text-xs font-semibold text-brand-blue-900">Instant value</span>
-              </div>
+              </motion.div>
+
+              {/* Layer 2: Floating Glass Cards (High depth, nearest to user) */}
+
+              {/* Card 1: Payment Success */}
+              <motion.div
+                style={{ x: layer2X, y: layer2Y, z: 60 }}
+                className="absolute -left-4 top-32 z-30"
+              >
+                <div className="bg-white/70 backdrop-blur-xl p-4 pr-8 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] border border-white/50 flex items-center gap-4 animate-float">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                    <Check className="w-6 h-6 text-white" strokeWidth={3} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Payment Sent</p>
+                    <p className="text-lg font-bold text-slate-900 font-mono">₹45,200</p>
+                  </div>
+                  {/* Shiny overlay */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 via-white/40 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-700 pointer-events-auto" />
+                </div>
+              </motion.div>
+
+              {/* Card 2: 5-Star Rating */}
+              <motion.div
+                style={{ x: useTransform(mouseX, [-1, 1], [30, -30]), y: useTransform(mouseY, [-1, 1], [20, -20]), z: 40 }}
+                className="absolute -right-8 top-20 z-20"
+              >
+                <div className="bg-white/80 backdrop-blur-lg p-4 rounded-2xl shadow-xl border border-white/60 animate-float-delayed flex flex-col items-center gap-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400 drop-shadow-sm" />
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-slate-600">Trusted by India</span>
+                </div>
+              </motion.div>
+
+              {/* Card 3: Instant Pickup */}
+              <motion.div
+                style={{ x: layer2X, y: layer2Y, z: 50 }}
+                className="absolute -right-0 bottom-32 z-30"
+              >
+                <div className="bg-slate-900/90 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center gap-4 animate-float" style={{ animationDelay: '1.5s' }}>
+                  <div className="w-10 h-10 rounded-xl bg-brand-lime flex items-center justify-center shadow-lg shadow-brand-lime/20">
+                    <TrendingUp className="w-5 h-5 text-brand-blue-900" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">Best Price</p>
+                    <p className="text-xs text-slate-300">Guaranteed</p>
+                  </div>
+                </div>
+              </motion.div>
+
             </div>
           </motion.div>
         </div>
 
         {/* Categories - with gradient separator */}
-        <div className="mt-14 md:mt-20 h-px w-full bg-gradient-to-r from-transparent via-brand-lime/30 to-transparent" />
+        <div className="mt-20 md:mt-24 relative">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-slate-200"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-4 bg-slate-50 text-sm text-slate-500 font-medium uppercase tracking-widest">Start Selling</span>
+          </div>
+        </div>
+
         <motion.div
           id="trade-in"
-          initial={mounted ? { opacity: 0, y: 20 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="scroll-mt-20"
+          initial={mounted ? { opacity: 0, y: 30 } : false}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6"
         >
-          <div className="relative mb-6">
-            <p className="text-center text-gray-600 font-semibold text-lg">Select a category to get started</p>
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-24 h-0.5 bg-gradient-to-r from-transparent via-brand-lime/50 to-transparent rounded-full" />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {categories.map((category) => {
-              const Icon = category.icon
-              return (
-                <Link
-                  key={category.id}
-                  href={`/brands?category=${category.id}`}
-                  className="group flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-200 bg-gradient-to-b from-white to-brand-blue-50/30 hover:border-brand-lime hover:bg-gradient-to-b hover:from-brand-lime-50/40 hover:to-brand-blue-50/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 shadow-sm"
-                >
-                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 group-hover:from-brand-lime/20 group-hover:to-brand-blue-100/50 rounded-2xl flex items-center justify-center mb-3 transition-all duration-200">
-                    <Icon className="w-8 h-8 text-gray-600 group-hover:text-brand-blue-900 transition-colors" />
+          {categories.map((category) => {
+            return (
+              <Link
+                key={category.id}
+                href={`/brands?category=${category.id}`}
+                className="group relative p-6 transition-all duration-300"
+              >
+                <div className="h-full flex flex-col items-center justify-center">
+                  <div className="flex-1 flex items-center justify-center w-full mb-4">
+                    <Image
+                      src={getAssetPath(category.image)}
+                      alt={category.name}
+                      width={160}
+                      height={160}
+                      className="w-full h-full max-w-[140px] md:max-w-[160px] object-contain group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                  <span className="text-sm font-semibold text-gray-700 group-hover:text-brand-blue-900 transition-colors text-center">
-                    {category.name}
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
+                  <span className="font-bold text-brand-blue-900 group-hover:text-brand-blue-700 text-center">{category.name}</span>
+                </div>
+              </Link>
+            )
+          })}
         </motion.div>
       </div>
     </section>

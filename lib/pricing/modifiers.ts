@@ -11,23 +11,44 @@ export type AnswerMap = Record<string, string | string[]> & {
 }
 
 /**
- * Calculate final price based on internal base price and user answers
- * @param internalBasePrice - The internal base price (not display price)
+ * Calculate final price based on base price and user answers
+ * @param basePrice - The base price for the product/variant
  * @param answers - Object mapping question IDs to answer IDs or arrays of answer IDs
- * @param rules - Optional pricing rules. Defaults to hardcoded values if not provided.
+ * @param rules - Optional pricing rules. Defaults to ZERO_PRICING_RULES if not provided.
+ * @param brand - Optional brand name (e.g., "iPhone", "Samsung") for brand-specific pricing logic
+ * @param powerOnPercentage - Optional percentage for powerOn deduction (60-95). If set, overrides fixed amount and iPhone/Samsung 75% logic
  * @returns Final calculated price (never below 0)
  */
 export function calculatePrice(
-  internalBasePrice: number,
+  basePrice: number,
   answers: AnswerMap,
-  rules: PricingRules = ZERO_PRICING_RULES
+  rules: PricingRules = ZERO_PRICING_RULES,
+  brand?: string,
+  powerOnPercentage?: number | null
 ): number {
   let totalModifier = 0
+  const normalizedBrand = brand?.toLowerCase().trim() || ''
 
-  // All pricing values come from Firebase (Admin Pricing Calculator: per-product or global)
-  // ZERO_PRICING_RULES used only when no rules passed (e.g. default param)
-  if (answers.powerOn && rules.questions.powerOn) {
-    totalModifier += rules.questions.powerOn[answers.powerOn as 'yes' | 'no'] || 0
+  // Handle powerOn deduction
+  if (answers.powerOn === 'no') {
+    // If powerOnPercentage is set, use percentage-based deduction
+    if (powerOnPercentage !== undefined && powerOnPercentage !== null) {
+      totalModifier -= basePrice * (powerOnPercentage / 100)
+    } else {
+      // iPhone (Apple) and Samsung specific logic: If powerOn is "no", subtract 75% of base price
+      const isIPhoneOrSamsung = normalizedBrand === 'iphone' || normalizedBrand === 'apple' || normalizedBrand === 'samsung'
+      
+      if (isIPhoneOrSamsung) {
+        // Subtract 75% of base price
+        totalModifier -= basePrice * 0.75
+      } else if (rules.questions.powerOn) {
+        // For other brands, use the regular pricing rules
+        totalModifier += rules.questions.powerOn.no || 0
+      }
+    }
+  } else if (answers.powerOn === 'yes' && rules.questions.powerOn) {
+    // If powerOn is "yes", use the regular pricing rules
+    totalModifier += rules.questions.powerOn.yes || 0
   }
   if (answers.cameraFunction && rules.questions.cameraFunction) {
     totalModifier += (rules.questions.cameraFunction[answers.cameraFunction as 'yes' | 'no'] || 0)
@@ -225,7 +246,7 @@ export function calculatePrice(
     totalModifier += rules.age[answers.age as keyof typeof rules.age] || 0
   }
 
-  const finalPrice = internalBasePrice + totalModifier
+  const finalPrice = basePrice + totalModifier
   return Math.max(0, finalPrice) // Ensure price never goes below 0
 }
 

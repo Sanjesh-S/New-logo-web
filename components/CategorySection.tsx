@@ -1,14 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Camera, Smartphone, Laptop, Tablet, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { getAssetPath } from '@/lib/utils'
 
 const categories = [
   {
     id: 'cameras',
     name: 'Camera / DSLR',
-    icon: Camera,
+    image: '/Icons/DSLR.webp',
     description: 'Canon, Nikon, Sony, Fujifilm',
     color: 'from-brand-blue-600 to-brand-lime',
     bgColor: 'bg-brand-blue-500/10',
@@ -17,7 +18,7 @@ const categories = [
   {
     id: 'phones',
     name: 'Phone',
-    icon: Smartphone,
+    image: '/Icons/phone.webp',
     description: 'Coming Soon',
     color: 'from-brand-lime to-brand-lime-400',
     bgColor: 'bg-brand-lime/10',
@@ -26,7 +27,7 @@ const categories = [
   {
     id: 'laptops',
     name: 'Laptop',
-    icon: Laptop,
+    image: '/Icons/Laptop.webp',
     description: 'Coming Soon',
     color: 'from-brand-blue-500 to-brand-lime-500',
     bgColor: 'bg-brand-blue-500/10',
@@ -35,7 +36,7 @@ const categories = [
   {
     id: 'tablets',
     name: 'Tablet',
-    icon: Tablet,
+    image: '/Icons/Tablet.webp',
     description: 'Coming Soon',
     color: 'from-brand-blue-600 to-brand-lime-400',
     bgColor: 'bg-brand-blue-500/10',
@@ -52,57 +53,68 @@ export default function CategorySection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-blue-900 mb-2 md:mb-4">
             Select a category to get started
           </h2>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 max-w-6xl mx-auto">
           {categories.map((category, index) => {
-            const Icon = category.icon
-
             return (
               <motion.div
                 key={category.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.4 }}
+                transition={{ delay: index * 0.05, duration: 0.3, ease: 'easeOut' }}
               >
                 {category.available ? (
-                  <Link href={`/trade-in?category=${category.id}`}>
-                    <div className="relative h-48 md:h-56 bg-white rounded-xl border-2 border-gray-200 hover:border-brand-lime transition-all cursor-pointer shadow-sm hover:shadow-md">
-                      <div className="h-full flex flex-col items-center justify-center p-6">
-                        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4`}>
-                          <Icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                  <Link href={`/trade-in?category=${category.id}`} prefetch={true}>
+                    <div className="relative h-64 md:h-80 transition-all cursor-pointer group">
+                      <div className="h-full flex flex-col items-center justify-center p-6 md:p-8">
+                        <div className="flex-1 flex items-center justify-center w-full mb-4">
+                          <Image
+                            src={getAssetPath(category.image)}
+                            alt={category.name}
+                            width={200}
+                            height={200}
+                            className="w-full h-full max-w-[180px] md:max-w-[220px] object-contain group-hover:scale-105 transition-transform duration-300 will-change-transform"
+                            loading="lazy"
+                          />
                         </div>
-                        <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 mb-2">
+                        <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 text-center">
                           {category.name}
                         </h3>
-                        <p className="text-sm md:text-base text-gray-600 text-center mb-4">
-                          {category.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-brand-lime font-semibold text-sm md:text-base">
-                          <span>Get Started</span>
-                          <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-                        </div>
+                        {category.description && category.description !== 'Coming Soon' && (
+                          <p className="text-sm text-gray-500 text-center mt-1">
+                            {category.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Link>
                 ) : (
-                  <div className="relative h-48 md:h-56 bg-white rounded-xl border-2 border-gray-200 opacity-60">
-                    <div className="h-full flex flex-col items-center justify-center p-6">
-                      <div className={`w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 opacity-50`}>
-                        <Icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                  <div className="relative h-64 md:h-80 opacity-60">
+                    <div className="h-full flex flex-col items-center justify-center p-6 md:p-8">
+                      <div className="flex-1 flex items-center justify-center w-full mb-4">
+                        <Image
+                          src={getAssetPath(category.image)}
+                          alt={category.name}
+                          width={200}
+                          height={200}
+                          className="w-full h-full max-w-[180px] md:max-w-[220px] object-contain opacity-50"
+                        />
                       </div>
-                      <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 mb-2">
+                      <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 text-center">
                         {category.name}
                       </h3>
-                      <p className="text-sm md:text-base text-gray-600 text-center">
-                        {category.description}
-                      </p>
+                      {category.description && (
+                        <p className="text-sm text-gray-500 text-center mt-1">
+                          {category.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

@@ -13,7 +13,7 @@ const faqs = [
     {
         id: 'faq-pickup-delay',
         question: 'What should I do if my pickup is delayed?',
-        answer: 'Please contact our support team directly 9843010746. We will immediately coordinate with our pick up team to resolve the delay.',
+        answer: 'Please contact our support team directly 9843010746. We will immediately co-ordinate with our pickup team to resolve the delay.',
     },
     {
         id: 'faq-delivery',
@@ -55,12 +55,13 @@ function FAQItem({ id, question, answer, isOpen, onClick }: {
                 onClick={onClick}
                 aria-expanded={isOpen}
                 aria-controls={contentId}
-                className="w-full py-5 px-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                className="w-full py-5 px-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors duration-150"
             >
                 <span className="font-semibold text-brand-blue-900 pr-4">{question}</span>
                 <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="will-change-transform"
                 >
                     <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
                 </motion.div>
@@ -75,8 +76,8 @@ function FAQItem({ id, question, answer, isOpen, onClick }: {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="overflow-hidden will-change-[height,opacity]"
                     >
                         <div className="px-6 pb-5 text-gray-600 leading-relaxed">
                             {answer}

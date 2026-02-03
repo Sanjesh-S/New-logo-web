@@ -109,7 +109,6 @@ export async function createValuation(data: {
   usage?: 'light' | 'moderate' | 'heavy'
   accessories?: string[]
   basePrice?: number
-  internalBasePrice?: number
   estimatedValue?: number
   userId?: string
   productId?: string

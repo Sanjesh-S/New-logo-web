@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { subscribeToProducts, subscribeToPickupRequests, updatePickupRequest, updateProduct, type Product, type PickupRequest } from '@/lib/firebase/database'
-import { addVariantsToProduct } from '@/lib/utils/productVariants'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard'
@@ -68,8 +67,6 @@ export default function AdminProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [liveIndicator, setLiveIndicator] = useState(true)
     const [assessmentModalRequest, setAssessmentModalRequest] = useState<PickupRequest | null>(null)
-    const [addingVariants, setAddingVariants] = useState(false)
-    const [variantsMessage, setVariantsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
     // Filters (Product List)
     const [searchTerm, setSearchTerm] = useState('')
@@ -179,47 +176,6 @@ export default function AdminProductsPage() {
         setEditingProduct(null)
     }
 
-    const handleAddVariantsToAll = async (overwriteExisting = false) => {
-        const toProcess = overwriteExisting
-            ? products
-            : products.filter((p) => !p.variants || p.variants.length === 0)
-        if (toProcess.length === 0) {
-            setVariantsMessage({ type: 'success', text: overwriteExisting ? 'No products to update.' : 'All products already have variants.' })
-            setTimeout(() => setVariantsMessage(null), 3000)
-            return
-        }
-        setAddingVariants(true)
-        setVariantsMessage(null)
-        let updated = 0
-        let failed = 0
-        try {
-            for (const product of toProcess) {
-                const updates = addVariantsToProduct(product)
-                if (updates.variants && updates.variants.length > 0) {
-                    try {
-                        await updateProduct(product.id, updates)
-                        updated++
-                    } catch {
-                        failed++
-                    }
-                }
-            }
-            setVariantsMessage({
-                type: failed > 0 ? 'error' : 'success',
-                text: failed > 0
-                    ? `Updated variants for ${updated} products. ${failed} failed.`
-                    : overwriteExisting
-                    ? `Re-applied default variants to ${updated} products.`
-                    : `Added variants to ${updated} products.`,
-            })
-        } catch (e) {
-            setVariantsMessage({ type: 'error', text: 'Failed: ' + (e instanceof Error ? e.message : 'Unknown error') })
-        } finally {
-            setAddingVariants(false)
-            setTimeout(() => setVariantsMessage(null), 5000)
-        }
-    }
-
     // Get unique categories for filter
     const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).sort()]
 
@@ -278,31 +234,6 @@ export default function AdminProductsPage() {
                     </div>
                     {activeTab === 'products' && (
                         <div className="flex flex-wrap items-center gap-2">
-                            <button
-                                onClick={() => handleAddVariantsToAll(false)}
-                                disabled={addingVariants || products.length === 0}
-                                className="inline-flex items-center gap-2 bg-brand-lime text-brand-blue-900 px-5 py-2.5 rounded-xl hover:bg-brand-lime-400 transition-all duration-200 font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {addingVariants ? (
-                                    <>
-                                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                        Adding…
-                                    </>
-                                ) : (
-                                    <>
-                                        <PackageIcon />
-                                        Add variants to all
-                                    </>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => handleAddVariantsToAll(true)}
-                                disabled={addingVariants || products.length === 0}
-                                title="Re-apply correct default variants (128/256/512/1 TB for iPhone, etc.) to every product. Overwrites existing variants."
-                                className="inline-flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-xl hover:bg-amber-600 transition-all duration-200 font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Fix variants (re-apply all)
-                            </button>
                             <button
                                 onClick={handleAddNew}
                                 className="inline-flex items-center gap-2 bg-white text-brand-blue-900 px-5 py-2.5 rounded-xl hover:bg-brand-blue-50 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
@@ -387,11 +318,6 @@ export default function AdminProductsPage() {
             {/* Tab Content */}
             {activeTab === 'products' && (
                 <div className="space-y-4">
-                    {variantsMessage && (
-                        <div className={`rounded-xl border p-4 ${variantsMessage.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-                            {variantsMessage.text}
-                        </div>
-                    )}
                     {/* Filters Bar */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div className="flex flex-col sm:flex-row gap-4">
@@ -429,8 +355,7 @@ export default function AdminProductsPage() {
                                     <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Display Price</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Internal Base</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
                                         <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
@@ -461,9 +386,6 @@ export default function AdminProductsPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className="font-medium text-gray-900">₹{product.basePrice.toLocaleString('en-IN')}</span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-gray-600">₹{product.internalBasePrice?.toLocaleString('en-IN')}</span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button
