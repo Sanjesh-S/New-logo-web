@@ -1324,7 +1324,7 @@ export default function AssessmentWizard({
         ))}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 relative z-10">
         {/* Progress Bar - At the Top */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1349,28 +1349,28 @@ export default function AssessmentWizard({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8 md:p-10 lg:p-12 mb-6 relative overflow-hidden"
+              className="bg-white/80 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl border border-white/50 p-4 md:p-6 lg:p-8 xl:p-10 mb-4 md:mb-6 relative overflow-hidden"
             >
               {/* Glassmorphism overlay */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/40 to-transparent pointer-events-none" />
               
               {/* Section Badge */}
-              <div className="relative z-10 mb-6">
+              <div className="relative z-10 mb-4 md:mb-6">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.1 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-blue-100 to-brand-lime-100 rounded-full border border-brand-blue-200 shadow-sm"
+                  className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-brand-blue-100 to-brand-lime-100 rounded-full border border-brand-blue-200 shadow-sm"
                 >
                   <motion.div
                     animate={{ rotate: [0, 10, -10, 0] }}
                     transition={{ duration: 0.5, delay: 0.3 }}
-                    className="text-brand-blue-700"
+                    className="text-brand-blue-700 w-3 h-3 md:w-4 md:h-4"
                   >
                     {getSectionIcon(steps[currentStep].id)}
                   </motion.div>
-                  <div className="w-2 h-2 bg-brand-lime rounded-full animate-pulse" />
-                  <span className="text-sm font-bold text-brand-blue-900 uppercase tracking-wider">
+                  <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-brand-lime rounded-full animate-pulse" />
+                  <span className="text-xs md:text-sm font-bold text-brand-blue-900 uppercase tracking-wide md:tracking-wider">
                     {steps[currentStep].title}
                   </span>
                 </motion.div>
