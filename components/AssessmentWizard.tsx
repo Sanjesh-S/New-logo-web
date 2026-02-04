@@ -1158,9 +1158,29 @@ export default function AssessmentWizard({
         return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
       }
       
-      // Lens condition step - require at least one selection
+      // Lens condition step - if user has no lens to sell, allow proceeding
+      // If user has lens to sell, require all condition fields to be answered
       if (step.id === 'lens-condition') {
-        return answers.lensCondition !== undefined && answers.lensCondition !== null && answers.lensCondition !== ''
+        const hasLensToSell = answers.hasLensToSell as string | undefined
+        // If user selected "No", they can proceed without answering lens condition questions
+        if (hasLensToSell === 'no') {
+          return true
+        }
+        // If user selected "Yes", require all lens condition fields to be answered
+        if (hasLensToSell === 'yes') {
+          const fungusDust = answers.fungusDustCondition as string[] | undefined
+          const focusFunc = answers.focusFunctionality as string[] | undefined
+          const rubberRing = answers.rubberRingCondition as string[] | undefined
+          const errorStatus = answers.lensErrorStatus as string[] | undefined
+          return (
+            fungusDust !== undefined && fungusDust.length > 0 &&
+            focusFunc !== undefined && focusFunc.length > 0 &&
+            rubberRing !== undefined && rubberRing.length > 0 &&
+            errorStatus !== undefined && errorStatus.length > 0
+          )
+        }
+        // If hasLensToSell is not set yet, don't allow proceeding
+        return false
       }
     }
     
