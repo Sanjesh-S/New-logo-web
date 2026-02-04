@@ -2,11 +2,29 @@
 
 import { motion } from 'framer-motion'
 import { Volume2, Plug, CheckCircle, Wifi, Mic, Circle, Hand, WifiOff, Droplets, Box, Smartphone } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 
 interface PhoneIssueGridProps {
   value?: string[]
   onChange: (value: string[]) => void
   variant?: 'default' | 'samsung'
+}
+
+function getFunctionalIssueImage(issueId: string): string | null {
+  const imageMap: Record<string, string> = {
+    'microphoneIssue': getAssetPath(encodeURI('/Icons/Functional Issues/Functional issues_Mic Issue.png')),
+    'speakerIssue': getAssetPath(encodeURI('/Icons/Functional Issues/Functional issues_Speaker Issue.png')),
+    'chargingPortIssue': getAssetPath(encodeURI('/Icons/Functional Issues/Functional issues_Charge Port Isuue.png')),
+    'touchScreenIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Touch response.svg')),
+    'wifiIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Wifi-bt.png')),
+    'buttonIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Button.svg')),
+    'frameDamageIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_frame Damage.svg')),
+    'bodyDamageIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Body Damage.svg')),
+    'waterDamageIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Water Issue.svg')),
+    'networkIssue': getAssetPath(encodeURI('/Icons/Mobile Issues/Mobile Issues_Network issue.svg')),
+  }
+  const path = imageMap[issueId]
+  return path ?? null
 }
 
 const defaultPhoneIssues = [
@@ -60,6 +78,7 @@ export default function PhoneIssueGrid({ value = [], onChange, variant = 'defaul
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {phoneIssues.filter(issue => issue.id !== 'noIssues').map((issue) => {
           const Icon = issue.icon
+          const imageSrc = getFunctionalIssueImage(issue.id)
           return (
             <motion.button
               key={issue.id}
@@ -73,7 +92,15 @@ export default function PhoneIssueGrid({ value = [], onChange, variant = 'defaul
               }`}
             >
               <div className="mb-2 flex justify-center">
-                <Icon className="w-5 h-5" />
+                {imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt={issue.label}
+                    className="w-16 h-16 object-contain mx-auto"
+                  />
+                ) : (
+                  <Icon className="w-10 h-10 mx-auto" />
+                )}
               </div>
               <div className="text-sm font-medium">{issue.label}</div>
             </motion.button>
@@ -97,7 +124,7 @@ export default function PhoneIssueGrid({ value = [], onChange, variant = 'defaul
               }`}
             >
               <div className="mb-2 flex justify-center">
-                <Icon className="w-5 h-5" />
+                <Icon className="w-8 h-8" />
               </div>
               <div className="text-sm font-medium">{issue.label}</div>
             </motion.button>

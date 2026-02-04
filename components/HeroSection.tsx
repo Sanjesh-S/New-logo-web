@@ -383,7 +383,7 @@ export default function HeroSection() {
                   <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-2/3 h-12 bg-black/20 blur-2xl rounded-[100%]" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={getAssetPath('/images/hero-web-img1.png')}
+                    src={getAssetPath('/Icons/home page image.webp')}
                     alt="Trade in your devices"
                     className="w-full h-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
                   />

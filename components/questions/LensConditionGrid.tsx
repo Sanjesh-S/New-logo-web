@@ -2,8 +2,27 @@
 
 import { motion } from 'framer-motion'
 import { CheckCircle, AlertCircle, XCircle, Eye, Focus, Grip, AlertTriangle } from 'lucide-react'
+import { getAssetPath } from '@/lib/utils'
 import type { AnswerMap } from '@/lib/pricing/modifiers'
 import YesNoQuestion from './YesNoQuestion'
+
+function getFocusFunctionalityImage(optionId: string): string {
+  const imageMap: Record<string, string> = {
+    'goodFocus': getAssetPath(encodeURI('/Icons/Good AF And MF.svg')),
+    'afIssue': getAssetPath(encodeURI('/Icons/AF Issues.svg')),
+    'mfIssue': getAssetPath(encodeURI('/Icons/MF issues.svg')),
+  }
+  return imageMap[optionId] ?? ''
+}
+
+function getRubberRingImage(optionId: string): string {
+  const imageMap: Record<string, string> = {
+    'goodRubber': getAssetPath(encodeURI('/Icons/Rubber Ring/Rubber Ring Issue_Good.svg')),
+    'minorRubber': getAssetPath(encodeURI('/Icons/Rubber Ring/Rubber Ring Issue_Minor.svg')),
+    'majorRubber': getAssetPath(encodeURI('/Icons/Rubber Ring/Rubber Ring Issue_Major.svg')),
+  }
+  return imageMap[optionId] ?? ''
+}
 
 interface LensConditionGridProps {
   answers: AnswerMap
@@ -120,27 +139,36 @@ export default function LensConditionGrid({ answers, onChange }: LensConditionGr
             { id: 'goodFocus', label: 'Good (AF & MF work)', icon: <Focus className="w-5 h-5" /> },
             { id: 'afIssue', label: 'AF Issue Only', icon: <AlertCircle className="w-5 h-5" /> },
             { id: 'mfIssue', label: 'MF Issue Only', icon: <XCircle className="w-5 h-5" /> },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={hasLensToSell ? { scale: 1.02 } : {}}
-              whileTap={hasLensToSell ? { scale: 0.98 } : {}}
-              onClick={() => handleMultiSelect('focusFunctionality', option.id, ['afIssue', 'mfIssue'])}
-              disabled={!hasLensToSell}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
-                isSelected('focusFunctionality', option.id)
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex-shrink-0">
-                  {option.icon}
+          ].map((option) => {
+            const imageSrc = getFocusFunctionalityImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={hasLensToSell ? { scale: 1.02 } : {}}
+                whileTap={hasLensToSell ? { scale: 0.98 } : {}}
+                onClick={() => handleMultiSelect('focusFunctionality', option.id, ['afIssue', 'mfIssue'])}
+                disabled={!hasLensToSell}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  isSelected('focusFunctionality', option.id)
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imageSrc ? (
+                    <img
+                      src={imageSrc}
+                      alt={option.label}
+                      className="w-16 h-16 object-contain mx-auto"
+                    />
+                  ) : (
+                    <span className="flex justify-center">{option.icon}</span>
+                  )}
                 </div>
-                <span className="text-sm font-medium">{option.label}</span>
-              </div>
-            </motion.button>
-          ))}
+                <div className="text-sm font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 
@@ -154,27 +182,36 @@ export default function LensConditionGrid({ answers, onChange }: LensConditionGr
             { id: 'goodRubber', label: 'Good Condition', icon: <Grip className="w-5 h-5" /> },
             { id: 'minorRubber', label: 'Minor Wear/Damage', icon: <AlertCircle className="w-5 h-5" /> },
             { id: 'majorRubber', label: 'Major Damage', icon: <XCircle className="w-5 h-5" /> },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={hasLensToSell ? { scale: 1.02 } : {}}
-              whileTap={hasLensToSell ? { scale: 0.98 } : {}}
-              onClick={() => handleMultiSelect('rubberRingCondition', option.id, ['minorRubber', 'majorRubber'])}
-              disabled={!hasLensToSell}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
-                isSelected('rubberRingCondition', option.id)
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex-shrink-0">
-                  {option.icon}
+          ].map((option) => {
+            const imageSrc = getRubberRingImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={hasLensToSell ? { scale: 1.02 } : {}}
+                whileTap={hasLensToSell ? { scale: 0.98 } : {}}
+                onClick={() => handleMultiSelect('rubberRingCondition', option.id, ['minorRubber', 'majorRubber'])}
+                disabled={!hasLensToSell}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  isSelected('rubberRingCondition', option.id)
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imageSrc ? (
+                    <img
+                      src={imageSrc}
+                      alt={option.label}
+                      className="w-16 h-16 object-contain mx-auto"
+                    />
+                  ) : (
+                    <span className="flex justify-center">{option.icon}</span>
+                  )}
                 </div>
-                <span className="text-sm font-medium">{option.label}</span>
-              </div>
-            </motion.button>
-          ))}
+                <div className="text-sm font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 

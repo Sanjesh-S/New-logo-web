@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
@@ -161,12 +161,14 @@ export default function AssessmentWizard({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [currentStep])
 
-  const handleAnswer = (questionId: string, value: string | string[]) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: value,
-    }))
-  }
+  const handleAnswer = useCallback((questionId: string, value: string | string[]) => {
+    startTransition(() => {
+      setAnswers((prev) => ({
+        ...prev,
+        [questionId]: value,
+      }))
+    })
+  }, [])
 
   // Skip to accessories step if powerOn is "no" for DSLR or Phone
   useEffect(() => {

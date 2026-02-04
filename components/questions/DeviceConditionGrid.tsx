@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { CheckCircle, AlertCircle, XCircle, Camera } from 'lucide-react'
 import { getAssetPath } from '@/lib/utils'
 import type { AnswerMap } from '@/lib/pricing/modifiers'
@@ -18,21 +17,41 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
       'minor': getAssetPath('/images/conditions/phone-minor.webp'),
       'visible': getAssetPath('/images/conditions/phone-visible.webp'),
       'cracked': getAssetPath('/images/conditions/phone-cracked.webp'),
-      'goodWorking': getAssetPath('/images/conditions/phone-flawless.webp'),
-      'minorCrack': getAssetPath('/images/conditions/phone-minor.webp'),
-      'majorDamage': getAssetPath('/images/conditions/phone-visible.webp'),
-      'notWorking': getAssetPath('/images/conditions/phone-cracked.webp'),
+      'goodWorking': getAssetPath(encodeURI('/Icons/Phone_ Perfect Display.svg')),
+      'minorCrack': getAssetPath(encodeURI('/Icons/Phone_Minor Scratch Display.svg')),
+      'majorDamage': getAssetPath(encodeURI('/Icons/Phone_Major Scratch Display.svg')),
+      // notWorking: left empty for now – add image path here when ready
     }
     return imageMap[condition] || null
   }
 
+  const getBatteryHealthImage = (optionId: string): string => {
+    const imageMap: Record<string, string> = {
+      'battery90Above': getAssetPath(encodeURI('/Icons/Battery Health_Health 90% & above.svg')),
+      'battery80to90': getAssetPath(encodeURI('/Icons/Battery Health_80% & above.svg')),
+      'battery50to80': getAssetPath(encodeURI('/Icons/Battery Health_50% to 80%.svg')),
+      'batteryBelow50': getAssetPath(encodeURI('/Icons/Battery Health_50% & Below.svg')),
+    }
+    return imageMap[optionId] ?? ''
+  }
+
+  const getCameraConditionImage = (optionId: string): string => {
+    const imageMap: Record<string, string> = {
+      'cameraGood': getAssetPath(encodeURI('/Icons/Camera Issue_Good.svg')),
+      'frontCameraNotWorking': getAssetPath(encodeURI('/Icons/Camera Issue_Front Cam Issue.svg')),
+      'backCameraNotWorking': getAssetPath(encodeURI('/Icons/Camera Issue_Back Camera.svg')),
+      'bothCamerasNotWorking': getAssetPath(encodeURI('/Icons/Camera Issue_Front & Back Issue.svg')),
+    }
+    return imageMap[optionId] ?? ''
+  }
+
   const getIcon = (condition: string) => {
     if (condition === 'excellent' || condition === 'flawless' || condition === 'pristine' || condition === 'perfect' || condition === 'goodWorking' || condition === 'cameraGood' || condition === 'battery90Above' || condition === 'battery80to90') {
-      return <CheckCircle className="w-5 h-5" />
+      return <CheckCircle className="w-8 h-8" />
     } else if (condition === 'minor' || condition === 'light' || condition === 'scuffs' || condition === 'minorCrack' || condition === 'battery50to80') {
-      return <AlertCircle className="w-5 h-5" />
+      return <AlertCircle className="w-8 h-8" />
     } else {
-      return <XCircle className="w-5 h-5" />
+      return <XCircle className="w-8 h-8" />
     }
   }
 
@@ -57,30 +76,31 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
           ]).map((option) => {
             const imagePath = showFrameCondition ? getPhoneDisplayConditionImage(option.id) : null
             return (
-              <motion.button
+              <button
                 key={option.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                type="button"
                 onClick={() => onChange('displayCondition', option.id)}
-                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.displayCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
                     : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
                 }`}
               >
-                <div className="mb-2 flex justify-center">
+                <div className="mb-2 flex justify-center min-h-[6rem]">
                   {imagePath ? (
                     <img
                       src={imagePath}
                       alt={option.label}
-                      className="w-20 h-20 object-contain"
+                      className="w-24 h-24 object-contain"
                     />
+                  ) : showFrameCondition && option.id === 'notWorking' ? (
+                    null
                   ) : (
                     getIcon(option.id)
                   )}
                 </div>
                 <div className="text-xs font-medium">{option.label}</div>
-              </motion.button>
+              </button>
             )
           })}
         </div>
@@ -99,20 +119,25 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               { id: 'battery50to80', label: '50% to 80%' },
               { id: 'batteryBelow50', label: 'Below 50%' },
             ].map((option) => (
-              <motion.button
+              <button
                 key={option.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                type="button"
                 onClick={() => onChange('batteryHealthRange', option.id)}
-                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.batteryHealthRange === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
                     : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
                 }`}
               >
-                <div className="mb-2 flex justify-center">{getIcon(option.id)}</div>
+                <div className="mb-2 flex justify-center">
+                  <img
+                    src={getBatteryHealthImage(option.id)}
+                    alt={option.label}
+                    className="w-16 h-16 object-contain mx-auto"
+                  />
+                </div>
                 <div className="text-xs font-medium">{option.label}</div>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
@@ -131,22 +156,25 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               { id: 'backCameraNotWorking', label: 'Back camera not working properly' },
               { id: 'bothCamerasNotWorking', label: 'Both not working' },
             ].map((option) => (
-              <motion.button
+              <button
                 key={option.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                type="button"
                 onClick={() => onChange('cameraCondition', option.id)}
-                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.cameraCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
                     : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
                 }`}
               >
                 <div className="mb-2 flex justify-center">
-                  {option.id === 'cameraGood' ? <Camera className="w-5 h-5" /> : getIcon(option.id)}
+                  <img
+                    src={getCameraConditionImage(option.id)}
+                    alt={option.label}
+                    className="w-16 h-16 object-contain mx-auto"
+                  />
                 </div>
                 <div className="text-xs font-medium">{option.label}</div>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
@@ -165,12 +193,11 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               { id: 'fair', label: 'Fair - Visible scratches/dents' },
               { id: 'poor', label: 'Poor - Heavy damage' },
             ].map((option) => (
-              <motion.button
+              <button
                 key={option.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                type="button"
                 onClick={() => onChange('bodyCondition', option.id)}
-                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.bodyCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
                     : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
@@ -180,7 +207,7 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
                   <Camera className="w-5 h-5" />
                 </div>
                 <div className="text-xs font-medium">{option.label}</div>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
