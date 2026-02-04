@@ -31,7 +31,9 @@ const ALLOWED_ORIGINS = [
   'https://worthyten.com',
   'https://www.worthyten.com',
   'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'http://localhost:3001',
+  'http://127.0.0.1:3001',
   // Add your GitHub Pages domain
   'https://your-username.github.io',
 ]
@@ -42,8 +44,12 @@ const ALLOWED_ORIGINS = [
 function setCorsHeaders(req: functions.https.Request, res: functions.Response): boolean {
   const origin = req.headers.origin || ''
   
-  // In development, allow all origins; in production, check against allowed list
-  const isAllowed = process.env.NODE_ENV !== 'production' || 
+  // Check if origin is localhost or 127.0.0.1 (development)
+  const isLocalhost = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')
+  
+  // In development, allow all localhost origins; in production, check against allowed list
+  const isAllowed = isLocalhost || 
+    process.env.NODE_ENV !== 'production' || 
     ALLOWED_ORIGINS.includes(origin) ||
     origin.endsWith('.worthyten.com') ||
     origin.endsWith('.github.io')
