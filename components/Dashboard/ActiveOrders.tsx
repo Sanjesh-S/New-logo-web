@@ -8,6 +8,7 @@ import { Clock, Truck, CheckCircle, AlertCircle, Package, X, Calendar, RefreshCw
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PickupScheduler from '@/components/PickupScheduler'
+import OrderTrackingTimeline from './OrderTrackingTimeline'
 
 // Helper to safely convert Firestore Timestamp or Date to Date
 interface FirestoreTimestamp {
@@ -109,6 +110,25 @@ export default function ActiveOrders() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ActiveOrderItem | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [expandedTracking, setExpandedTracking] = useState<string | null>(null)
+
+  // Helper function to format product name without duplicate brand
+  const formatProductName = (brand: string | undefined, model: string | undefined): string => {
+    if (!brand && !model) return 'Unknown Product'
+    if (!model) return brand || ''
+    if (!brand) return model
+    
+    const normalizedBrand = brand.toLowerCase().trim()
+    const normalizedModel = model.toLowerCase().trim()
+    
+    // If model already starts with brand, just return model
+    if (normalizedModel.startsWith(normalizedBrand)) {
+      return model
+    }
+    
+    // Otherwise, return brand + model
+    return `${brand} ${model}`.trim()
+  }
 
   const fetchActiveOrders = async (isRefresh = false) => {
     if (!user?.uid) return
@@ -459,6 +479,7 @@ export default function ActiveOrders() {
         {activeOrders.map((order, index) => {
           const statusInfo = getStatusInfo(order.status || 'pending', order.type)
           const StatusIcon = statusInfo.icon
+          const showTracking = expandedTracking === order.id
 
           return (
             <motion.div
@@ -486,7 +507,7 @@ export default function ActiveOrders() {
                           </>
                         ) : (
                           <>
-                            {order.brand} {order.model}
+                            {formatProductName(order.brand, order.model)}
                           </>
                         )}
                       </h3>
@@ -514,6 +535,12 @@ export default function ActiveOrders() {
                 <div className="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
                   {order.id && (
                     <>
+                      <button
+                        onClick={() => setExpandedTracking(showTracking ? null : order.id || null)}
+                        className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
+                      >
+                        {showTracking ? 'Hide Tracking' : 'Track Order'}
+                      </button>
                       <Link
                         href={`/order-summary?id=${order.orderId || order.id}&price=${order.type === 'pickup' ? order.price : order.estimatedValue}`}
                         className="px-4 py-2 text-sm font-medium text-brand-blue-600 hover:text-brand-blue-700 border border-brand-blue-200 rounded-lg hover:bg-brand-blue-50 transition-colors text-center"
@@ -564,6 +591,26 @@ export default function ActiveOrders() {
                   )}
                 </div>
               </div>
+              
+              {/* Order Tracking Timeline */}
+              <AnimatePresence>
+                {showTracking && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mt-6 pt-6 border-t border-gray-200 overflow-hidden"
+                  >
+                    <OrderTrackingTimeline
+                      status={order.status || 'pending'}
+                      createdAt={order.createdAt}
+                      pickupDate={order.pickupDate}
+                      pickupTime={order.pickupTime}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )
         })}
@@ -595,7 +642,9 @@ export default function ActiveOrders() {
                 </p>
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                   <p className="font-semibold text-gray-900">
-                    {selectedOrder.type === 'pickup' ? selectedOrder.productName : `${selectedOrder.brand} ${selectedOrder.model}`}
+                    {selectedOrder.type === 'pickup' 
+                      ? selectedOrder.productName 
+                      : formatProductName(selectedOrder.brand, selectedOrder.model)}
                   </p>
                   <p className="text-sm text-gray-600">
                     ₹{(selectedOrder.type === 'pickup' ? selectedOrder.price : selectedOrder.estimatedValue)?.toLocaleString('en-IN')}
@@ -650,7 +699,9 @@ export default function ActiveOrders() {
           }}
           onSchedule={handleReschedule}
           valuationId={selectedOrder.id}
-          productName={selectedOrder.type === 'pickup' ? selectedOrder.productName : `${selectedOrder.brand} ${selectedOrder.model}`}
+          productName={selectedOrder.type === 'pickup' 
+            ? selectedOrder.productName 
+            : formatProductName(selectedOrder.brand, selectedOrder.model)}
           price={selectedOrder.type === 'pickup' ? selectedOrder.price : selectedOrder.estimatedValue}
         />
       )}

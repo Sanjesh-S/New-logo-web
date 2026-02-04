@@ -40,7 +40,7 @@ export default function ReferralProgram() {
         setReferrals([newReferral])
       }
     } catch (error) {
-      console.error('Error loading referral data:', error)
+      // Error loading referral data
     } finally {
       setLoading(false)
     }
@@ -70,7 +70,6 @@ export default function ReferralProgram() {
         })
       } catch (error) {
         // User cancelled or error occurred
-        console.log('Share cancelled')
       }
     } else {
       // Fallback: copy to clipboard

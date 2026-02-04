@@ -27,7 +27,8 @@ export default function AssessmentViewModal({
   const [loadingValuation, setLoadingValuation] = useState(false)
 
   const hasPickupAnswers = assessmentAnswers && Object.keys(assessmentAnswers).length > 0
-  const answers = hasPickupAnswers ? assessmentAnswers! : (fetchedFromValuation || {})
+  // Merge pickup answers with valuation answers (valuation takes precedence for completeness)
+  const answers = { ...(fetchedFromValuation || {}), ...(assessmentAnswers || {}) }
   const keys = Object.keys(answers).filter((k) => answers[k] != null && answers[k] !== '')
 
   useEffect(() => {
@@ -35,7 +36,9 @@ export default function AssessmentViewModal({
       setFetchedFromValuation(null)
       return
     }
-    if (hasPickupAnswers || !valuationId) {
+    // Always try to fetch from valuation if valuationId exists, even if we have some pickup answers
+    // This ensures we get the most complete assessment data
+    if (!valuationId) {
       setFetchedFromValuation(null)
       return
     }
@@ -57,7 +60,7 @@ export default function AssessmentViewModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, valuationId, hasPickupAnswers])
+  }, [isOpen, valuationId])
 
   if (!isOpen) return null
 
@@ -72,8 +75,10 @@ export default function AssessmentViewModal({
                 <h2 className="text-lg font-semibold text-gray-900">Assessment details</h2>
                 {orderId && <p className="text-sm text-gray-500 font-mono mt-0.5">{orderId}</p>}
                 {productName && <p className="text-sm text-gray-600 mt-0.5">{productName}</p>}
-                {!hasPickupAnswers && fetchedFromValuation && keys.length > 0 && (
-                  <p className="text-xs text-amber-600 mt-1">Loaded from linked valuation</p>
+                {fetchedFromValuation && keys.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {hasPickupAnswers ? 'Includes data from linked valuation' : 'Loaded from linked valuation'}
+                  </p>
                 )}
               </div>
               <button

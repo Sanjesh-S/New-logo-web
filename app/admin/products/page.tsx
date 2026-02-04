@@ -605,7 +605,7 @@ export default function AdminProductsPage() {
                                                         (request.device?.assessmentAnswers && Object.keys(request.device.assessmentAnswers).length > 0) ||
                                                         (!!request.valuationId && String(request.valuationId).trim() !== '')
                                                             ? 'View assessment'
-                                                            : 'No data'}
+                                                            : 'View assessment'}
                                                     </button>
                                                 </td>
                                                 <td className="px-6 py-4">

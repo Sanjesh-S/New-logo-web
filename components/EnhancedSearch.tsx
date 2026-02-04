@@ -48,7 +48,7 @@ export default function EnhancedSearch({
       try {
         setRecentSearches(JSON.parse(saved))
       } catch (e) {
-        console.error('Error loading recent searches:', e)
+        // Error loading recent searches
       }
     }
   }, [])

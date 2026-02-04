@@ -89,6 +89,14 @@ export interface User {
   createdAt: Timestamp | Date
 }
 
+export interface UserPreferences {
+  email?: string
+  emailNotifications?: boolean
+  smsNotifications?: boolean
+  marketingEmails?: boolean
+  updatedAt?: Timestamp | Date
+}
+
 // Helper to get db with type safety
 function getDb(): Firestore {
   if (!db) {
@@ -131,7 +139,7 @@ export async function getValuation(id: string): Promise<Valuation | null> {
     
     return null
   } catch (error) {
-    console.error('Error fetching valuation:', error)
+    logger.error('Error fetching valuation:', error)
     return null
   }
 }
@@ -210,7 +218,7 @@ export async function getUserValuations(
       hasMore,
     }
   } catch (error: any) {
-    console.error('Error fetching valuations:', error?.message || error)
+    logger.error('Error fetching valuations:', error?.message || error)
     return {
       data: [],
       lastDoc: undefined,
@@ -317,7 +325,7 @@ export async function getDevices(
       querySnapshot = await getDocs(q)
     }
   } catch (error) {
-    console.error('Error querying devices:', error)
+    logger.error('Error querying devices:', error)
     return { data: [], hasMore: false }
   }
 
@@ -393,7 +401,7 @@ export async function getProductsByBrand(
       snapshot = await getDocs(brandOnlyQ)
     }
   } catch (queryError) {
-    console.error('Firestore query error:', queryError)
+    logger.error('Firestore query error:', queryError)
     // If query fails, try a simpler query without category filter
     const fallbackQ = query(productsRef, where('brand', '==', normalizedBrand))
     snapshot = await getDocs(fallbackQ)
@@ -682,7 +690,7 @@ export function subscribeToProducts(onUpdate: (products: Product[]) => void): Un
     const products = snapshot.docs.map(mapDocToProduct)
     onUpdate(products)
   }, (error) => {
-    console.error('subscribeToProducts error:', error)
+    logger.error('subscribeToProducts error:', error)
   })
 }
 
@@ -709,7 +717,7 @@ export async function getPricingRules(): Promise<PricingRules> {
     // No rules in Firebase: return zeros so price = basePrice until admin sets rules
     return ZERO_PRICING_RULES
   } catch (error) {
-    console.error('Error fetching pricing rules:', error)
+    logger.error('Error fetching pricing rules:', error)
     return ZERO_PRICING_RULES
   }
 }
@@ -719,7 +727,7 @@ export async function savePricingRules(rules: PricingRules): Promise<void> {
     const docRef = doc(getDb(), 'settings', 'pricing')
     await setDoc(docRef, rules)
   } catch (error) {
-    console.error('Error saving pricing rules:', error)
+    logger.error('Error saving pricing rules:', error)
     throw error
   }
 }
@@ -731,7 +739,7 @@ export async function saveProductPricingRules(productId: string, rules: PricingR
       pricingRules: rules
     })
   } catch (error) {
-    console.error('Error saving product pricing rules:', error)
+    logger.error('Error saving product pricing rules:', error)
     throw error
   }
 }
@@ -794,7 +802,7 @@ export async function saveProductPricingToCollection(
       await addDoc(productPricingRef, pricingData)
     }
   } catch (error) {
-    console.error('Error saving product pricing to collection:', error)
+    logger.error('Error saving product pricing to collection:', error)
     throw error
   }
 }
@@ -820,7 +828,7 @@ export async function getProductPricingFromCollection(productId: string): Promis
     }
     return null
   } catch (error) {
-    console.error('Error getting product pricing from collection:', error)
+    logger.error('Error getting product pricing from collection:', error)
     return null
   }
 }
@@ -1027,7 +1035,7 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
       
       allRequests = [...userIdRequests]
     } catch (error: any) {
-      console.error('Error fetching pickup requests by userId:', error?.message || error)
+      logger.error('Error fetching pickup requests by userId:', error?.message || error)
     }
     
     // Sort client-side by date (descending - newest first)
@@ -1045,7 +1053,7 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
     
     return allRequests
   } catch (error) {
-    console.error('Error fetching user pickup requests:', error)
+    logger.error('Error fetching user pickup requests:', error)
     return [] // Return empty array instead of throwing
   }
 }
@@ -1075,7 +1083,7 @@ export async function getPickupRequest(id: string): Promise<PickupRequest | null
     
     return null
   } catch (error) {
-    console.error('Error fetching pickup request:', error)
+    logger.error('Error fetching pickup request:', error)
     return null
   }
 }
@@ -1117,7 +1125,7 @@ export async function getAllPickupRequests(): Promise<PickupRequest[]> {
     
     return requests
   } catch (error) {
-    console.error('Error fetching pickup requests:', error)
+    logger.error('Error fetching pickup requests:', error)
     throw error
   }
 }
@@ -1154,7 +1162,7 @@ export function subscribeToPickupRequests(
     }
     onUpdate(requests)
   }, (error) => {
-    console.error('subscribeToPickupRequests error:', error)
+    logger.error('subscribeToPickupRequests error:', error)
   })
 }
 
@@ -1175,7 +1183,7 @@ export async function updatePickupRequest(id: string, updates: Partial<PickupReq
     await updateDoc(docRef, updateData)
     console.log('Pickup request updated successfully in Firestore')
   } catch (error) {
-    console.error('Error updating pickup request in Firestore:', error)
+    logger.error('Error updating pickup request in Firestore:', error)
     throw error
   }
 }
@@ -1242,7 +1250,7 @@ export async function getUserAddresses(userId: string): Promise<SavedAddress[]> 
       ...doc.data(),
     })) as SavedAddress[]
   } catch (error) {
-    console.error('Error fetching user addresses:', error)
+    logger.error('Error fetching user addresses:', error)
     return []
   }
 }
@@ -1267,7 +1275,7 @@ export async function addressExists(userId: string, addressData: {
     const snapshot = await getDocs(q)
     return !snapshot.empty
   } catch (error) {
-    console.error('Error checking if address exists:', error)
+    logger.error('Error checking if address exists:', error)
     return false
   }
 }
@@ -1298,7 +1306,7 @@ export async function saveAddress(addressData: SavedAddress): Promise<string> {
     const docRef = await addDoc(addressesRef, newAddress)
     return docRef.id
   } catch (error) {
-    console.error('Error saving address:', error)
+    logger.error('Error saving address:', error)
     throw error
   }
 }
@@ -1329,7 +1337,7 @@ export async function updateAddress(addressId: string, updates: Partial<SavedAdd
       updatedAt: Timestamp.now(),
     })
   } catch (error) {
-    console.error('Error updating address:', error)
+    logger.error('Error updating address:', error)
     throw error
   }
 }
@@ -1342,7 +1350,49 @@ export async function deleteAddress(addressId: string): Promise<void> {
     const addressRef = doc(getDb(), 'savedAddresses', addressId)
     await deleteDoc(addressRef)
   } catch (error) {
-    console.error('Error deleting address:', error)
+    logger.error('Error deleting address:', error)
+    throw error
+  }
+}
+
+/**
+ * Get user preferences
+ */
+export async function getUserPreferences(userId: string): Promise<UserPreferences | null> {
+  try {
+    const userRef = doc(getDb(), 'users', userId)
+    const userDoc = await getDoc(userRef)
+    
+    if (userDoc.exists()) {
+      const data = userDoc.data()
+      return {
+        email: data.email,
+        emailNotifications: data.emailNotifications ?? true,
+        smsNotifications: data.smsNotifications ?? true,
+        marketingEmails: data.marketingEmails ?? false,
+        updatedAt: data.updatedAt,
+      }
+    }
+    return null
+  } catch (error) {
+    logger.error('Error fetching user preferences:', error)
+    throw error
+  }
+}
+
+/**
+ * Save user preferences
+ */
+export async function saveUserPreferences(userId: string, preferences: Partial<UserPreferences>): Promise<void> {
+  try {
+    const userRef = doc(getDb(), 'users', userId)
+    await updateDoc(userRef, {
+      ...preferences,
+      updatedAt: Timestamp.now(),
+    })
+    logger.info('User preferences saved successfully', { userId })
+  } catch (error) {
+    logger.error('Error saving user preferences:', error)
     throw error
   }
 }

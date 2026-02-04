@@ -12,7 +12,7 @@ import ReferralHandler from '@/components/ReferralHandler'
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main id="main-content" className="min-h-screen">
       <Navigation />
       <Suspense fallback={null}>
         <ReferralHandler />

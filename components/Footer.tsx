@@ -1,14 +1,15 @@
 'use client'
 
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Phone, Mail, MapPin, Instagram, Facebook, MessageCircle } from 'lucide-react'
 import { getAssetPath } from '@/lib/utils'
 
 const quickLinks = [
     { href: '/', label: 'Home' },
-    { href: '#trade-in', label: 'Trade In' },
-    { href: '#how-it-works', label: 'How It Works' },
-    { href: '#faq', label: 'FAQ' },
+    { href: '/#trade-in', label: 'Trade In' },
+    { href: '/#how-it-works', label: 'How It Works' },
+    { href: '/#faq', label: 'FAQ' },
 ]
 
 const categories = [
@@ -27,6 +28,24 @@ const policies = [
 
 export default function Footer() {
     const currentYear = new Date().getFullYear()
+    const pathname = usePathname()
+    const router = useRouter()
+
+    const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+        e.preventDefault()
+        const anchorId = href.split('#')[1]
+        
+        if (pathname === '/') {
+            // On homepage, just scroll to the element
+            const element = document.getElementById(anchorId)
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+        } else {
+            // On other pages, navigate to homepage with anchor
+            router.push(href)
+        }
+    }
 
     return (
         <footer className="bg-white text-gray-900">
@@ -83,18 +102,12 @@ export default function Footer() {
                         <h3 className="text-lg font-semibold mb-4 text-brand-blue-900">Quick Links</h3>
                         <ul className="space-y-2">
                             {quickLinks.map((link) => {
-                                if (link.href.startsWith('#')) {
+                                if (link.href.includes('#')) {
                                     return (
                                         <li key={link.href}>
                                             <a
                                                 href={link.href}
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    const element = document.querySelector(link.href)
-                                                    if (element) {
-                                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                                    }
-                                                }}
+                                                onClick={(e) => handleAnchorClick(e, link.href)}
                                                 className="text-gray-600 hover:text-brand-blue-900 transition-colors text-sm cursor-pointer"
                                             >
                                                 {link.label}

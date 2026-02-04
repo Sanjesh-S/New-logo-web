@@ -124,21 +124,20 @@ export default function HeroSection() {
     setMounted(true)
   }, [])
 
-  // Fetch products for suggestions
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true)
-        const allProducts = await getAllProducts()
-        setProducts(allProducts)
-      } catch (error) {
-        console.error('Error fetching products:', error)
-      } finally {
-        setLoading(false)
-      }
+  // Fetch products for suggestions - only when search input is focused or user types
+  const fetchProducts = useCallback(async () => {
+    if (products.length > 0) return // Already loaded
+    
+    try {
+      setLoading(true)
+      const allProducts = await getAllProducts()
+      setProducts(allProducts)
+    } catch (error) {
+      // Error fetching products
+    } finally {
+      setLoading(false)
     }
-    fetchProducts()
-  }, [])
+  }, [products.length])
 
   // Generate suggestions based on search query
   useEffect(() => {
@@ -187,10 +186,19 @@ export default function HeroSection() {
   }
 
   const handleInputFocus = () => {
+    // Load products when user focuses on search (lazy loading)
+    fetchProducts()
     if (suggestions.length > 0) {
       setShowSuggestions(true)
     }
   }
+
+  // Load products when user starts typing
+  useEffect(() => {
+    if (searchQuery.trim().length > 0 && products.length === 0) {
+      fetchProducts()
+    }
+  }, [searchQuery, products.length, fetchProducts])
 
   return (
     <section
@@ -254,7 +262,10 @@ export default function HeroSection() {
               <div className="absolute -inset-1 bg-gradient-to-r from-brand-lime to-brand-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
               <form onSubmit={handleSearch} className="relative flex flex-col sm:flex-row gap-2 bg-white p-2 rounded-xl shadow-xl ring-1 ring-slate-900/5">
                 <div ref={searchRef} className="flex-1 relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <label htmlFor="device-search" className="sr-only">
+                    Search for your device
+                  </label>
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" aria-hidden="true" />
                   {searchQuery && (
                     <button
                       type="button"
@@ -264,11 +275,13 @@ export default function HeroSection() {
                         inputRef.current?.focus()
                       }}
                       className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors z-10"
+                      aria-label="Clear search"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   )}
                   <input
+                    id="device-search"
                     ref={inputRef}
                     type="text"
                     value={searchQuery}
@@ -276,10 +289,16 @@ export default function HeroSection() {
                     onFocus={handleInputFocus}
                     placeholder="Search your device (e.g. iPhone 13)"
                     className="w-full pl-12 pr-10 py-3 bg-transparent border-none text-slate-900 placeholder:text-slate-400 focus:ring-0 text-lg"
+                    aria-label="Search for your device"
+                    aria-autocomplete="list"
+                    aria-expanded={showSuggestions}
+                    aria-controls={showSuggestions ? "search-suggestions" : undefined}
                   />
                   <AnimatePresence>
                     {showSuggestions && suggestions.length > 0 && (
                       <motion.div
+                        id="search-suggestions"
+                        role="listbox"
                         initial={{ opacity: 0, y: -8, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -290,6 +309,7 @@ export default function HeroSection() {
                           <motion.button
                             key={product.id}
                             type="button"
+                            role="option"
                             onClick={() => handleSuggestionClick(product)}
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}

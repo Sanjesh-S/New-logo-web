@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle, Power, Smartphone, Laptop, Camera, Wrench, Package, Calendar } from 'lucide-react'
+import Image from 'next/image'
 import { getProductById, type Product, getPricingRules, getProductPricingFromCollection, loadProductPricingData } from '@/lib/firebase/database'
 import { calculatePrice, type AnswerMap } from '@/lib/pricing/modifiers'
 import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { useAuth } from '@/contexts/AuthContext'
+import { getAssetPath } from '@/lib/utils'
 import YesNoQuestion from './questions/YesNoQuestion'
+import ProgressBar from './ProgressBar'
 import TextQuestion, { validateImei, validateSerial } from './questions/TextQuestion'
 import SingleSelectQuestion from './questions/SingleSelectQuestion'
 import ConditionGrid from './questions/ConditionGrid'
@@ -422,6 +425,32 @@ export default function AssessmentWizard({
   }
 
   // Get category-specific steps (branch phones by brand: Apple → iPhone flow, Samsung → Samsung flow)
+  // Get icon for section type
+  const getSectionIcon = (stepId: string) => {
+    const iconMap: Record<string, React.ReactNode> = {
+      'basic-functionality': <Power className="w-4 h-4" />,
+      'condition': <Smartphone className="w-4 h-4" />,
+      'device-condition': <Smartphone className="w-4 h-4" />,
+      'functional-issues': <Wrench className="w-4 h-4" />,
+      'accessories': <Package className="w-4 h-4" />,
+      'age': <Calendar className="w-4 h-4" />,
+    }
+    
+    // Category-specific icons
+    if (product) {
+      const cat = (category?.toLowerCase() || product.category?.toLowerCase() || '').trim()
+      if (cat === 'cameras' || cat === 'camera' || cat === 'dslr') {
+        iconMap['condition'] = <Camera className="w-4 h-4" />
+        iconMap['device-condition'] = <Camera className="w-4 h-4" />
+      } else if (cat === 'laptops' || cat === 'laptop') {
+        iconMap['condition'] = <Laptop className="w-4 h-4" />
+        iconMap['device-condition'] = <Laptop className="w-4 h-4" />
+      }
+    }
+    
+    return iconMap[stepId] || <Power className="w-4 h-4" />
+  }
+
   const getSteps = (): Step[] => {
     // Prioritize URL category parameter over product category
     const urlCategory = category?.toLowerCase()?.trim()
@@ -468,6 +497,7 @@ export default function AssessmentWizard({
               questionId="powerOn"
               value={answers.powerOn as string}
               onChange={(value) => handleAnswer('powerOn', value)}
+              index={0}
             />
             <YesNoQuestion
               question="Does the camera function properly (photo/video)?"
@@ -475,6 +505,7 @@ export default function AssessmentWizard({
               questionId="cameraFunction"
               value={answers.cameraFunction as string}
               onChange={(value) => handleAnswer('cameraFunction', value)}
+              index={1}
             />
             <YesNoQuestion
               question="Are all buttons working properly?"
@@ -482,6 +513,7 @@ export default function AssessmentWizard({
               questionId="buttonsWorking"
               value={answers.buttonsWorking as string}
               onChange={(value) => handleAnswer('buttonsWorking', value)}
+              index={2}
             />
             <YesNoQuestion
               question="Is the device free from water damage?"
@@ -489,6 +521,7 @@ export default function AssessmentWizard({
               questionId="waterDamage"
               value={answers.waterDamage as string}
               onChange={(value) => handleAnswer('waterDamage', value)}
+              index={3}
             />
             <YesNoQuestion
               question="Is the flash working properly?"
@@ -496,6 +529,7 @@ export default function AssessmentWizard({
               questionId="flashWorking"
               value={answers.flashWorking as string}
               onChange={(value) => handleAnswer('flashWorking', value)}
+              index={4}
             />
             <YesNoQuestion
               question="Is the memory card slot working properly?"
@@ -503,6 +537,7 @@ export default function AssessmentWizard({
               questionId="memoryCardSlotWorking"
               value={answers.memoryCardSlotWorking as string}
               onChange={(value) => handleAnswer('memoryCardSlotWorking', value)}
+              index={5}
             />
             <YesNoQuestion
               question="Is the speaker working properly?"
@@ -510,6 +545,7 @@ export default function AssessmentWizard({
               questionId="speakerWorking"
               value={answers.speakerWorking as string}
               onChange={(value) => handleAnswer('speakerWorking', value)}
+              index={6}
             />
           </div>
         ),
@@ -592,6 +628,7 @@ export default function AssessmentWizard({
             questionId="powerOn"
             value={answers.powerOn as string}
             onChange={(value) => handleAnswer('powerOn', value)}
+            index={0}
           />
           <YesNoQuestion
             question="Does the phone function properly?"
@@ -599,6 +636,7 @@ export default function AssessmentWizard({
             questionId="cameraWorking"
             value={answers.cameraWorking as string}
             onChange={(value) => handleAnswer('cameraWorking', value)}
+            index={1}
           />
           <YesNoQuestion
             question="Face ID working properly?"
@@ -606,6 +644,7 @@ export default function AssessmentWizard({
             questionId="biometricWorking"
             value={answers.biometricWorking as string}
             onChange={(value) => handleAnswer('biometricWorking', value)}
+            index={2}
           />
           <YesNoQuestion
             question="Is True Tone available in the Control Center?"
@@ -613,6 +652,7 @@ export default function AssessmentWizard({
             questionId="trueTone"
             value={answers.trueTone as string}
             onChange={(value) => handleAnswer('trueTone', value)}
+            index={3}
           />
           <TextQuestion
             question="IMEI number"
@@ -1120,38 +1160,217 @@ export default function AssessmentWizard({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 md:pt-24">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-brand-blue-900">
-              {product.modelName}
-            </h1>
-            <div className="text-sm text-gray-600">
-              Step {currentStep + 1} of {steps.length}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 pt-20 md:pt-24 relative overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <motion.div
+          className="absolute top-20 right-10 w-96 h-96 bg-brand-blue-400/10 rounded-full blur-3xl"
+          animate={{
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute bottom-20 left-10 w-80 h-80 bg-brand-lime/10 rounded-full blur-3xl"
+          animate={{
+            x: [0, -30, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
+        />
+        {/* Floating dots */}
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-brand-blue-300/20 rounded-full"
+            style={{
+              left: `${20 + i * 15}%`,
+              top: `${30 + (i % 3) * 20}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.2, 0.5, 0.2],
+            }}
+            transition={{
+              duration: 3 + i,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.5,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        {/* Progress Bar - At the Top */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-6"
+        >
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-6">
+            <ProgressBar
+              currentStep={currentStep}
+              totalSteps={steps.length}
+              steps={steps.map(s => ({ id: s.id, title: s.title }))}
+            />
           </div>
-        </div>
+        </motion.div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-6">
-          <h2 className="text-xl md:text-2xl font-semibold text-brand-blue-900 mb-6">
-            {steps[currentStep].title}
-          </h2>
+        {/* Questions Section - Full Width */}
+        <div className="w-full max-w-4xl mx-auto">
 
-          <AnimatePresence mode="wait">
+            {/* Main Content Card with Glassmorphism */}
             <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8 md:p-10 lg:p-12 mb-6 relative overflow-hidden"
             >
-              {steps[currentStep].component}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              {/* Glassmorphism overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/40 to-transparent pointer-events-none" />
+              
+              {/* Section Badge */}
+              <div className="relative z-10 mb-6">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-blue-100 to-brand-lime-100 rounded-full border border-brand-blue-200 shadow-sm"
+                >
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                    className="text-brand-blue-700"
+                  >
+                    {getSectionIcon(steps[currentStep].id)}
+                  </motion.div>
+                  <div className="w-2 h-2 bg-brand-lime rounded-full animate-pulse" />
+                  <span className="text-sm font-bold text-brand-blue-900 uppercase tracking-wider">
+                    {steps[currentStep].title}
+                  </span>
+                </motion.div>
+              </div>
+
+              {/* Question Content */}
+              <div className="relative z-10">
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 30, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -30, scale: 0.95 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: [0.4, 0, 0.2, 1] // Custom easing for smoother motion
+                }}
+                className="relative"
+              >
+                {/* Page transition overlay effect */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-brand-blue-600/0 via-brand-lime/0 to-brand-blue-600/0 pointer-events-none"
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                />
+                {steps[currentStep].component}
+              </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
+            {/* Enhanced Navigation - Hide when price is shown */}
+            {!showOrderConfirmation && !showPrice && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex justify-between gap-4 mt-6"
+              >
+                <motion.button
+                  onClick={handleBack}
+                  disabled={currentStep === 0}
+                  whileHover={currentStep > 0 ? { scale: 1.02, x: -2 } : {}}
+                  whileTap={currentStep > 0 ? { scale: 0.98 } : {}}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 border-2 ${
+                    currentStep === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                      : 'bg-white border-gray-300 text-brand-blue-900 hover:border-brand-lime hover:bg-gradient-to-r hover:from-brand-blue-50 hover:to-brand-lime/10 hover:shadow-md'
+                  }`}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back
+                </motion.button>
+
+                {currentStep < steps.length - 1 ? (
+                  <motion.button
+                    onClick={() => handleNext(steps.length)}
+                    disabled={!canProceed()}
+                    whileHover={canProceed() ? { scale: 1.02, x: 2 } : {}}
+                    whileTap={canProceed() ? { scale: 0.98 } : {}}
+                    className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${
+                      !canProceed()
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'bg-gradient-to-r from-brand-lime to-brand-lime-400 text-brand-blue-900 hover:from-brand-lime-400 hover:to-brand-lime-500 hover:shadow-xl'
+                    }`}
+                  >
+                    Next
+                    <motion.div
+                      animate={canProceed() ? { x: [0, 4, 0] } : {}}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <ArrowRight className="w-5 h-5" />
+                    </motion.div>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={handleFinish}
+                    disabled={!canProceed()}
+                    whileHover={canProceed() ? { scale: 1.05, boxShadow: '0 10px 30px rgba(59, 130, 246, 0.4)' } : {}}
+                    whileTap={canProceed() ? { scale: 0.95 } : {}}
+                    className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-xl ${
+                      !canProceed()
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'bg-gradient-to-r from-brand-blue-600 via-brand-blue-500 to-brand-lime text-white hover:shadow-2xl relative overflow-hidden'
+                    }`}
+                  >
+                    {/* Animated gradient overlay */}
+                    {canProceed() && (
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                        animate={{
+                          x: ['-100%', '100%'],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: 'linear',
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Finish Assessment
+                    </span>
+                  </motion.button>
+                )}
+              </motion.div>
+            )}
+          </div>
 
         {/* Price Display - Show after OTP verification or Finish */}
         {showPrice && !showOrderConfirmation && product && (
@@ -1159,7 +1378,7 @@ export default function AssessmentWizard({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-700 via-brand-blue-600 to-brand-lime-600 p-8 md:p-10 text-white shadow-2xl"
+            className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-700 via-brand-blue-600 to-brand-lime-600 p-8 md:p-10 text-white shadow-2xl max-w-3xl mx-auto"
           >
             {/* Decorative background elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -1210,49 +1429,6 @@ export default function AssessmentWizard({
           />
         )}
 
-        {/* Navigation - Hide when price is shown */}
-        {!showOrderConfirmation && !showPrice && (
-          <div className="flex justify-between gap-4">
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${currentStep === 0
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
-                }`}
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-
-            {currentStep < steps.length - 1 ? (
-              <button
-                onClick={() => handleNext(steps.length)}
-                disabled={!canProceed()}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${!canProceed()
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-brand-lime text-brand-blue-900 hover:bg-brand-lime-400'
-                  }`}
-              >
-                Next
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={handleFinish}
-                disabled={!canProceed()}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  !canProceed()
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-brand-blue-600 to-brand-lime text-white hover:shadow-lg'
-                }`}
-              >
-                Finish
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* OTP Modal */}

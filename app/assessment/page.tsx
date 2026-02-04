@@ -20,9 +20,15 @@ function AssessmentContent() {
           <h1 className="text-2xl font-bold text-brand-blue-900 mb-4">
             Product ID Required
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             Please select a product to start the assessment.
           </p>
+          <a
+            href="/brands"
+            className="inline-block px-6 py-3 bg-brand-blue-900 text-white rounded-lg font-semibold hover:bg-brand-blue-800 transition-colors"
+          >
+            Browse Products
+          </a>
         </div>
       </div>
     )
@@ -39,17 +45,32 @@ function AssessmentContent() {
   )
 }
 
+function AssessmentSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50 pt-20 md:pt-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+          <div className="space-y-6">
+            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+            <div className="mt-8 space-y-4">
+              <div className="h-12 w-full bg-gray-200 rounded-lg animate-pulse" />
+              <div className="h-12 w-full bg-gray-200 rounded-lg animate-pulse" />
+              <div className="h-12 w-full bg-gray-200 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AssessmentPage() {
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main id="main-content" className="min-h-screen bg-gray-50">
       <Navigation />
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center text-gray-600">
-            Loading assessment...
-          </div>
-        }
-      >
+      <Suspense fallback={<AssessmentSkeleton />}>
         <AssessmentContent />
       </Suspense>
     </main>

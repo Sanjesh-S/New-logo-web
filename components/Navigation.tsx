@@ -34,6 +34,62 @@ export default function Navigation() {
     }
   }
 
+  // Shared handler for anchor link navigation
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, closeMobileMenu = false) => {
+    e.preventDefault()
+    if (closeMobileMenu) {
+      setMobileMenuOpen(false)
+    }
+    
+    const anchorId = href.split('#')[1]
+    
+    if (pathname === '/') {
+      // On homepage, just scroll to the element
+      const element = document.getElementById(anchorId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    } else {
+      // On other pages, navigate to homepage with anchor
+      startTransition(() => {
+        router.push(href)
+      })
+    }
+  }
+
+  // Render navigation link (shared logic for desktop and mobile)
+  const renderNavLink = (link: typeof navLinks[0], isMobile = false) => {
+    const isAnchorLink = link.href.includes('#')
+    const baseClasses = isMobile
+      ? "block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
+      : "text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
+    
+    if (isAnchorLink) {
+      return (
+        <a
+          key={link.href}
+          href={link.href}
+          onClick={(e) => handleAnchorClick(e, link.href, isMobile)}
+          className={`${baseClasses} cursor-pointer`}
+        >
+          {link.label}
+        </a>
+      )
+    }
+    
+    return (
+      <Link
+        key={link.href}
+        href={link.href}
+        prefetch={true}
+        onClick={isMobile ? () => setMobileMenuOpen(false) : undefined}
+        className={baseClasses}
+      >
+        {link.label}
+      </Link>
+    )
+  }
+
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
@@ -50,47 +106,7 @@ export default function Navigation() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((link) => {
-                const isAnchorLink = link.href.includes('#')
-                const anchorId = isAnchorLink ? link.href.split('#')[1] : null
-                
-                if (isAnchorLink) {
-                  return (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        // If we're on the homepage, just scroll
-                        if (pathname === '/') {
-                          const element = document.getElementById(anchorId!)
-                          if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                          }
-                        } else {
-                          // Navigate to homepage with anchor - use startTransition for non-urgent update
-                          startTransition(() => {
-                            router.push(link.href)
-                          })
-                        }
-                      }}
-                      className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium cursor-pointer"
-                    >
-                      {link.label}
-                    </a>
-                  )
-                }
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    prefetch={true}
-                    className="text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
-                  >
-                    {link.label}
-                  </Link>
-                )
-              })}
+              {navLinks.map((link) => renderNavLink(link, false))}
 
               {isAuthenticated ? (
                 <div className="relative">
@@ -167,49 +183,7 @@ export default function Navigation() {
               className="md:hidden bg-white border-t border-gray-200 overflow-hidden"
             >
               <div className="px-4 py-4 space-y-2">
-                {navLinks.map((link) => {
-                  const isAnchorLink = link.href.includes('#')
-                  const anchorId = isAnchorLink ? link.href.split('#')[1] : null
-                  
-                  if (isAnchorLink) {
-                    return (
-                      <a
-                        key={link.href}
-                        href={link.href}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setMobileMenuOpen(false)
-                          // If we're on the homepage, just scroll
-                          if (pathname === '/') {
-                            const element = document.getElementById(anchorId!)
-                            if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                            }
-                          } else {
-                            // Navigate to homepage with anchor - use startTransition for non-urgent update
-                            startTransition(() => {
-                              router.push(link.href)
-                            })
-                          }
-                        }}
-                        className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors cursor-pointer"
-                      >
-                        {link.label}
-                      </a>
-                    )
-                  }
-                  return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      prefetch={true}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  )
-                })}
+                {navLinks.map((link) => renderNavLink(link, true))}
 
                 <div className="pt-2 border-t border-gray-200">
                   {isAuthenticated ? (

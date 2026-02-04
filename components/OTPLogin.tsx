@@ -8,6 +8,7 @@ import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { getAssetPath } from '@/lib/utils'
+import { useFocusTrap } from '@/lib/utils/useFocusTrap'
 
 interface OTPLoginProps {
   onSuccess?: () => void
@@ -25,6 +26,10 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  // Focus trap for modal
+  useFocusTrap(true, modalRef)
 
   useEffect(() => {
     // Prevent body scroll when modal is open
@@ -220,7 +225,13 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-start p-4 bg-black/50 backdrop-blur-sm md:justify-center">
+    <div 
+      ref={modalRef}
+      className="fixed inset-0 z-50 flex items-center justify-start p-4 bg-black/50 backdrop-blur-sm md:justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="login-modal-title"
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.9, x: -50 }}
         animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -232,6 +243,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors z-10"
+            aria-label="Close login modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -271,7 +283,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                   className="space-y-6"
                 >
                   <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-brand-blue-900 mb-2">
+                    <h1 id="login-modal-title" className="text-3xl md:text-4xl font-bold text-brand-blue-900 mb-2">
                       Login/Signup
                     </h1>
                     <p className="text-gray-600 mb-6">
@@ -281,7 +293,7 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
 
                   <form onSubmit={handlePhoneSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="phone-number-input" className="block text-sm font-medium text-gray-700 mb-2">
                         Enter your phone number
                       </label>
                       <div className="relative">
@@ -290,12 +302,14 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
                         </div>
                         <input
                           type="tel"
+                          id="phone-number-input"
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
                           placeholder="Enter your Mobile"
                           className="w-full pl-16 pr-4 py-3 bg-white border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-lime focus:border-brand-lime"
                           required
                           maxLength={10}
+                          aria-required="true"
                         />
                       </div>
                     </div>
@@ -391,12 +405,14 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
 
                   <form onSubmit={handleOtpSubmit} className="space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                      <label htmlFor="otp-input-0" className="block text-sm font-medium text-gray-700 mb-3">
                         Enter 6-digit OTP
                       </label>
-                      <div className="flex gap-2 md:gap-3 justify-start">
+                      <div className="flex gap-2 md:gap-3 justify-start" role="group" aria-label="OTP code">
                         {otp.map((digit, index) => (
                           <input
+                            id={index === 0 ? "otp-input-0" : undefined}
+                            aria-label={`OTP digit ${index + 1}`}
                             key={index}
                             ref={(el) => { otpInputRefs.current[index] = el }}
                             type="text"

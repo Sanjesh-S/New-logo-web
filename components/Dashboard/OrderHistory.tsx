@@ -46,6 +46,24 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Helper function to format product name without duplicate brand
+  const formatProductName = (brand: string | undefined, model: string | undefined): string => {
+    if (!brand && !model) return 'Unknown Product'
+    if (!model) return brand || ''
+    if (!brand) return model
+    
+    const normalizedBrand = brand.toLowerCase().trim()
+    const normalizedModel = model.toLowerCase().trim()
+    
+    // If model already starts with brand, just return model
+    if (normalizedModel.startsWith(normalizedBrand)) {
+      return model
+    }
+    
+    // Otherwise, return brand + model
+    return `${brand} ${model}`.trim()
+  }
+
   useEffect(() => {
     const fetchOrders = async () => {
       if (!user?.uid) return
@@ -59,8 +77,8 @@ export default function OrderHistory() {
         // Fetching order history
         
         const [valuations, pickupRequests] = await Promise.all([
-          getUserValuationsLegacy(user.uid).catch((e) => { console.error('Valuations fetch error:', e); return [] }),
-          getUserPickupRequests(user.uid, userPhone).catch((e) => { console.error('Pickup requests fetch error:', e); return [] }),
+          getUserValuationsLegacy(user.uid).catch(() => []),
+          getUserPickupRequests(user.uid, userPhone).catch(() => []),
         ])
         
         // Order history loaded
@@ -207,7 +225,7 @@ export default function OrderHistory() {
                           </>
                         ) : (
                           <>
-                            {order.brand} {order.model}
+                            {formatProductName(order.brand, order.model)}
                           </>
                         )}
                       </h3>
