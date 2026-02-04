@@ -5,9 +5,8 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:AdminVerify')
 
-// API routes are not used in static export - handled by Firebase Functions
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+// Note: API routes are skipped during static export (output: 'export')
+// These routes are handled by Firebase Functions in production
 
 /**
  * Server-side admin verification endpoint
