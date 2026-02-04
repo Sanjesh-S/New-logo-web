@@ -50,8 +50,7 @@ export default function CTASection() {
           transition={{ delay: 0.2, duration: 0.3, ease: 'easeOut' }}
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
-          <a 
-            href="#trade-in"
+          <button 
             onClick={(e) => {
               e.preventDefault()
               const element = document.querySelector('#trade-in')
@@ -59,12 +58,11 @@ export default function CTASection() {
                 element.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
             }}
+            className="px-8 md:px-12 py-4 md:py-5 bg-brand-lime text-brand-blue-900 text-lg md:text-xl font-bold rounded-xl hover:bg-brand-lime-400 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 justify-center will-change-transform"
           >
-            <button className="px-8 md:px-12 py-4 md:py-5 bg-brand-lime text-brand-blue-900 text-lg md:text-xl font-bold rounded-xl hover:bg-brand-lime-400 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0 flex items-center gap-3 justify-center will-change-transform">
-              Get Your Quote
-              <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-          </a>
+            Get Your Quote
+            <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
 
           <a
             href="https://wa.me/919843010705"
