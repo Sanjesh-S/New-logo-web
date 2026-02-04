@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
 import { CheckCircle, Package, Truck, CreditCard, ArrowRight, Copy, Check, Calendar, Sparkles, Shield, Clock } from 'lucide-react'

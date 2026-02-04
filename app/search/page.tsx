@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
 import { Search, AlertCircle } from 'lucide-react'

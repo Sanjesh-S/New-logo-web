@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { subscribeToProducts, subscribeToPickupRequests, updatePickupRequest, updateProduct, type Product, type PickupRequest } from '@/lib/firebase/database'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'

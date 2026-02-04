@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+
 import Navigation from '@/components/Navigation'
 import ProductDetail from '@/components/ProductDetail'
 

@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'

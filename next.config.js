@@ -66,9 +66,8 @@ const nextConfig = {
       ],
     },
   },
-  // Exclude API routes from build when using static export
-  // API routes are handled by Firebase Functions, not Next.js
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  // Increase static page generation timeout for complex pages
+  staticPageGenerationTimeout: 120,
   images: {
     // Image optimization requires a server
     // Uncomment when deploying to Vercel or custom server

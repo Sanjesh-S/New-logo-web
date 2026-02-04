@@ -1,3 +1,5 @@
+'use client'
+
 import { Suspense } from 'react'
 import HeroSection from '@/components/HeroSection'
 import BrandLogos from '@/components/BrandLogos'

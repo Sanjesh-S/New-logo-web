@@ -2,8 +2,14 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Navigation from '@/components/Navigation'
-import AssessmentWizard from '@/components/AssessmentWizard'
+
+// Dynamically import AssessmentWizard to prevent static generation issues
+const AssessmentWizard = dynamic(() => import('@/components/AssessmentWizard'), {
+  ssr: false,
+  loading: () => <AssessmentSkeleton />,
+})
 
 function AssessmentContent() {
   const searchParams = useSearchParams()
