@@ -1330,9 +1330,9 @@ export default function AssessmentWizard({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-6"
+          className="mb-4 md:mb-6"
         >
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-xl border border-white/50 p-3 md:p-6">
             <ProgressBar
               currentStep={currentStep}
               totalSteps={steps.length}
@@ -1342,7 +1342,7 @@ export default function AssessmentWizard({
         </motion.div>
 
         {/* Questions Section - Full Width */}
-        <div className="w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-4xl mx-auto px-2 md:px-0">
 
             {/* Main Content Card with Glassmorphism */}
             <motion.div
