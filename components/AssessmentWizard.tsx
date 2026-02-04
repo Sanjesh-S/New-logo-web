@@ -1168,7 +1168,7 @@ export default function AssessmentWizard({
     if (cat === 'laptops' || cat === 'laptop') {
       // Condition step - require at least one condition field
       if (step.id === 'condition') {
-        return answers.screenCondition !== undefined || answers.bodyCondition !== undefined || answers.keyboardCondition !== undefined
+        return answers.displayCondition !== undefined || answers.bodyCondition !== undefined || answers.keyboardCondition !== undefined
       }
       
       // Functional Issues step - require at least one selection (including "noIssues")
