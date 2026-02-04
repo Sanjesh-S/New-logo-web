@@ -5,6 +5,9 @@ import { getCache, setCache, generateCacheKey } from '@/lib/utils/cache'
 
 const logger = createLogger('API:Devices')
 
+// API routes are not used in static export - handled by Firebase Functions
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {

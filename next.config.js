@@ -66,6 +66,11 @@ const nextConfig = {
       ],
     },
   },
+  // Exclude API routes from static generation
+  // They will be handled by Firebase Functions, not Next.js
+  async generateBuildId() {
+    return 'build-' + Date.now()
+  },
   // Increase static page generation timeout for complex pages
   staticPageGenerationTimeout: 120,
   images: {
