@@ -1080,11 +1080,11 @@ export default function AssessmentWizard({
       // Check if body conditions step is complete (for cameras)
       if (step.id === 'body-conditions') {
         if (cat === 'cameras' || cat === 'camera') {
-          return answers.bodyPhysicalCondition &&
-            answers.lcdDisplayCondition &&
-            answers.rubberGripsCondition &&
-            answers.sensorViewfinderCondition &&
-            answers.errorCodesCondition
+          return answers.bodyPhysicalCondition !== undefined &&
+            answers.lcdDisplayCondition !== undefined &&
+            answers.rubberGripsCondition !== undefined &&
+            answers.sensorViewfinderCondition !== undefined &&
+            answers.errorCodesCondition !== undefined
         }
       }
       // Check if Samsung device condition step is complete
@@ -1131,11 +1131,6 @@ export default function AssessmentWizard({
       }
       
       // Accessories step - require explicit interaction (either selection or "No accessories" click)
-      // The PhoneAccessoryGrid component calls onChange when user interacts, so we check if it's been set
-      // Note: answers.accessories might be [] (empty array) if user clicked "No accessories"
-      // or an array with items if user selected accessories
-      // We need to distinguish between "not set" (undefined) and "explicitly empty" ([])
-      // Since PhoneAccessoryGrid uses default parameter value = [], we check if the key exists in answers
       if (step.id === 'accessories') {
         // Check if accessories key exists in answers object (means user has interacted)
         return 'accessories' in answers
@@ -1143,11 +1138,101 @@ export default function AssessmentWizard({
       
       // Device Age step - require explicit selection
       if (step.id === 'age') {
-        // Check if age is set and is a valid option
         const ageValue = answers.age as string | undefined
         const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
         return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
       }
+    }
+    
+    // Camera-specific validations
+    if (cat === 'cameras' || cat === 'camera') {
+      // Accessories step - require explicit interaction (either selection or "No accessories" click)
+      if (step.id === 'accessories') {
+        return 'accessories' in answers
+      }
+      
+      // Age step - require explicit selection
+      if (step.id === 'age') {
+        const ageValue = answers.age as string | undefined
+        const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
+        return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
+      }
+      
+      // Lens condition step - require at least one selection
+      if (step.id === 'lens-condition') {
+        return answers.lensCondition !== undefined && answers.lensCondition !== null && answers.lensCondition !== ''
+      }
+    }
+    
+    // Laptop-specific validations
+    if (cat === 'laptops' || cat === 'laptop') {
+      // Condition step - require at least one condition field
+      if (step.id === 'condition') {
+        return answers.screenCondition !== undefined || answers.bodyCondition !== undefined || answers.keyboardCondition !== undefined
+      }
+      
+      // Functional Issues step - require at least one selection (including "noIssues")
+      if (step.id === 'functional-issues') {
+        const functionalIssues = answers.functionalIssues as string[] | undefined
+        return functionalIssues && functionalIssues.length > 0
+      }
+      
+      // Accessories step - require explicit interaction (either selection or "No accessories" click)
+      if (step.id === 'accessories') {
+        return 'accessories' in answers
+      }
+      
+      // Age step - require explicit selection
+      if (step.id === 'age') {
+        const ageValue = answers.age as string | undefined
+        const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
+        return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
+      }
+    }
+    
+    // Tablet-specific validations
+    if (cat === 'tablets' || cat === 'tablet') {
+      // Condition step - require at least one condition field
+      if (step.id === 'condition') {
+        return answers.displayCondition !== undefined || answers.bodyCondition !== undefined
+      }
+      
+      // Functional Issues step - require at least one selection (including "noIssues")
+      if (step.id === 'functional-issues') {
+        const functionalIssues = answers.functionalIssues as string[] | undefined
+        return functionalIssues && functionalIssues.length > 0
+      }
+      
+      // Accessories step - require explicit interaction (either selection or "No accessories" click)
+      if (step.id === 'accessories') {
+        return 'accessories' in answers
+      }
+      
+      // Age step - require explicit selection
+      if (step.id === 'age') {
+        const ageValue = answers.age as string | undefined
+        const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
+        return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
+      }
+    }
+    
+    // General validations for all categories
+    // Accessories step - require explicit interaction for any category not handled above
+    if (step.id === 'accessories') {
+      return 'accessories' in answers
+    }
+    
+    // Age step - require explicit selection for any category not handled above
+    if (step.id === 'age') {
+      const ageValue = answers.age as string | undefined
+      const validAgeOptions = ['lessThan3Months', 'fourToTwelveMonths', 'aboveTwelveMonths']
+      return ageValue !== undefined && ageValue !== null && ageValue !== '' && validAgeOptions.includes(ageValue)
+    }
+    
+    // Functional Issues step - require at least one selection for any category not handled above
+    if (step.id === 'functional-issues') {
+      const functionalIssues = answers.functionalIssues as string[] | undefined
+      return functionalIssues && functionalIssues.length > 0
     }
     
     // For lens selection step, at least one lens should be selected if user answered yes
@@ -1155,6 +1240,12 @@ export default function AssessmentWizard({
       const additionalLenses = answers.additionalLenses as string[] | undefined
       return additionalLenses && additionalLenses.length > 0
     }
+    
+    // General validation: If step has any question that requires an answer, check if it's answered
+    // This catches any other question types that might not be explicitly handled above
+    // For Yes/No questions, they're already handled by step.required
+    // For grid-based questions (condition, issues, accessories), they're handled above
+    // For single-select questions, check if the answer exists
     
     return true
   }
