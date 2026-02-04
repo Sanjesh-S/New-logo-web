@@ -66,6 +66,9 @@ const nextConfig = {
       ],
     },
   },
+  // Exclude API routes from build when using static export
+  // API routes are handled by Firebase Functions, not Next.js
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   images: {
     // Image optimization requires a server
     // Uncomment when deploying to Vercel or custom server

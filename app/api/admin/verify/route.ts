@@ -5,6 +5,7 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:AdminVerify')
 
+
 /**
  * Server-side admin verification endpoint
  * Verifies if the authenticated user is a staff member/admin

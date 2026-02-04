@@ -5,6 +5,7 @@ import { getCache, setCache, generateCacheKey } from '@/lib/utils/cache'
 
 const logger = createLogger('API:Devices')
 
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams

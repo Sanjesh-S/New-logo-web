@@ -52,7 +52,7 @@ export default function ReviewsSection({
       setReviews(reviewsData)
       setStats(statsData)
     } catch (error) {
-      console.error('Error loading reviews:', error)
+      // Error loading reviews
     } finally {
       setLoading(false)
     }
@@ -99,7 +99,7 @@ export default function ReviewsSection({
       // Reload reviews
       await loadReviews()
     } catch (error) {
-      console.error('Error submitting review:', error)
+      // Error submitting review
       alert('Failed to submit review. Please try again.')
     } finally {
       setSubmitting(false)
@@ -114,7 +114,7 @@ export default function ReviewsSection({
         r.id === reviewId ? { ...r, helpfulCount: (r.helpfulCount || 0) + 1 } : r
       ))
     } catch (error) {
-      console.error('Error marking review helpful:', error)
+      // Error marking review helpful
     }
   }
 
@@ -143,8 +143,11 @@ export default function ReviewsSection({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-8 h-8 border-4 border-brand-lime border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading reviews...</p>
+        </div>
       </div>
     )
   }
@@ -286,8 +289,14 @@ export default function ReviewsSection({
       {/* Reviews List */}
       {reviews.length === 0 && !showReviewForm ? (
         <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No reviews yet. Be the first to review!</p>
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Star className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No reviews yet</h3>
+          <p className="text-gray-600 mb-6">Be the first to share your experience with this product!</p>
+          {!user && (
+            <p className="text-sm text-gray-500">Please login to write a review</p>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

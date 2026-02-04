@@ -4,6 +4,7 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Footer from '@/components/Footer'
 import { generateStructuredData } from '@/lib/utils/seo'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -80,10 +81,12 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteData) }}
         />
-        <AuthProvider>
-          {children}
-          <Footer />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+            <Footer />
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

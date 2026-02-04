@@ -121,17 +121,27 @@ function SearchContent() {
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Search className="w-16 h-16 text-gray-300 mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">No results found</h2>
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-10 h-10 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">No results found</h2>
             <p className="text-gray-600 mb-6 max-w-md">
-              We couldn&apos;t find any products matching &quot;{query}&quot;. Try a different search term.
+              We couldn&apos;t find any products matching &quot;{query}&quot;. Try a different search term or browse our categories.
             </p>
-            <Link
-              href="/"
-              className="px-6 py-3 bg-brand-blue-600 text-white rounded-xl font-semibold hover:bg-brand-blue-700 transition-colors"
-            >
-              Go to Home
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/"
+                className="px-6 py-3 bg-brand-blue-600 text-white rounded-xl font-semibold hover:bg-brand-blue-700 transition-colors shadow-md hover:shadow-lg"
+              >
+                Go to Home
+              </Link>
+              <Link
+                href="/products"
+                className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-brand-lime hover:bg-gray-50 transition-colors"
+              >
+                Browse Products
+              </Link>
+            </div>
           </div>
         ) : (
           <motion.div

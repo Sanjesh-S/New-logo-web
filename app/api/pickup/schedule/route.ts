@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 const logger = createLogger('API:PickupSchedule')
 
+
 const schedulePickupSchema = z.object({
   valuationId: z.string().min(1, 'Valuation ID is required'),
   pickupDate: z.string().min(1, 'Pickup date is required'),

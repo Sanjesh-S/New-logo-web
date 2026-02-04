@@ -187,7 +187,10 @@ export default function AddressBook() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-4 border-brand-lime border-t-transparent rounded-full animate-spin" />
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading addresses...</p>
+        </div>
       </div>
     )
   }
@@ -195,15 +198,19 @@ export default function AddressBook() {
   if (addresses.length === 0 && !showAddForm) {
     return (
       <div className="text-center py-12">
-        <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No saved addresses</h3>
-        <p className="text-gray-600 mb-6">Add an address to make checkout faster.</p>
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <MapPin className="w-10 h-10 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">No saved addresses</h3>
+        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+          Save your addresses to make checkout faster and easier. You can add multiple addresses for different locations.
+        </p>
         <button
           onClick={() => setShowAddForm(true)}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-colors shadow-md hover:shadow-lg"
         >
           <Plus className="w-5 h-5" />
-          Add Address
+          Add Your First Address
         </button>
       </div>
     )

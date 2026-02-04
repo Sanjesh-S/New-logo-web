@@ -384,9 +384,13 @@ export default function ActiveOrders() {
   if (activeOrders.length === 0) {
     return (
       <div className="text-center py-12">
-        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No active orders</h3>
-        <p className="text-gray-600 mb-6">You don't have any pending orders at the moment.</p>
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Package className="w-10 h-10 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">No active orders</h3>
+        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+          You don't have any pending orders at the moment. Start a new trade-in to get an instant valuation for your device.
+        </p>
         <a
           href="/#trade-in"
           onClick={(e) => {
@@ -400,7 +404,7 @@ export default function ActiveOrders() {
               }
             }, 300)
           }}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-brand-lime text-brand-blue-900 rounded-lg font-semibold hover:bg-brand-lime-400 transition-colors cursor-pointer shadow-md hover:shadow-lg"
         >
           Start New Trade-In
         </a>

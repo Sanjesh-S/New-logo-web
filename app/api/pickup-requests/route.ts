@@ -10,6 +10,7 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:PickupRequests')
 
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting (50 requests per minute per IP for pickup requests)

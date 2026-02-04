@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 const logger = createLogger('API:Referral')
 
+
 // Validation schema
 const referralSchema = z.object({
   referralCode: z.string().min(1).max(50),

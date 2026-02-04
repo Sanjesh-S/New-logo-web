@@ -3,8 +3,17 @@
 import { ReactElement, cloneElement } from 'react'
 import YesNoQuestion from './YesNoQuestion'
 
+interface YesNoQuestionProps {
+  question: string
+  helperText?: string
+  questionId: string
+  value?: string
+  onChange: (value: string) => void
+  index?: number
+}
+
 interface YesNoQuestionGroupProps {
-  children: ReactElement<typeof YesNoQuestion>[]
+  children: ReactElement<YesNoQuestionProps>[]
 }
 
 /**

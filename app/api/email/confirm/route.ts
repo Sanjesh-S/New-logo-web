@@ -5,6 +5,7 @@ import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestor
 
 const logger = createLogger('API:Email')
 
+
 /**
  * Sanitize string to prevent XSS in HTML emails
  */

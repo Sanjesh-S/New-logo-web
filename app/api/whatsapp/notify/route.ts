@@ -3,6 +3,7 @@ import { createLogger } from '@/lib/utils/logger'
 
 const logger = createLogger('API:WhatsApp')
 
+
 /**
  * Get Firebase Functions URL
  */

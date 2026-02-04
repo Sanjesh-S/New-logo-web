@@ -123,16 +123,19 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
   if (!products.length) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <h2 className="text-2xl font-semibold text-brand-blue-900 mb-3">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-brand-blue-900 mb-3">
           No products found for this brand
         </h2>
         <p className="text-gray-600 mb-6 max-w-md">
           We couldn&apos;t find any devices for this brand in the selected category.
-          You can go back and pick a different brand.
+          You can go back and pick a different brand or category.
         </p>
         <Link
           href={`/brands?category=${encodeURIComponent(category)}`}
-          className="px-5 py-3 rounded-lg bg-white border-2 border-gray-200 text-brand-blue-900 font-semibold hover:border-brand-lime hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 rounded-lg bg-brand-blue-600 text-white font-semibold hover:bg-brand-blue-700 transition-colors shadow-md hover:shadow-lg"
         >
           Back to brands
         </Link>
@@ -157,11 +160,14 @@ export default function ProductsGrid({ category, brand }: ProductsGridProps) {
       {/* Products Grid */}
       {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <h2 className="text-xl font-semibold text-brand-blue-900 mb-2">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-10 h-10 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-brand-blue-900 mb-2">
             No products found
           </h2>
-          <p className="text-gray-600 mb-4">
-            Try adjusting your search or filters.
+          <p className="text-gray-600 mb-4 max-w-md">
+            Try adjusting your search query or filters to find what you're looking for.
           </p>
         </div>
       ) : (
