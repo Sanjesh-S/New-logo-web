@@ -120,15 +120,35 @@ export default function BrandsSelection() {
       try {
         setError(null)
         
-        const { getDevices } = await import('@/lib/api/client')
+        // In development, prefer direct Firestore access to avoid CORS
+        const isDevelopment = window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1'
         
-        // Race between API call and timeout
-        const apiCall = getDevices({ category })
-        const timeoutPromise = createTimeoutPromise(API_TIMEOUT)
+        let apiDevices: Device[] = []
         
-        const data = await Promise.race([apiCall, timeoutPromise])
-
-        const apiDevices = (data.devices || []) as unknown as Device[]
+        if (isDevelopment) {
+          // Use Firestore directly in development
+          try {
+            const { getDevices: getDevicesFromDb } = await import('@/lib/firebase/database')
+            const result = await getDevicesFromDb(category, undefined, { limit: 1000 })
+            apiDevices = Array.isArray(result) ? result : (result.data || [])
+          } catch (dbError) {
+            // Fall back to API client if Firestore fails
+            console.log('Direct Firestore access failed, trying API client:', dbError)
+            const { getDevices } = await import('@/lib/api/client')
+            const apiCall = getDevices({ category })
+            const timeoutPromise = createTimeoutPromise(API_TIMEOUT)
+            const data = await Promise.race([apiCall, timeoutPromise])
+            apiDevices = (data.devices || []) as unknown as Device[]
+          }
+        } else {
+          // Use API client in production
+          const { getDevices } = await import('@/lib/api/client')
+          const apiCall = getDevices({ category })
+          const timeoutPromise = createTimeoutPromise(API_TIMEOUT)
+          const data = await Promise.race([apiCall, timeoutPromise])
+          apiDevices = (data.devices || []) as unknown as Device[]
+        }
 
         if (apiDevices.length > 0) {
           // Extract unique brands from API

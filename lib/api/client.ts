@@ -266,12 +266,49 @@ export async function schedulePickup(data: {
 
 /**
  * Get devices
+ * In development/localhost, uses Firestore directly to avoid CORS issues
+ * In production, uses Firebase Cloud Functions
  */
 export async function getDevices(params: {
   category?: string
   brand?: string
   model?: string
 }) {
+  // In development/localhost, use Firestore directly to avoid CORS issues
+  const isDevelopment = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || 
+     window.location.hostname === '127.0.0.1' ||
+     process.env.NODE_ENV === 'development')
+  
+  if (isDevelopment && params.category) {
+    try {
+      // Use Firestore directly in development
+      const { getDevices: getDevicesFromDb } = await import('@/lib/firebase/database')
+      const result = await getDevicesFromDb(
+        params.category,
+        params.brand,
+        { limit: 1000 } // Get all devices in development
+      )
+      
+      // Convert to expected format
+      const devices = Array.isArray(result) ? result : (result.data || [])
+      
+      if (params.model) {
+        // Filter by model if specified
+        const device = devices.find((d: any) => 
+          d.model?.toLowerCase() === params.model?.toLowerCase()
+        )
+        return { device, devices: device ? [device] : [] }
+      }
+      
+      return { devices }
+    } catch (error) {
+      // If Firestore fails, fall back to Firebase Functions
+      console.warn('Firestore direct access failed, falling back to Cloud Functions:', error)
+    }
+  }
+  
+  // Use Firebase Cloud Functions (production or fallback)
   return callFunction<{
     devices?: Array<{ id: string; [key: string]: unknown }>
     device?: { id: string; [key: string]: unknown }
