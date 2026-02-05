@@ -69,7 +69,8 @@ export default function OrderConfirmation({
   const [errors, setErrors] = useState<Partial<Record<keyof AddressData, string>>>({})
   const [showSuccess, setShowSuccess] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [redirectCountdown, setRedirectCountdown] = useState(3)
+  // -1 = waiting for API, 0+ = countdown seconds until redirect
+  const [redirectCountdown, setRedirectCountdown] = useState(-1)
   
   // Refs for form fields to scroll to on validation error
   const nameRef = useRef<HTMLInputElement>(null)
@@ -308,38 +309,8 @@ export default function OrderConfirmation({
     
     // Show success state IMMEDIATELY for better UX (optimistic UI)
     setShowSuccess(true)
-    setRedirectCountdown(3)
+    setRedirectCountdown(-1) // -1 = waiting for API (show "Preparing...")
     
-    // Track state for both countdown and API
-    let customOrderId: string | undefined
-    let countdownFinished = false
-    let apiFinished = false
-    
-    // Function to redirect once both countdown and API are done (only on success)
-    const tryRedirect = () => {
-      if (countdownFinished && apiFinished && customOrderId !== undefined) {
-        onConfirm({
-          ...formData,
-          pickupDate: selectedDate,
-          orderId: customOrderId,
-        })
-      }
-    }
-    
-    // Start countdown timer IMMEDIATELY - shows visual feedback to user
-    let countdown = 3
-    const countdownInterval = setInterval(() => {
-      countdown -= 1
-      setRedirectCountdown(countdown)
-      
-      if (countdown <= 0) {
-        clearInterval(countdownInterval)
-        countdownFinished = true
-        tryRedirect()
-      }
-    }, 1000)
-    
-    // Create pickup request in parallel
     try {
       const { createPickupRequest } = await import('@/lib/api/client')
       const result = await createPickupRequest({
@@ -364,20 +335,32 @@ export default function OrderConfirmation({
         assessmentAnswers: assessmentAnswers && Object.keys(assessmentAnswers).length > 0 ? assessmentAnswers : undefined,
       })
 
-      if (result.success && result.id) {
-        customOrderId = result.id
-      } else {
-        clearInterval(countdownInterval)
+      if (!result.success || !result.id) {
         setShowSuccess(false)
         setErrors({ address: 'Failed to create pickup request. Please try again.' })
+        return
       }
+
+      const customOrderId = result.id
+      
+      // API done: start countdown (2s) then redirect so countdown matches actual redirect
+      let countdown = 2
+      setRedirectCountdown(countdown)
+      const countdownInterval = setInterval(() => {
+        countdown -= 1
+        setRedirectCountdown(countdown)
+        if (countdown <= 0) {
+          clearInterval(countdownInterval)
+          onConfirm({
+            ...formData,
+            pickupDate: selectedDate,
+            orderId: customOrderId,
+          })
+        }
+      }, 1000)
     } catch (error: unknown) {
-      clearInterval(countdownInterval)
       setShowSuccess(false)
       setErrors({ address: 'Could not submit pickup request. Please check your connection and try again.' })
-    } finally {
-      apiFinished = true
-      tryRedirect()
     }
   }
 
@@ -664,7 +647,7 @@ export default function OrderConfirmation({
                   Our team will contact you soon to confirm the pickup schedule.
                 </p>
                 
-                {/* Redirect countdown */}
+                {/* Redirect countdown - show "Preparing..." while API runs, then countdown */}
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -673,7 +656,9 @@ export default function OrderConfirmation({
                 >
                   <div className="w-5 h-5 border-2 border-brand-blue-600 border-t-transparent rounded-full animate-spin" />
                   <span className="text-brand-blue-900 font-medium">
-                    Redirecting to confirmation page in {redirectCountdown}s...
+                    {redirectCountdown < 0
+                      ? 'Preparing your confirmation page...'
+                      : `Redirecting to confirmation page in ${redirectCountdown}s...`}
                   </span>
                 </motion.div>
               </motion.div>
