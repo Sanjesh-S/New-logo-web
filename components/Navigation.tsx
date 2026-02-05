@@ -61,8 +61,8 @@ export default function Navigation() {
   const renderNavLink = (link: typeof navLinks[0], isMobile = false) => {
     const isAnchorLink = link.href.includes('#')
     const baseClasses = isMobile
-      ? "block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
-      : "text-gray-700 hover:text-brand-blue-900 transition-colors font-medium"
+      ? "block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors text-base"
+      : "text-gray-700 hover:text-brand-blue-900 transition-colors font-medium text-[15px] md:text-base"
     
     if (isAnchorLink) {
       return (
@@ -94,13 +94,13 @@ export default function Navigation() {
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
+            <div className="flex items-center justify-between h-20 md:h-24">
             {/* Logo */}
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="flex items-center flex-shrink-0">
               <img
                 src={getAssetPath("/images/worthyten-logo.svg")}
                 alt="WorthyTen"
-                className="h-14 md:h-16 w-auto object-contain"
+                className="h-[3.75rem] sm:h-[4.25rem] md:h-[4.5rem] lg:h-[5.25rem] xl:h-[6rem] w-auto object-contain"
               />
             </Link>
 
