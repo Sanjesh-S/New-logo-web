@@ -385,15 +385,15 @@ export default function OrderConfirmation({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-[1px]">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col"
       >
           {/* Modal Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
                 {showConfirmation ? 'Confirm Your Details' : showSchedulePickup ? 'Schedule Pickup' : 'Enter Pickup Details'}
@@ -412,7 +412,7 @@ export default function OrderConfirmation({
 
           {/* Modal Content - Address Form */}
           {!showSchedulePickup && !showConfirmation && (
-          <div className="p-6">
+          <div className="p-6 flex-1 overflow-y-auto">
             <form onSubmit={handleAddressSubmit} className="space-y-5">
           {/* Name */}
           <div>

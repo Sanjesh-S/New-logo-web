@@ -115,8 +115,8 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { id: 'battery90Above', label: '90% above' },
-              { id: 'battery80to90', label: '80% to 90%' },
-              { id: 'battery50to80', label: '50% to 80%' },
+              { id: 'battery80to90', label: '90% to 80%' },
+              { id: 'battery50to80', label: '80% to 50%' },
               { id: 'batteryBelow50', label: 'Below 50%' },
             ].map((option) => (
               <button

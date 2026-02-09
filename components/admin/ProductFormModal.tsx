@@ -255,14 +255,18 @@ export default function ProductFormModal({
                             </div>
                         </div>
 
-                        {/* Variants (Phone / iPad) */}
-                        {(formData.category === 'Phone' || formData.category === 'iPad') && (
+                        {/* Variants (Phone / iPad / DSLR / Camera) */}
+                        {(formData.category === 'Phone' || formData.category === 'iPad' || formData.category === 'DSLR' || formData.category === 'Camera' || formData.category === 'Lens') && (
                             <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-100">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                    Variants (e.g. storage: 256 GB, 512 GB)
+                                    Variants {formData.category === 'DSLR' || formData.category === 'Camera' ? '(e.g. Body Only, With Kit Lens)' : formData.category === 'Lens' ? '(e.g. different focal lengths)' : '(e.g. storage: 256 GB, 512 GB)'}
                                 </h3>
                                 <p className="text-xs text-gray-500 mb-3">
-                                    Add storage or other variants. Each variant has its own price on the product page.
+                                    {formData.category === 'DSLR' || formData.category === 'Camera' 
+                                        ? 'Add camera variants (e.g., Body Only, With Kit Lens). Each variant has its own price on the product page.'
+                                        : formData.category === 'Lens'
+                                        ? 'Add lens variants (e.g., different focal lengths or mounts). Each variant has its own price on the product page.'
+                                        : 'Add storage or other variants. Each variant has its own price on the product page.'}
                                 </p>
                                 {formData.variants.map((v, index) => (
                                     <div key={v.id} className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-white rounded-lg border border-gray-100">
@@ -279,7 +283,7 @@ export default function ProductFormModal({
                                                     ),
                                                 }))
                                             }}
-                                            placeholder="e.g. 256 GB"
+                                            placeholder={formData.category === 'DSLR' || formData.category === 'Camera' ? "e.g. Body Only" : formData.category === 'Lens' ? "e.g. 50mm f/1.8" : "e.g. 256 GB"}
                                             className="flex-1 min-w-[80px] px-3 py-2 border border-gray-200 rounded-lg text-sm"
                                         />
                                         <div className="relative flex-shrink-0">

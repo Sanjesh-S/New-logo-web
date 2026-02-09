@@ -76,37 +76,6 @@ export default function SamsungDeviceConditionStep({
         </div>
       </div>
 
-      {/* Battery health (Samsung) */}
-      <div>
-        <h3 className="text-lg font-semibold text-brand-blue-900 mb-2">
-          Battery health
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Check via Settings &gt; Battery and Device Care &gt; Diagnostics. Note: Samsung doesn&apos;t show a precise percentage like iPhone; it uses &quot;Life: Good/Weak&quot;.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { id: 'normalGood', label: 'Normal / Good (80% to 100%)' },
-            { id: 'actionRequired', label: 'Action Required (Below 80%)' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('batteryHealthSamsung', option.id)}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                answers.batteryHealthSamsung === option.id
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            >
-              <div className="mb-2 flex justify-center">{getIcon(option.id)}</div>
-              <div className="text-xs font-medium">{option.label}</div>
-            </motion.button>
-          ))}
-        </div>
-      </div>
-
       {/* S Pen (only for Ultra/Note) */}
       {showSPen && (
         <div>

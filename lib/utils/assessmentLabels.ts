@@ -59,7 +59,6 @@ export const ASSESSMENT_LABELS: Record<string, string> = {
   accessories: 'Accessories',
   age: 'Age of device',
   functionalIssues: 'Functional issues',
-  imeiNumber: 'IMEI number',
   serialNumber: 'Serial number',
 }
 
@@ -113,7 +112,7 @@ export const ASSESSMENT_GROUPS: Record<string, string[]> = {
     'lensCondition', 'hasAdditionalLens', 'additionalLenses', 'hasLensToSell',
     'fungusDustCondition', 'focusFunctionality', 'rubberRingCondition', 'lensErrorStatus',
   ],
-  'Device info': ['accessories', 'age', 'functionalIssues', 'imeiNumber', 'serialNumber'],
+  'Device info': ['accessories', 'age', 'functionalIssues', 'serialNumber'],
 }
 
 export function getAssessmentLabel(key: string): string {

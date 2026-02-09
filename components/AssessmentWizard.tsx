@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getAssetPath } from '@/lib/utils'
 import YesNoQuestion from './questions/YesNoQuestion'
 import ProgressBar from './ProgressBar'
-import TextQuestion, { validateImei, validateSerial } from './questions/TextQuestion'
+import TextQuestion, { validateSerial } from './questions/TextQuestion'
 import SingleSelectQuestion from './questions/SingleSelectQuestion'
 import ConditionGrid from './questions/ConditionGrid'
 import BodyConditionsGrid from './questions/BodyConditionsGrid'
@@ -655,15 +655,6 @@ export default function AssessmentWizard({
             index={3}
           />
           <TextQuestion
-            question="IMEI number"
-            helperText="Dial *#06# on your phone to get the IMEI"
-            questionId="imeiNumber"
-            value={(answers.imeiNumber as string) ?? ''}
-            onChange={(value) => handleAnswer('imeiNumber', value)}
-            placeholder="Enter 15-digit IMEI"
-            validation="imei"
-          />
-          <TextQuestion
             question="Serial Number"
             helperText="Found in Settings > General > About"
             questionId="serialNumber"
@@ -757,32 +748,6 @@ export default function AssessmentWizard({
               />
             </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-brand-blue-900 mb-4">Display Features</h3>
-            <div className="space-y-4">
-              <YesNoQuestion
-                question="120Hz / High Refresh Rate available and smooth"
-                questionId="display120Hz"
-                value={answers.display120Hz as string}
-                onChange={(value) => handleAnswer('display120Hz', value)}
-              />
-              <YesNoQuestion
-                question="Eye Comfort Shield (Blue light filter) working"
-                questionId="eyeComfortShield"
-                value={answers.eyeComfortShield as string}
-                onChange={(value) => handleAnswer('eyeComfortShield', value)}
-              />
-            </div>
-          </div>
-          <TextQuestion
-            question="IMEI number"
-            helperText="Dial *#06# on your phone to get the IMEI"
-            questionId="imeiNumber"
-            value={(answers.imeiNumber as string) ?? ''}
-            onChange={(value) => handleAnswer('imeiNumber', value)}
-            placeholder="Enter 15-digit IMEI"
-            validation="imei"
-          />
           <TextQuestion
             question="Serial Number"
             helperText="Found in Settings > About phone > Status"
@@ -1055,22 +1020,17 @@ export default function AssessmentWizard({
         } else if (isPhone) {
           const brandNorm = (brand || product?.brand || '').toLowerCase().trim()
           if (brandNorm.includes('samsung')) {
-            const imeiValid = !validateImei((answers.imeiNumber as string) || '')
             const serialValid = !validateSerial((answers.serialNumber as string) || '')
             return (
               answers.powerOn &&
               answers.cameraWorking &&
               answers.fingerprintWorking &&
               answers.faceRecognitionWorking &&
-              answers.display120Hz &&
-              answers.eyeComfortShield &&
-              imeiValid &&
               serialValid
             )
           }
-          const imeiValid = !validateImei((answers.imeiNumber as string) || '')
           const serialValid = !validateSerial((answers.serialNumber as string) || '')
-          return answers.powerOn && answers.cameraWorking && answers.biometricWorking && answers.trueTone && imeiValid && serialValid
+          return answers.powerOn && answers.cameraWorking && answers.biometricWorking && answers.trueTone && serialValid
         } else if (cat === 'tablets' || cat === 'tablet' || cat.includes('tablet')) {
           return answers.powerOn && answers.bodyDamage && answers.lcdWorking && answers.batteryWorking && answers.cameraWorking
         } else if (cat === 'laptops' || cat === 'laptop' || cat.includes('laptop')) {
@@ -1093,7 +1053,6 @@ export default function AssessmentWizard({
         if (isPhone && brandNorm.includes('samsung')) {
           const conditionBase =
             answers.displayCondition &&
-            answers.batteryHealthSamsung &&
             answers.cameraCondition
           if (!conditionBase) return false
           if (isSamsungSPenModel(model)) {

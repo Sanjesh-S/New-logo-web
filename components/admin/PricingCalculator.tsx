@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { getAllProducts, type Product, getPricingRules, savePricingRules, saveProductPricingRules, getProductById, saveProductPricingToCollection, getProductPricingFromCollection } from '@/lib/firebase/database'
 import { PricingRules, ZERO_PRICING_RULES } from '@/lib/types/pricing'
 import { getCurrentUser } from '@/lib/firebase/auth'
+import ProductFormModal from './ProductFormModal'
 
 // Icons
 const SaveIcon = () => (
@@ -441,6 +442,7 @@ export default function PricingCalculator() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     useEffect(() => {
         const loadData = async () => {
@@ -813,6 +815,24 @@ export default function PricingCalculator() {
         )
     }
 
+    const handleProductSaved = async () => {
+        setIsEditModalOpen(false)
+        // Reload products to get updated data
+        try {
+            const productsData = await getAllProducts()
+            setProducts(productsData)
+            // Update selected product if it was edited
+            if (selectedProduct) {
+                const updatedProduct = productsData.find(p => p.id === selectedProduct.id)
+                if (updatedProduct) {
+                    setSelectedProduct(updatedProduct)
+                }
+            }
+        } catch (error) {
+            console.error('Error reloading products:', error)
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -908,9 +928,22 @@ export default function PricingCalculator() {
                     <>
                         <div className="mt-6 p-4 bg-gradient-to-r from-brand-blue-50 to-emerald-50 rounded-xl border border-brand-blue-100">
                             <div className="flex items-center justify-between flex-wrap gap-4">
-                                <div>
-                                    <h4 className="font-bold text-gray-900">{selectedProduct.modelName}</h4>
-                                    <p className="text-sm text-gray-600">{selectedProduct.brand} • {selectedProduct.category}</p>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-gray-900">{selectedProduct.modelName}</h4>
+                                            <p className="text-sm text-gray-600">{selectedProduct.brand} • {selectedProduct.category}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsEditModalOpen(true)}
+                                            className="p-2 hover:bg-white/50 rounded-lg transition-colors text-gray-600 hover:text-brand-blue-900"
+                                            title="Edit product details"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm text-gray-500">Base Price</p>
@@ -920,11 +953,34 @@ export default function PricingCalculator() {
                         </div>
                         {selectedProduct.variants && selectedProduct.variants.length > 0 && (
                             <>
+                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-sm text-blue-800 mb-2">
+                                        <strong>💡 How Product Level vs Variant Level Works:</strong>
+                                    </p>
+                                    <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
+                                        <li><strong>Product Level:</strong> Rules apply to ALL variants. If you set "Does the camera power on?" as -₹10,000 here, it applies to all variants automatically.</li>
+                                        <li><strong>Variant Level:</strong> Rules are specific to that variant only. Use this if a variant needs different pricing rules than others.</li>
+                                    </ul>
+                                    <p className="text-xs text-blue-600 mt-2">
+                                        <strong>Answer:</strong> No, you don't need to set it again for each variant if you set it at Product Level. It will apply to all variants automatically.
+                                    </p>
+                                </div>
                                 <p className="mt-2 text-sm text-gray-500 mb-3">
                                     Click on a variant to set variant-specific pricing rules. Click "Product Level" to set rules that apply to all variants.
                                 </p>
                                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                    <h5 className="text-sm font-semibold text-gray-700 mb-3">Select Variant or Product Level</h5>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h5 className="text-sm font-semibold text-gray-700">Select Variant or Product Level</h5>
+                                        <button
+                                            onClick={() => setIsEditModalOpen(true)}
+                                            className="p-1.5 hover:bg-white rounded-md transition-colors text-gray-600 hover:text-brand-blue-900"
+                                            title="Edit product and variants"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                     <div className="flex flex-wrap gap-2 mb-3">
                                         <button
                                             onClick={() => handleVariantSelect(null)}
@@ -950,10 +1006,20 @@ export default function PricingCalculator() {
                                             </button>
                                         ))}
                                     </div>
+                                    {selectedVariantId === null && (
+                                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                                            <p className="text-xs text-green-700">
+                                                <strong>✓ Product Level Selected:</strong> Pricing rules you set here will apply to all variants ({selectedProduct.variants.length} variant{selectedProduct.variants.length > 1 ? 's' : ''}).
+                                            </p>
+                                        </div>
+                                    )}
                                     {selectedVariantId && (
                                         <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                                             <p className="text-xs text-blue-700">
                                                 Editing pricing rules for: <strong>{selectedProduct.variants?.find(v => v.id === selectedVariantId)?.label}</strong>
+                                            </p>
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                These rules will only apply to this variant. Other variants will use Product Level rules if set.
                                             </p>
                                         </div>
                                     )}
@@ -1500,8 +1566,8 @@ export default function PricingCalculator() {
                     <CollapsibleSection title="Battery health" description="Phone battery health range">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <PricingInput label="90% above" value={pricingRules.batteryHealthRange?.battery90Above ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery90Above', v)} {...getBulkUpdateProps('batteryHealthRange', 'battery90Above', pricingRules.batteryHealthRange?.battery90Above ?? 0)} />
-                            <PricingInput label="80% to 90%" value={pricingRules.batteryHealthRange?.battery80to90 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery80to90', v)} {...getBulkUpdateProps('batteryHealthRange', 'battery80to90', pricingRules.batteryHealthRange?.battery80to90 ?? 0)} />
-                            <PricingInput label="50% to 80%" value={pricingRules.batteryHealthRange?.battery50to80 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery50to80', v)} {...getBulkUpdateProps('batteryHealthRange', 'battery50to80', pricingRules.batteryHealthRange?.battery50to80 ?? 0)} />
+                            <PricingInput label="90% to 80%" value={pricingRules.batteryHealthRange?.battery80to90 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery80to90', v)} {...getBulkUpdateProps('batteryHealthRange', 'battery80to90', pricingRules.batteryHealthRange?.battery80to90 ?? 0)} />
+                            <PricingInput label="80% to 50%" value={pricingRules.batteryHealthRange?.battery50to80 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'battery50to80', v)} {...getBulkUpdateProps('batteryHealthRange', 'battery50to80', pricingRules.batteryHealthRange?.battery50to80 ?? 0)} />
                             <PricingInput label="Below 50%" value={pricingRules.batteryHealthRange?.batteryBelow50 ?? 0} onChange={(v) => handleConditionUpdate('batteryHealthRange', 'batteryBelow50', v)} {...getBulkUpdateProps('batteryHealthRange', 'batteryBelow50', pricingRules.batteryHealthRange?.batteryBelow50 ?? 0)} />
                         </div>
                     </CollapsibleSection>
@@ -1694,6 +1760,14 @@ export default function PricingCalculator() {
                     </div>
                 </CollapsibleSection>
             )}
+
+            {/* Product Edit Modal */}
+            <ProductFormModal
+                isOpen={isEditModalOpen}
+                product={selectedProduct}
+                onClose={() => setIsEditModalOpen(false)}
+                onProductSaved={handleProductSaved}
+            />
         </div>
     )
 }
