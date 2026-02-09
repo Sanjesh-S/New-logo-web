@@ -24,6 +24,15 @@ function getRubberRingImage(optionId: string): string {
   return imageMap[optionId] ?? ''
 }
 
+function getFungusDustImage(optionId: string): string {
+  const imageMap: Record<string, string> = {
+    'clean': getAssetPath(encodeURI('/Icons/Lens Fungus_Perfect.webp')),
+    'minorFungus': getAssetPath(encodeURI('/Icons/Lens Fungus_Minor fungus.webp')),
+    'majorFungus': getAssetPath(encodeURI('/Icons/Lens Fungus_Major Fungus & Dust.webp')),
+  }
+  return imageMap[optionId] ?? ''
+}
+
 interface LensConditionGridProps {
   answers: AnswerMap
   onChange: (questionId: string, value: string | string[]) => void
@@ -105,27 +114,36 @@ export default function LensConditionGrid({ answers, onChange }: LensConditionGr
             { id: 'clean', label: 'Clean / Good Condition', icon: <CheckCircle className="w-5 h-5" /> },
             { id: 'minorFungus', label: 'Minor Fungus or Dust', icon: <AlertCircle className="w-5 h-5" /> },
             { id: 'majorFungus', label: 'Major Fungus or Dust', icon: <XCircle className="w-5 h-5" /> },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              whileHover={hasLensToSell ? { scale: 1.02 } : {}}
-              whileTap={hasLensToSell ? { scale: 0.98 } : {}}
-              onClick={() => handleMultiSelect('fungusDustCondition', option.id, ['minorFungus', 'majorFungus'])}
-              disabled={!hasLensToSell}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
-                isSelected('fungusDustCondition', option.id)
-                  ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
-                  : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
-              } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex-shrink-0">
-                  {option.icon}
+          ].map((option) => {
+            const imageSrc = getFungusDustImage(option.id)
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={hasLensToSell ? { scale: 1.02 } : {}}
+                whileTap={hasLensToSell ? { scale: 0.98 } : {}}
+                onClick={() => handleMultiSelect('fungusDustCondition', option.id, ['minorFungus', 'majorFungus'])}
+                disabled={!hasLensToSell}
+                className={`p-4 rounded-xl border-2 text-center transition-all ${
+                  isSelected('fungusDustCondition', option.id)
+                    ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
+                    : 'bg-white border-gray-200 text-brand-blue-900 hover:border-brand-lime'
+                } ${!hasLensToSell ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="mb-2 flex justify-center">
+                  {imageSrc ? (
+                    <img
+                      src={imageSrc}
+                      alt={option.label}
+                      className="w-16 h-16 object-contain mx-auto"
+                    />
+                  ) : (
+                    <span className="flex justify-center">{option.icon}</span>
+                  )}
                 </div>
-                <span className="text-sm font-medium">{option.label}</span>
-              </div>
-            </motion.button>
-          ))}
+                <div className="text-sm font-medium">{option.label}</div>
+              </motion.button>
+            )
+          })}
         </div>
       </div>
 

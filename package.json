@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "convert:webp": "node scripts/convert-to-webp.js"
   },
   "dependencies": {
     "clsx": "^2.0.0",
@@ -40,6 +41,7 @@
     "jsdom": "^27.4.0",
     "postcss": "^8.4.32",
     "prettier": "^3.7.4",
+    "sharp": "^0.33.5",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.3.3",
     "vitest": "^4.0.17"

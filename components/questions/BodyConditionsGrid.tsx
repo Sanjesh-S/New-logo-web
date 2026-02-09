@@ -5,33 +5,33 @@ import { getAssetPath } from '@/lib/utils'
 import type { AnswerMap } from '@/lib/pricing/modifiers'
 
 const bodyConditionImages: Record<string, string> = {
-  likeNew: getAssetPath('/images/conditions/camera-body-like-new.png'),
-  average: getAssetPath('/images/conditions/camera-body-average.png'),
-  worn: getAssetPath('/images/conditions/camera-body-worn.png'),
+  likeNew: getAssetPath('/images/conditions/camera-body-like-new.webp'),
+  average: getAssetPath('/images/conditions/camera-body-average.webp'),
+  worn: getAssetPath('/images/conditions/camera-body-worn.webp'),
 }
 
 const lcdDisplayImages: Record<string, string> = {
-  good: getAssetPath('/images/conditions/display-good.png'),
-  fair: getAssetPath('/images/conditions/display-fair.png'),
-  poor: getAssetPath('/images/conditions/display-poor.png'),
+  good: getAssetPath('/images/conditions/display-good.webp'),
+  fair: getAssetPath('/images/conditions/display-fair.webp'),
+  poor: getAssetPath('/images/conditions/display-poor.webp'),
 }
 
 const rubberGripsImages: Record<string, string> = {
-  good: getAssetPath('/images/conditions/rubber-good.png'),
-  fair: getAssetPath('/images/conditions/rubber-fair.png'),
-  poor: getAssetPath('/images/conditions/rubber-poor.png'),
+  good: getAssetPath('/images/conditions/rubber-good.webp'),
+  fair: getAssetPath('/images/conditions/rubber-fair.webp'),
+  poor: getAssetPath('/images/conditions/rubber-poor.webp'),
 }
 
 const sensorViewfinderImages: Record<string, string> = {
-  clean: getAssetPath('/images/conditions/sensor-clean.png'),
-  minor: getAssetPath('/images/conditions/sensor-minor.png'),
-  major: getAssetPath('/images/conditions/sensor-major.png'),
+  clean: getAssetPath('/images/conditions/sensor-clean.webp'),
+  minor: getAssetPath('/images/conditions/sensor-minor.webp'),
+  major: getAssetPath('/images/conditions/sensor-major.webp'),
 }
 
 const errorCodesImages: Record<string, string> = {
-  none: getAssetPath('/images/conditions/error-none.png'),
-  intermittent: getAssetPath('/images/conditions/error-intermittent.png'),
-  persistent: getAssetPath('/images/conditions/error-persistent.png'),
+  none: getAssetPath('/images/conditions/error-none.webp'),
+  intermittent: getAssetPath('/images/conditions/error-intermittent.webp'),
+  persistent: getAssetPath('/images/conditions/error-persistent.webp'),
 }
 
 interface BodyConditionsGridProps {

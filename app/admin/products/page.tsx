@@ -72,6 +72,7 @@ export default function AdminProductsPage() {
     // Filters (Product List)
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('All')
+    const [selectedBrand, setSelectedBrand] = useState('All')
 
     // Filters (Pickup Requests / Rescheduled / Cancelled)
     const [pickupStatusFilter, setPickupStatusFilter] = useState<string>('All')
@@ -144,7 +145,8 @@ export default function AdminProductsPage() {
         const matchesSearch = product.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.brand.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory
-        return matchesSearch && matchesCategory
+        const matchesBrand = selectedBrand === 'All' || product.brand === selectedBrand
+        return matchesSearch && matchesCategory && matchesBrand
     })
 
     // Filter pickup requests by status and search (Order ID, product, customer name/phone/email)
@@ -177,8 +179,9 @@ export default function AdminProductsPage() {
         setEditingProduct(null)
     }
 
-    // Get unique categories for filter
+    // Get unique categories and brands for filters
     const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).sort()]
+    const brands = ['All', ...Array.from(new Set(products.map(p => p.brand))).sort()]
 
     // Stats from real-time data (update instantly when new requests arrive)
     const pendingPickups = activePickupRequests.filter((r) => r.status === 'pending').length
@@ -342,6 +345,17 @@ export default function AdminProductsPage() {
                                 >
                                     {categories.map(cat => (
                                         <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="w-full sm:w-48">
+                                <select
+                                    value={selectedBrand}
+                                    onChange={(e) => setSelectedBrand(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none bg-white transition-all"
+                                >
+                                    {brands.map(b => (
+                                        <option key={b} value={b}>{b}</option>
                                     ))}
                                 </select>
                             </div>
