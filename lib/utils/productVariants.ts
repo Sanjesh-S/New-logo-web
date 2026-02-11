@@ -1,5 +1,6 @@
 import type { ProductVariant } from '@/lib/firebase/database'
 import type { Product } from '@/lib/firebase/database'
+import { isFixedLensCamera } from './fixedLensCameras'
 
 function variantIdFromLabel(label: string): string {
   return label.replace(/\s+/g, '').toLowerCase().replace(/gb|tb/gi, (m) => m.toLowerCase())
@@ -103,8 +104,8 @@ const VARIANT_RULES: VariantRule[] = [
   { test: (c, b, m) => TABLET(c), variants: ['64 GB', '128 GB', '256 GB'] },
   // —— Laptops ——
   { test: (c, b, m) => c.includes('laptop'), variants: ['8 GB RAM', '16 GB RAM', '32 GB RAM'] },
-  // —— Cameras ——
-  { test: (c, b, m) => c.includes('camera') || c.includes('dslr'), variants: ['Body Only', 'With Kit Lens'] },
+  // —— Cameras (excluding fixed-lens cameras) ——
+  { test: (c, b, m) => (c.includes('camera') || c.includes('dslr')) && !isFixedLensCamera(m), variants: ['Body Only', 'With Kit Lens'] },
 ]
 
 /**

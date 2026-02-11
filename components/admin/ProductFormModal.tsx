@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Product, updateProduct, createProduct, type ProductVariant } from '@/lib/firebase/database'
+import { isFixedLensCamera } from '@/lib/utils/fixedLensCameras'
 
 function variantIdFromLabel(label: string): string {
   return label.replace(/\s+/g, '').toLowerCase().replace(/gb|tb/gi, (m) => m.toLowerCase())
@@ -56,18 +57,32 @@ export default function ProductFormModal({
     // Reset or Populate form when modal opens or product changes
     useEffect(() => {
         if (product) {
+            const isCameraCategory = product.category === 'DSLR' || product.category === 'Camera'
+            const isFixedLens = isCameraCategory && isFixedLensCamera(product.modelName || '')
+            
             setFormData({
                 brand: product.brand || '',
                 modelName: product.modelName || '',
                 category: product.category || 'Phone',
                 basePrice: product.basePrice || 0,
                 imageUrl: product.imageUrl || '',
-                variants: product.variants && product.variants.length > 0 ? [...product.variants] : [],
+                // Clear variants for fixed-lens cameras
+                variants: (isFixedLens ? [] : (product.variants && product.variants.length > 0 ? [...product.variants] : [])),
             })
         } else {
             setFormData(initialFormState)
         }
     }, [product, isOpen])
+    
+    // Clear variants when model name changes and it's detected as fixed-lens
+    useEffect(() => {
+        const isCameraCategory = formData.category === 'DSLR' || formData.category === 'Camera'
+        const isFixedLens = isCameraCategory && isFixedLensCamera(formData.modelName)
+        
+        if (isFixedLens && formData.variants.length > 0) {
+            setFormData(prev => ({ ...prev, variants: [] }))
+        }
+    }, [formData.modelName, formData.category])
 
     if (!isOpen) return null
 
@@ -76,8 +91,12 @@ export default function ProductFormModal({
         setLoading(true)
 
         try {
-            // Validate and prepare variants
-            const validVariants = formData.variants
+            // Check if this is a fixed-lens camera
+            const isCameraCategory = formData.category === 'DSLR' || formData.category === 'Camera'
+            const isFixedLens = isCameraCategory && isFixedLensCamera(formData.modelName)
+            
+            // Validate and prepare variants (clear for fixed-lens cameras)
+            const validVariants = isFixedLens ? [] : formData.variants
                 .filter(v => v.label.trim() && v.basePrice > 0)
                 .map(v => ({
                     id: variantIdFromLabel(v.label) || v.id,
@@ -255,8 +274,34 @@ export default function ProductFormModal({
                             </div>
                         </div>
 
-                        {/* Variants (Phone / iPad / DSLR / Camera) */}
-                        {(formData.category === 'Phone' || formData.category === 'iPad' || formData.category === 'DSLR' || formData.category === 'Camera' || formData.category === 'Lens') && (
+                        {/* Info message for fixed-lens cameras */}
+                        {(() => {
+                            const isCameraCategory = formData.category === 'DSLR' || formData.category === 'Camera'
+                            const isFixedLens = isCameraCategory && isFixedLensCamera(formData.modelName)
+                            return isFixedLens
+                        })() && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-900 mb-1">Fixed-Lens Camera Detected</p>
+                                        <p className="text-xs text-blue-700">
+                                            This camera model has a fixed lens, so variant selection (Body Only / With Kit Lens) is not applicable. The product will use a single price.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Variants (Phone / iPad / DSLR / Camera) - Hidden for fixed-lens cameras */}
+                        {(() => {
+                            const isCameraCategory = formData.category === 'DSLR' || formData.category === 'Camera'
+                            const isFixedLens = isCameraCategory && isFixedLensCamera(formData.modelName)
+                            const showVariants = (formData.category === 'Phone' || formData.category === 'iPad' || formData.category === 'Lens') || (isCameraCategory && !isFixedLens)
+                            return showVariants
+                        })() && (
                             <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 border border-gray-100">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                                     Variants {formData.category === 'DSLR' || formData.category === 'Camera' ? '(e.g. Body Only, With Kit Lens)' : formData.category === 'Lens' ? '(e.g. different focal lengths)' : '(e.g. storage: 256 GB, 512 GB)'}

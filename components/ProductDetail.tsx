@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
 import { getProductById, type Product, type ProductVariant } from '@/lib/firebase/database'
+import { isFixedLensCamera } from '@/lib/utils/fixedLensCameras'
 
 interface ProductDetailProps {
   productId: string
@@ -36,16 +37,23 @@ export default function ProductDetail({
         }
         setProduct(data)
         // For DSLR and Phone, don't auto-select variant - user must select one
+        // Exception: Fixed-lens cameras should auto-select first variant since they don't show variant selection UI
         const cat = (data.category || '').toLowerCase().trim()
         const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
         const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
         
+        // Check if this is a fixed-lens camera
+        const isFixedLens = isDSLR && isFixedLensCamera(data.modelName || '')
+        
         if (data?.variants?.length) {
-          // Only auto-select for non-DSLR/Phone products
+          // Auto-select for non-DSLR/Phone products OR fixed-lens cameras
           if (!isDSLR && !isPhone) {
             setSelectedVariantId(data.variants[0].id)
+          } else if (isFixedLens) {
+            // Fixed-lens cameras: auto-select first variant (they won't see the selection UI)
+            setSelectedVariantId(data.variants[0].id)
           } else {
-            // For DSLR/Phone, don't select any variant initially
+            // For DSLR/Phone (non-fixed-lens), don't select any variant initially
             setSelectedVariantId(null)
           }
         } else {
@@ -104,8 +112,12 @@ export default function ProductDetail({
   const isDSLR = cat === 'cameras' || cat === 'camera' || cat === 'dslr'
   const isPhone = cat === 'phones' || cat === 'phone' || cat === 'iphone' || cat.includes('phone')
   
+  // Check if this is a fixed-lens camera (should not show variant selection)
+  const isFixedLens = isDSLR && isFixedLensCamera(product.modelName || '')
+  
   // For DSLR/Phone with variants, only show price if variant is selected
-  const shouldShowPrice = hasVariants && (isDSLR || isPhone) 
+  // For fixed-lens cameras, always show price (no variant selection)
+  const shouldShowPrice = hasVariants && (isDSLR || isPhone) && !isFixedLens
     ? selectedVariantId !== null 
     : true
   
@@ -175,8 +187,8 @@ export default function ProductDetail({
                 </p>
               </div>
 
-              {/* Variant Selection (Cashify-style) */}
-              {hasVariants && (
+              {/* Variant Selection (Cashify-style) - Hide for fixed-lens cameras */}
+              {hasVariants && !isFixedLens && (
                 <div>
                   <h3 className="text-sm font-semibold text-brand-blue-900 mb-3">Choose a variant</h3>
                   <div className="flex flex-wrap gap-2">
@@ -214,8 +226,8 @@ export default function ProductDetail({
                 </div>
               )}
 
-              {/* CTA Button - Disabled if variant not selected for DSLR/Phone */}
-              {hasVariants && (isDSLR || isPhone) && !selectedVariantId ? (
+              {/* CTA Button - Disabled if variant not selected for DSLR/Phone (except fixed-lens) */}
+              {hasVariants && (isDSLR || isPhone) && !isFixedLens && !selectedVariantId ? (
                 <button
                   disabled
                   className="w-full py-3 px-5 bg-gray-300 text-gray-500 rounded-lg font-semibold text-base cursor-not-allowed flex items-center justify-center gap-2"

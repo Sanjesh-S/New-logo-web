@@ -10,7 +10,7 @@ import LaptopTabletForm from './LaptopTabletForm'
 const categories = [
   {
     id: 'cameras',
-    name: 'Camera / DSLR',
+    name: 'Camera',
     image: '/Icons/DSLR.webp',
     description: 'Canon, Nikon, Sony, Fujifilm',
     color: 'from-brand-blue-600 to-brand-lime',

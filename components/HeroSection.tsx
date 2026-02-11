@@ -11,7 +11,7 @@ import { getAssetPath } from '@/lib/utils'
 import LaptopTabletForm from './LaptopTabletForm'
 
 const categories = [
-  { id: 'cameras', name: 'Camera / DSLR', image: '/Icons/DSLR.webp', active: true },
+  { id: 'cameras', name: 'Camera', image: '/Icons/DSLR.webp', active: true },
   { id: 'phones', name: 'Phone', image: '/Icons/phone.webp', active: true },
   { id: 'laptops', name: 'Laptop', image: '/Icons/Laptop.webp', active: true },
   { id: 'tablets', name: 'Tablet', image: '/Icons/Tablet.webp', active: true },
