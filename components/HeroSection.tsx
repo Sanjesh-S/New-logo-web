@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
-import { Search, Check, TrendingUp, Users, Star, X } from 'lucide-react'
+import { Search, Check, Camera, Smartphone, Laptop, Tablet, TrendingUp, Users, Star, X, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { getAssetPath } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getAllProducts, type Product } from '@/lib/firebase/database'
+import { getAssetPath } from '@/lib/utils'
+import LaptopTabletForm from './LaptopTabletForm'
 
 const categories = [
   { id: 'cameras', name: 'Camera / DSLR', image: '/Icons/DSLR.webp', active: true },
@@ -59,6 +60,8 @@ export default function HeroSection() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<'laptops' | 'tablets' | null>(null)
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -224,37 +227,30 @@ export default function HeroSection() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.2]" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-          {/* Left - Copy + CTA */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          {/* Left Column - Text Content */}
           <motion.div
-            initial={mounted ? { opacity: 0, x: -24 } : false}
+            initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="space-y-8 relative z-20"
+            transition={{ duration: 0.6 }}
+            className="space-y-6"
           >
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md border border-brand-blue-100/50 text-brand-blue-900 font-semibold text-sm shadow-sm ring-1 ring-white/50"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-lime opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-lime"></span>
-              </span>
-              India&apos;s #1 Device Trade-In Platform
-            </motion.div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-lime/20 rounded-full text-brand-blue-900 font-medium text-sm">
+              <span className="w-2 h-2 bg-brand-lime rounded-full animate-pulse" />
+              India's #1 Device Trade-In Platform
+            </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-brand-blue-900 leading-[1.1] tracking-tight">
-              Trade-In Your{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue-600 to-brand-lime font-extrabold relative">
-                Gadgets
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-brand-blue-900 leading-tight">
+              Trade-In Your <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue-600 to-brand-lime">
+                Camera & Gadgets
               </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed">
-              Get an Instant Price Quote, enjoy Free Doorstep Pickup, and receive Same-Day Payment. Trusted by over 10K+ happy customers.
+            <p className="text-xl md:text-2xl text-gray-600">
+              Get Instant Price. Doorstep Pickup. Same-Day Payment.
             </p>
 
             {/* Premium Search Box */}
@@ -484,7 +480,33 @@ export default function HeroSection() {
           className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6"
         >
           {categories.map((category) => {
-            return (
+            const handleCategoryClick = () => {
+              if (category.id === 'laptops' || category.id === 'tablets') {
+                setSelectedCategory(category.id as 'laptops' | 'tablets')
+                setShowForm(true)
+              }
+            }
+
+            return category.id === 'laptops' || category.id === 'tablets' ? (
+              <div
+                key={category.id}
+                onClick={handleCategoryClick}
+                className="group relative p-6 transition-all duration-300 cursor-pointer"
+              >
+                <div className="h-full flex flex-col items-center justify-center">
+                  <div className="flex-1 flex items-center justify-center w-full mb-4">
+                    <Image
+                      src={getAssetPath(category.image)}
+                      alt={category.name}
+                      width={160}
+                      height={160}
+                      className="w-full h-full max-w-[140px] md:max-w-[160px] object-contain group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <span className="font-bold text-brand-blue-900 group-hover:text-brand-blue-700 text-center">{category.name}</span>
+                </div>
+              </div>
+            ) : (
               <Link
                 key={category.id}
                 href={`/brands?category=${category.id}`}
@@ -507,6 +529,18 @@ export default function HeroSection() {
           })}
         </motion.div>
       </div>
+
+      {/* Laptop/Tablet Form Modal */}
+      {selectedCategory && (
+        <LaptopTabletForm
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false)
+            setSelectedCategory(null)
+          }}
+          category={selectedCategory}
+        />
+      )}
     </section>
   )
 }

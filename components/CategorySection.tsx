@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getAssetPath } from '@/lib/utils'
+import LaptopTabletForm from './LaptopTabletForm'
 
 const categories = [
   {
@@ -31,7 +33,7 @@ const categories = [
     description: 'Coming Soon',
     color: 'from-brand-blue-500 to-brand-lime-500',
     bgColor: 'bg-brand-blue-500/10',
-    available: false,
+    available: true,
   },
   {
     id: 'tablets',
@@ -40,11 +42,21 @@ const categories = [
     description: 'Coming Soon',
     color: 'from-brand-blue-600 to-brand-lime-400',
     bgColor: 'bg-brand-blue-500/10',
-    available: false,
+    available: true,
   },
 ]
 
 export default function CategorySection() {
+  const [showForm, setShowForm] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<'laptops' | 'tablets' | null>(null)
+
+  const handleCategoryClick = (categoryId: string) => {
+    if (categoryId === 'laptops' || categoryId === 'tablets') {
+      setSelectedCategory(categoryId as 'laptops' | 'tablets')
+      setShowForm(true)
+    }
+  }
+
   return (
     <section className="py-12 md:py-24 px-4 bg-gray-50">
       <div className="max-w-6xl mx-auto">
@@ -71,8 +83,11 @@ export default function CategorySection() {
                 transition={{ delay: index * 0.05, duration: 0.3, ease: 'easeOut' }}
               >
                 {category.available ? (
-                  <Link href={`/trade-in?category=${category.id}`} prefetch={true}>
-                    <div className="relative h-64 md:h-80 transition-all cursor-pointer group">
+                  category.id === 'laptops' || category.id === 'tablets' ? (
+                    <div 
+                      onClick={() => handleCategoryClick(category.id)}
+                      className="relative h-64 md:h-80 transition-all cursor-pointer group"
+                    >
                       <div className="h-full flex flex-col items-center justify-center p-6 md:p-8">
                         <div className="flex-1 flex items-center justify-center w-full mb-4">
                           <Image
@@ -94,7 +109,32 @@ export default function CategorySection() {
                         )}
                       </div>
                     </div>
-                  </Link>
+                  ) : (
+                    <Link href={`/trade-in?category=${category.id}`} prefetch={true}>
+                      <div className="relative h-64 md:h-80 transition-all cursor-pointer group">
+                        <div className="h-full flex flex-col items-center justify-center p-6 md:p-8">
+                          <div className="flex-1 flex items-center justify-center w-full mb-4">
+                            <Image
+                              src={getAssetPath(category.image)}
+                              alt={category.name}
+                              width={200}
+                              height={200}
+                              className="w-full h-full max-w-[180px] md:max-w-[220px] object-contain group-hover:scale-105 transition-transform duration-300 will-change-transform"
+                              loading="lazy"
+                            />
+                          </div>
+                          <h3 className="text-xl md:text-2xl font-bold text-brand-blue-900 text-center">
+                            {category.name}
+                          </h3>
+                          {category.description && category.description !== 'Coming Soon' && (
+                            <p className="text-sm text-gray-500 text-center mt-1">
+                              {category.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  )
                 ) : (
                   <div className="relative h-64 md:h-80 opacity-60">
                     <div className="h-full flex flex-col items-center justify-center p-6 md:p-8">
@@ -123,8 +163,18 @@ export default function CategorySection() {
           })}
         </div>
       </div>
+
+      {/* Laptop/Tablet Form Modal */}
+      {selectedCategory && (
+        <LaptopTabletForm
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false)
+            setSelectedCategory(null)
+          }}
+          category={selectedCategory}
+        />
+      )}
     </section>
   )
 }
-
-

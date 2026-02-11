@@ -238,6 +238,37 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
+    // Laptop/Tablet Inquiries Collection
+    match /laptopTabletInquiries/{inquiryId} {
+      // Anyone can create inquiries (public form)
+      // Server-side API routes use Admin SDK which bypasses these rules
+      // This rule allows client-side direct writes if needed
+      allow create: if request.resource.data.keys().hasAll(['category', 'model', 'age', 'warranty', 'name', 'contact', 'location', 'createdAt', 'status'])
+                     && request.resource.data.category is string
+                     && request.resource.data.category in ['laptops', 'tablets']
+                     && request.resource.data.model is string
+                     && request.resource.data.model.size() > 0
+                     && request.resource.data.model.size() <= 200
+                     && request.resource.data.name is string
+                     && request.resource.data.name.size() > 0
+                     && request.resource.data.name.size() <= 100
+                     && request.resource.data.contact is string
+                     && request.resource.data.contact.size() == 10
+                     && request.resource.data.location is string
+                     && request.resource.data.location.size() > 0
+                     && request.resource.data.location.size() <= 200
+                     && request.resource.data.status == 'pending';
+      
+      // Staff can read all inquiries
+      allow read: if isStaff();
+      
+      // Staff can update inquiries (status changes, etc.)
+      allow update: if isStaff();
+      
+      // Only superadmins can delete inquiries
+      allow delete: if hasRole('superadmin');
+    }
+    
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

@@ -13,6 +13,7 @@ import { getDevices } from './devices'
 import { sendTelegramNotification } from './notifications/telegram'
 import { sendWhatsAppNotification } from './notifications/whatsapp'
 import { sendEmailConfirmation } from './notifications/email'
+import { sendLaptopTabletNotification } from './notifications/laptop-tablet'
 import { createLogger } from './utils/logger'
 
 const logger = createLogger('Functions:Index')
@@ -268,3 +269,28 @@ export const emailConfirm = functions.https.onRequest(async (req, res) => {
     res.status(405).json({ error: 'Method not allowed' })
   }
 })
+
+// Laptop/Tablet Inquiry Notification API
+export const telegramNotifyLaptopTablet = functions
+  .runWith({ secrets: [telegramBotToken, telegramChatId] })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res)
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('')
+      return
+    }
+
+    if (req.method === 'POST') {
+      try {
+        await sendLaptopTabletNotification(req, res)
+      } catch (error) {
+        logger.error('Unhandled error in telegramNotifyLaptopTablet', error)
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Internal server error' })
+        }
+      }
+    } else {
+      res.status(405).json({ error: 'Method not allowed' })
+    }
+  })
