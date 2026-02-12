@@ -34,7 +34,7 @@ export default function SingleSelectQuestion({
             key={option.id}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => onChange(option.id)}
+            onClick={() => onChange(value === option.id ? '' : option.id)}
             className={`py-3 px-4 rounded-xl border-2 text-left font-medium transition-all ${
               value === option.id
                 ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'

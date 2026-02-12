@@ -83,7 +83,8 @@ export default function AccessoryGrid({ value = [], onChange }: AccessoryGridPro
                 <img
                   src={imagePath}
                   alt={accessory.label}
-                  className="w-16 h-16 mx-auto mb-2 object-contain"
+                  className={`w-16 h-16 mx-auto mb-2 object-contain ${accessory.id === 'battery' ? 'border-0 outline-none' : ''}`}
+                  style={accessory.id === 'battery' ? { border: 'none', outline: 'none' } : undefined}
                 />
               ) : (
                 <Icon className="w-12 h-12 mx-auto mb-2" />

@@ -79,7 +79,7 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               <button
                 key={option.id}
                 type="button"
-                onClick={() => onChange('displayCondition', option.id)}
+                onClick={() => onChange('displayCondition', answers.displayCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.displayCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -122,7 +122,7 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               <button
                 key={option.id}
                 type="button"
-                onClick={() => onChange('batteryHealthRange', option.id)}
+                onClick={() => onChange('batteryHealthRange', answers.batteryHealthRange === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.batteryHealthRange === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -159,7 +159,7 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               <button
                 key={option.id}
                 type="button"
-                onClick={() => onChange('cameraCondition', option.id)}
+                onClick={() => onChange('cameraCondition', answers.cameraCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.cameraCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -196,7 +196,7 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
               <button
                 key={option.id}
                 type="button"
-                onClick={() => onChange('bodyCondition', option.id)}
+                onClick={() => onChange('bodyCondition', answers.bodyCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] ${
                   answers.bodyCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'

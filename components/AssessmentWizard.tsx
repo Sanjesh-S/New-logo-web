@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, startTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, startTransition, useRef } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle, Power, Smartphone, Laptop, Camera, Wrench, Package, Calendar } from 'lucide-react'
 import Image from 'next/image'
@@ -56,11 +56,17 @@ export default function AssessmentWizard({
   variantId,
 }: AssessmentWizardProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { user, isAuthenticated } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentStep, setCurrentStep] = useState(0)
+  
+  // Initialize currentStep from URL or default to 0
+  const stepFromUrl = searchParams.get('step')
+  const initialStep = stepFromUrl ? parseInt(stepFromUrl, 10) : 0
+  const [currentStep, setCurrentStep] = useState(initialStep)
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [calculatedPrice, setCalculatedPrice] = useState(0)
   const [showOTPModal, setShowOTPModal] = useState(false)
@@ -71,6 +77,25 @@ export default function AssessmentWizard({
   const [powerOnPercentage, setPowerOnPercentage] = useState<number | null>(null)
   const [valuationId, setValuationId] = useState<string | null>(null)
   const [stepBeforeSkip, setStepBeforeSkip] = useState<number | null>(null) // Track step before skipping to accessories
+
+  // Track if initial history replacement has been done
+  const [initialHistoryReplaced, setInitialHistoryReplaced] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Replace browser history entry when assessment first loads (replace product page entry)
+  useEffect(() => {
+    if (product && currentStep === 0 && !initialHistoryReplaced) {
+      // Replace current history entry to prevent going back to product page
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('step') // Ensure step 0 has no step param
+      const newUrl = `${pathname}?${params.toString()}`
+      router.replace(newUrl, { scroll: false })
+      setInitialHistoryReplaced(true)
+      setIsInitialLoad(false)
+    } else if (product && initialHistoryReplaced && isInitialLoad) {
+      setIsInitialLoad(false)
+    }
+  }, [product, currentStep, pathname, router, searchParams, initialHistoryReplaced, isInitialLoad])
 
   // Fetch product data and pricing rules
   useEffect(() => {
@@ -158,6 +183,78 @@ export default function AssessmentWizard({
       setAnswers({})
     }
   }, [category, product?.category])
+
+  // Track if navigation is from browser back/forward button
+  const isPopStateRef = useRef(false)
+
+  // Update URL when step changes (add to history when going forward)
+  useEffect(() => {
+    // Skip if this is from popstate navigation
+    if (isPopStateRef.current) {
+      isPopStateRef.current = false
+      return
+    }
+
+    // Skip on initial load - will be handled by initialHistoryReplaced effect
+    if (isInitialLoad || !initialHistoryReplaced) {
+      return
+    }
+
+    // Build the target URL for the current step
+    const targetParams = new URLSearchParams(searchParams.toString())
+    if (currentStep === 0) {
+      targetParams.delete('step')
+    } else {
+      targetParams.set('step', currentStep.toString())
+    }
+    const targetUrl = `${pathname}?${targetParams.toString()}`
+    
+    // Read current step from actual URL (not searchParams which might be stale)
+    const currentUrl = window.location.href
+    const currentUrlPath = window.location.pathname + window.location.search
+    const currentUrlParams = new URLSearchParams(window.location.search)
+    const currentStepFromUrl = currentUrlParams.get('step')
+    const currentStepNum = currentStepFromUrl ? parseInt(currentStepFromUrl, 10) : 0
+    
+    // Don't update if URL already matches the target step (to avoid duplicate entries)
+    if (currentStepNum === currentStep && currentUrlPath === targetUrl.replace(window.location.origin, '')) {
+      return
+    }
+
+    // Use router.push to add to browser history when navigating forward
+    // This ensures browser back button works correctly
+    router.push(targetUrl, { scroll: false })
+  }, [currentStep, pathname, router, searchParams, initialHistoryReplaced, isInitialLoad])
+
+  // Handle browser back/forward button
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const currentPath = window.location.pathname
+      
+      // If navigating away from assessment page, allow it
+      if (!currentPath.includes('/assessment')) {
+        return
+      }
+
+      // Mark that this is a popstate navigation to prevent URL update effect from running
+      isPopStateRef.current = true
+      
+      // Read step directly from URL (browser has already navigated)
+      const params = new URLSearchParams(window.location.search)
+      const stepFromUrl = params.get('step')
+      const step = stepFromUrl ? parseInt(stepFromUrl, 10) : 0
+      
+      // Update step based on URL - this will trigger a re-render with the correct step
+      if (step >= 0) {
+        setCurrentStep(step)
+      } else {
+        setCurrentStep(0)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Scroll to top when step changes
   useEffect(() => {

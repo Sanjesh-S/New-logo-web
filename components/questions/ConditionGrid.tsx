@@ -107,7 +107,7 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
                 key={option.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onChange('displayCondition', option.id)}
+                onClick={() => onChange('displayCondition', answers.displayCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all ${
                   answers.displayCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -150,7 +150,7 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
                 key={option.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onChange('bodyCondition', option.id)}
+                onClick={() => onChange('bodyCondition', answers.bodyCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all ${
                   answers.bodyCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -193,7 +193,7 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
                 key={option.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onChange('errorCondition', option.id)}
+                onClick={() => onChange('errorCondition', answers.errorCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all ${
                   answers.errorCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -236,7 +236,7 @@ export default function ConditionGrid({ answers, onChange }: ConditionGridProps)
                 key={option.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onChange('lensCondition', option.id)}
+                onClick={() => onChange('lensCondition', answers.lensCondition === option.id ? '' : option.id)}
                 className={`p-4 rounded-xl border-2 text-center transition-all ${
                   answers.lensCondition === option.id
                     ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'

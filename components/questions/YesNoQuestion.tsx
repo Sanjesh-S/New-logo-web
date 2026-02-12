@@ -71,7 +71,7 @@ export default function YesNoQuestion({
             boxShadow: value !== 'yes' ? '0 10px 25px rgba(59, 130, 246, 0.15)' : undefined
           }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => onChange('yes')}
+          onClick={() => onChange(value === 'yes' ? '' : 'yes')}
           className={`group relative flex-1 py-6 px-6 rounded-2xl border-2 font-bold text-lg transition-all duration-300 overflow-hidden ${
             value === 'yes'
               ? 'bg-gradient-to-br from-brand-blue-600 via-brand-blue-500 to-brand-lime text-white border-brand-lime shadow-xl shadow-brand-lime/40 ring-4 ring-brand-lime/20'
@@ -151,7 +151,7 @@ export default function YesNoQuestion({
             boxShadow: value !== 'no' ? '0 10px 25px rgba(239, 68, 68, 0.15)' : undefined
           }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => onChange('no')}
+          onClick={() => onChange(value === 'no' ? '' : 'no')}
           className={`group relative flex-1 py-6 px-6 rounded-2xl border-2 font-bold text-lg transition-all duration-300 overflow-hidden ${
             value === 'no'
               ? 'bg-gradient-to-br from-brand-blue-600 via-brand-blue-500 to-brand-lime text-white border-brand-lime shadow-xl shadow-brand-lime/40 ring-4 ring-brand-lime/20'

@@ -57,7 +57,7 @@ export default function BodyConditionsGrid({ answers, onChange }: BodyConditions
               key={option.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('bodyPhysicalCondition', option.id)}
+              onClick={() => onChange('bodyPhysicalCondition', answers.bodyPhysicalCondition === option.id ? '' : option.id)}
               className={`p-3 md:p-4 rounded-xl border-2 text-left transition-all flex flex-col items-center text-center gap-2 md:gap-3 ${
                 answers.bodyPhysicalCondition === option.id
                   ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -92,7 +92,7 @@ export default function BodyConditionsGrid({ answers, onChange }: BodyConditions
               key={option.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('lcdDisplayCondition', option.id)}
+              onClick={() => onChange('lcdDisplayCondition', answers.lcdDisplayCondition === option.id ? '' : option.id)}
               className={`p-3 md:p-4 rounded-xl border-2 text-left transition-all flex flex-col items-center text-center gap-2 md:gap-3 ${
                 answers.lcdDisplayCondition === option.id
                   ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -127,7 +127,7 @@ export default function BodyConditionsGrid({ answers, onChange }: BodyConditions
               key={option.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('rubberGripsCondition', option.id)}
+              onClick={() => onChange('rubberGripsCondition', answers.rubberGripsCondition === option.id ? '' : option.id)}
               className={`p-3 md:p-4 rounded-xl border-2 text-left transition-all flex flex-col items-center text-center gap-2 md:gap-3 ${
                 answers.rubberGripsCondition === option.id
                   ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -162,7 +162,7 @@ export default function BodyConditionsGrid({ answers, onChange }: BodyConditions
               key={option.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('sensorViewfinderCondition', option.id)}
+              onClick={() => onChange('sensorViewfinderCondition', answers.sensorViewfinderCondition === option.id ? '' : option.id)}
               className={`p-3 md:p-4 rounded-xl border-2 text-left transition-all flex flex-col items-center text-center gap-2 md:gap-3 ${
                 answers.sensorViewfinderCondition === option.id
                   ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
@@ -197,7 +197,7 @@ export default function BodyConditionsGrid({ answers, onChange }: BodyConditions
               key={option.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onChange('errorCodesCondition', option.id)}
+              onClick={() => onChange('errorCodesCondition', answers.errorCodesCondition === option.id ? '' : option.id)}
               className={`p-3 md:p-4 rounded-xl border-2 text-left transition-all flex flex-col items-center text-center gap-2 md:gap-3 ${
                 answers.errorCodesCondition === option.id
                   ? 'bg-gradient-to-br from-brand-blue-600 to-brand-lime text-white border-brand-lime'
