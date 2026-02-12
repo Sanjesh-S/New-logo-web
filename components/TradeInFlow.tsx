@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, Check, Camera } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { ChevronRight, Check, Camera, ArrowLeft } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { getDevices as getDevicesFromDb, getDevice as getDeviceFromDb } from '@/lib/firebase/database'
 import OTPLogin from '@/components/OTPLogin'
@@ -46,6 +46,7 @@ interface ValuationData {
 
 export default function TradeInFlow() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const category = searchParams.get('category') || 'cameras'
   const brandFromUrl = searchParams.get('brand') || ''
   const { user, isAuthenticated } = useAuth()
@@ -186,6 +187,13 @@ export default function TradeInFlow() {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+    } else {
+      // On step 1, navigate back to home or previous page
+      if (window.history.length > 1) {
+        router.back()
+      } else {
+        router.push('/')
+      }
     }
   }
 
@@ -423,15 +431,12 @@ export default function TradeInFlow() {
         <div className="flex justify-between gap-4 mt-8">
           <motion.button
             onClick={handleBack}
-            disabled={currentStep === 1}
-            className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition-all text-sm md:text-base ${currentStep === 1
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime'
-              }`}
-            whileHover={currentStep > 1 ? { scale: 1.05 } : {}}
-            whileTap={currentStep > 1 ? { scale: 0.95 } : {}}
+            className="px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition-all text-sm md:text-base bg-white border-2 border-gray-300 text-brand-blue-900 hover:border-brand-lime flex items-center gap-2"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            Back
+            <ArrowLeft className="w-4 h-4" />
+            {currentStep === 1 ? 'Back to Home' : 'Back'}
           </motion.button>
 
           {currentStep < totalSteps && (
@@ -516,6 +521,7 @@ export default function TradeInFlow() {
       </div>
       {showLoginModal && (
         <OTPLogin
+          isOpen={showLoginModal}
           onSuccess={() => setShowLoginModal(false)}
           onClose={() => setShowLoginModal(false)}
         />

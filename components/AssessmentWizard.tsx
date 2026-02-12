@@ -78,24 +78,26 @@ export default function AssessmentWizard({
   const [valuationId, setValuationId] = useState<string | null>(null)
   const [stepBeforeSkip, setStepBeforeSkip] = useState<number | null>(null) // Track step before skipping to accessories
 
-  // Track if initial history replacement has been done
-  const [initialHistoryReplaced, setInitialHistoryReplaced] = useState(false)
+  // Track if initial load is complete and if user has interacted
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
 
-  // Replace browser history entry when assessment first loads (replace product page entry)
+  // Mark initial load as complete once product is loaded
   useEffect(() => {
-    if (product && currentStep === 0 && !initialHistoryReplaced) {
-      // Replace current history entry to prevent going back to product page
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('step') // Ensure step 0 has no step param
-      const newUrl = `${pathname}?${params.toString()}`
-      router.replace(newUrl, { scroll: false })
-      setInitialHistoryReplaced(true)
-      setIsInitialLoad(false)
-    } else if (product && initialHistoryReplaced && isInitialLoad) {
-      setIsInitialLoad(false)
+    if (product && isInitialLoad) {
+      // Add a small delay to ensure browser history is properly established
+      setTimeout(() => {
+        setIsInitialLoad(false)
+      }, 100)
     }
-  }, [product, currentStep, pathname, router, searchParams, initialHistoryReplaced, isInitialLoad])
+  }, [product, isInitialLoad])
+
+  // Track user interaction (step changes, answers, etc.)
+  useEffect(() => {
+    if (!isInitialLoad && currentStep > 0) {
+      setHasUserInteracted(true)
+    }
+  }, [currentStep, isInitialLoad])
 
   // Fetch product data and pricing rules
   useEffect(() => {
@@ -189,14 +191,16 @@ export default function AssessmentWizard({
 
   // Update URL when step changes (add to history when going forward)
   useEffect(() => {
-    // Skip if this is from popstate navigation
+    // Skip if this is from popstate navigation (browser back/forward)
     if (isPopStateRef.current) {
       isPopStateRef.current = false
       return
     }
 
-    // Skip on initial load - will be handled by initialHistoryReplaced effect
-    if (isInitialLoad || !initialHistoryReplaced) {
+    // Skip on initial load - don't manipulate URL on first render
+    // This ensures the browser back button can navigate back to the previous page
+    // Also skip if user hasn't interacted yet (prevents accidental history manipulation)
+    if (isInitialLoad || !hasUserInteracted) {
       return
     }
 
@@ -221,21 +225,23 @@ export default function AssessmentWizard({
       return
     }
 
-    // Use router.push to add to browser history when navigating forward
-    // This ensures browser back button works correctly
+    // Use router.push to add to browser history when navigating forward between steps
+    // This creates history entries for each step, allowing back button to work within assessment
     router.push(targetUrl, { scroll: false })
-  }, [currentStep, pathname, router, searchParams, initialHistoryReplaced, isInitialLoad])
+  }, [currentStep, pathname, router, searchParams, isInitialLoad, hasUserInteracted])
 
   // Handle browser back/forward button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       const currentPath = window.location.pathname
       
-      // If navigating away from assessment page, allow it
+      // If navigating away from assessment page, allow browser to handle it naturally
+      // Don't interfere with navigation to other pages
       if (!currentPath.includes('/assessment')) {
         return
       }
 
+      // Only handle popstate for navigation within assessment page (between steps)
       // Mark that this is a popstate navigation to prevent URL update effect from running
       isPopStateRef.current = true
       
@@ -308,6 +314,13 @@ export default function AssessmentWizard({
   }
 
   const handleBack = () => {
+    // If we're on the first step, navigate back to the product detail page
+    if (currentStep === 0) {
+      const productUrl = `/product?id=${encodeURIComponent(productId)}&category=${encodeURIComponent(category || product?.category || '')}&brand=${encodeURIComponent(brand || product?.brand || '')}`
+      router.push(productUrl)
+      return
+    }
+
     const steps = getSteps()
     const currentStepId = steps[currentStep]?.id
     const cat = (category?.toLowerCase() || product?.category?.toLowerCase() || '').trim()
@@ -1470,17 +1483,16 @@ export default function AssessmentWizard({
               >
                 <motion.button
                   onClick={handleBack}
-                  disabled={currentStep === 0}
-                  whileHover={currentStep > 0 ? { scale: 1.02, x: -2 } : {}}
-                  whileTap={currentStep > 0 ? { scale: 0.98 } : {}}
+                  whileHover={{ scale: 1.02, x: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 border-2 ${
                     currentStep === 0
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                      ? 'bg-white border-gray-300 text-brand-blue-900 hover:border-brand-lime hover:bg-gradient-to-r hover:from-brand-blue-50 hover:to-brand-lime/10 hover:shadow-md'
                       : 'bg-white border-gray-300 text-brand-blue-900 hover:border-brand-lime hover:bg-gradient-to-r hover:from-brand-blue-50 hover:to-brand-lime/10 hover:shadow-md'
                   }`}
                 >
                   <ArrowLeft className="w-5 h-5" />
-                  Back
+                  {currentStep === 0 ? 'Back to Product' : 'Back'}
                 </motion.button>
 
                 {currentStep < steps.length - 1 ? (

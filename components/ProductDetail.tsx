@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, TrendingUp, Users, CheckCircle } from 'lucide-react'
 import { getProductById, type Product, type ProductVariant } from '@/lib/firebase/database'
 import { isFixedLensCamera } from '@/lib/utils/fixedLensCameras'
@@ -19,6 +20,7 @@ export default function ProductDetail({
   category,
   brand,
 }: ProductDetailProps) {
+  const router = useRouter()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -133,18 +135,26 @@ export default function ProductDetail({
     `/assessment?id=${encodeURIComponent(product.id)}&category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}&model=${encodeURIComponent(product.modelName)}` +
     (selectedVariantId ? `&variantId=${encodeURIComponent(selectedVariantId)}` : '')
 
+  const handleBack = () => {
+    // Try browser back first, fallback to products page
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+    } else {
+      router.push(`/products?category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}`)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white pt-20 md:pt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Back Button */}
-        <Link
-          href={`/products?category=${encodeURIComponent(category || product.category)}&brand=${encodeURIComponent(brand || product.brand)}`}
-          prefetch={true}
+        <button
+          onClick={handleBack}
           className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-blue-900 mb-4 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-medium">Back to Models</span>
-        </Link>
+        </button>
 
         {/* Main Content */}
         <motion.div
@@ -235,7 +245,12 @@ export default function ProductDetail({
                   Select a variant to continue
                 </button>
               ) : (
-                <Link href={assessmentUrl} prefetch={true}>
+                <Link 
+                  href={assessmentUrl} 
+                  prefetch={true}
+                  replace={false}
+                  scroll={true}
+                >
                   <button
                     className="w-full py-3 px-5 bg-brand-blue-600 text-white rounded-lg font-semibold text-base shadow-md hover:bg-brand-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2 will-change-transform"
                   >

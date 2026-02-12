@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, MapPin, X, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { useModalHistory } from '@/hooks/useModalHistory'
 
 interface PickupSchedulerProps {
   isOpen: boolean
@@ -32,6 +33,9 @@ export default function PickupScheduler({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [step, setStep] = useState<'schedule' | 'confirm'>('schedule')
+
+  // Handle browser back button to close modal
+  useModalHistory(isOpen, onClose, 'pickup-scheduler')
 
   useEffect(() => {
     if (initialDate) setSelectedDate(initialDate)

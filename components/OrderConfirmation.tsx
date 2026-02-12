@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, User, Phone, CheckCircle, X, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { useModalHistory } from '@/hooks/useModalHistory'
 
 interface OrderConfirmationProps {
   isOpen: boolean
@@ -80,6 +81,9 @@ export default function OrderConfirmation({
   const cityRef = useRef<HTMLInputElement>(null)
   const stateRef = useRef<HTMLInputElement>(null)
   const addressRef = useRef<HTMLTextAreaElement>(null)
+
+  // Handle browser back button to close modal
+  useModalHistory(isOpen, onClose, 'order-confirmation')
 
   // Fetch address details from pincode API
   const fetchAddressFromPincode = async (pincode: string) => {

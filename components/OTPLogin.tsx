@@ -9,13 +9,15 @@ import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { getAssetPath } from '@/lib/utils'
 import { useFocusTrap } from '@/lib/utils/useFocusTrap'
+import { useModalHistory } from '@/hooks/useModalHistory'
 
 interface OTPLoginProps {
   onSuccess?: () => void
   onClose?: () => void
+  isOpen?: boolean
 }
 
-export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
+export default function OTPLogin({ onSuccess, onClose, isOpen = true }: OTPLoginProps) {
   const { user } = useAuth()
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -28,8 +30,11 @@ export default function OTPLogin({ onSuccess, onClose }: OTPLoginProps) {
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const modalRef = useRef<HTMLDivElement>(null)
 
+  // Handle browser back button to close modal
+  useModalHistory(isOpen, () => onClose?.(), 'otp-login')
+
   // Focus trap for modal
-  useFocusTrap(true, modalRef)
+  useFocusTrap(isOpen, modalRef)
 
   useEffect(() => {
     // Prevent body scroll when modal is open

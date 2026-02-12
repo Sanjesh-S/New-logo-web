@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
-import { CheckCircle, Package, Truck, CreditCard, ArrowRight, Copy, Check, Calendar, Sparkles, Shield, Clock } from 'lucide-react'
+import { CheckCircle, Package, Truck, CreditCard, ArrowRight, ArrowLeft, Copy, Check, Calendar, Sparkles, Shield, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { getProductById, getValuation, getPickupRequest, type Product, type PickupRequest, type Valuation } from '@/lib/firebase/database'
@@ -185,6 +185,20 @@ function OrderSummaryContent() {
   const productCategory = product?.category || category || ''
   const productImage = product?.imageUrl
 
+  const handleBack = () => {
+    // Try to go back to product detail page if we have product info
+    if (productId && category && brand) {
+      router.push(`/product?id=${encodeURIComponent(productId)}&category=${encodeURIComponent(category)}&brand=${encodeURIComponent(brand)}`)
+    } else {
+      // Fallback to browser back or home
+      if (window.history.length > 1) {
+        router.back()
+      } else {
+        router.push('/')
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-lime-50/20">
       {/* Hero Success Section - Mobile Optimized */}
@@ -219,6 +233,17 @@ function OrderSummaryContent() {
         </div>
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+          <motion.button
+            onClick={handleBack}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="inline-flex items-center gap-2 text-white/90 hover:text-white mb-6 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm font-medium">Back</span>
+          </motion.button>
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

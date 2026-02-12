@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useModalHistory } from '@/hooks/useModalHistory'
 
 interface LaptopTabletFormProps {
   isOpen: boolean
@@ -30,6 +31,9 @@ export default function LaptopTabletForm({ isOpen, onClose, category }: LaptopTa
   })
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // Handle browser back button to close modal
+  useModalHistory(isOpen, onClose, `laptop-tablet-form-${category}`)
 
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))

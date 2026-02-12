@@ -1,10 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { CheckCircle, Phone, MapPin } from 'lucide-react'
+import { CheckCircle, Phone, MapPin, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import { Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 
 const showrooms = [
   { city: 'COIMBATORE', phone: '98430 10705' },
@@ -14,6 +15,16 @@ const showrooms = [
 ]
 
 function ConfirmationContent() {
+  const router = useRouter()
+  
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/')
+    }
+  }
+  
   return (
     <div className="min-h-screen flex items-center justify-center px-4 pt-20 md:pt-24 pb-12">
       <motion.div
@@ -22,6 +33,16 @@ function ConfirmationContent() {
         transition={{ duration: 0.5 }}
         className="max-w-4xl w-full"
       >
+        {/* Back Button */}
+        <motion.button
+          onClick={handleBack}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-blue-900 mb-6 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back</span>
+        </motion.button>
         {/* Success Icon */}
         <motion.div
           initial={{ scale: 0 }}

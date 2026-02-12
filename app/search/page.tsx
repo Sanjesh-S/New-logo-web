@@ -1,11 +1,11 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 import Navigation from '@/components/Navigation'
 import { motion } from 'framer-motion'
-import { Search, AlertCircle } from 'lucide-react'
+import { Search, AlertCircle, ArrowLeft } from 'lucide-react'
 import { getAllProducts, type Product } from '@/lib/firebase/database'
 import { dataCache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 import ProductCard from '@/components/ProductCard'
@@ -14,7 +14,16 @@ import Link from 'next/link'
 
 function SearchContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const query = searchParams.get('q') || searchParams.get('search') || ''
+  
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/')
+    }
+  }
   
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -93,6 +102,15 @@ function SearchContent() {
   return (
     <div className="min-h-screen bg-gray-50 pt-20 md:pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back Button */}
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-blue-900 mb-4 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back</span>
+        </button>
+        
         {/* Header */}
         <div className="mb-8 md:mb-12">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-blue-900 mb-4">

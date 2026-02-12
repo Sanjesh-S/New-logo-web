@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import Link from 'next/link'
 import { setupRecaptcha, sendOTP, verifyOTP } from '@/lib/firebase/auth'
 import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth'
+import { useModalHistory } from '@/hooks/useModalHistory'
 
 interface AssessmentOTPModalProps {
   isOpen: boolean
@@ -23,6 +24,9 @@ export default function AssessmentOTPModal({ isOpen, onClose, onVerified }: Asse
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Handle browser back button to close modal
+  useModalHistory(isOpen, onClose, 'assessment-otp')
 
   // Reset state when modal opens/closes
   useEffect(() => {
