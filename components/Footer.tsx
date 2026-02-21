@@ -217,8 +217,10 @@ export default function Footer() {
             {/* Bottom Bar */}
             <div className="border-t border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex flex-col sm:flex-row justify-center items-center text-sm text-gray-600">
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-3 text-sm text-gray-600">
                         <p>© {currentYear} WorthyTen. All rights reserved.</p>
+                        <span className="hidden sm:inline text-gray-300">|</span>
+                        <a href="/staff" className="text-gray-400 hover:text-gray-600 transition-colors text-xs">Staff Login</a>
                     </div>
                 </div>
             </div>
