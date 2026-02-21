@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { checkIsSuperAdmin } from '@/lib/firebase/database'
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth()
@@ -13,36 +12,36 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
     useEffect(() => {
         const verifyAdmin = async () => {
-            // Don't check until initial auth load is done
             if (loading) return
 
             if (!user) {
-                // Not logged in - redirect to home
                 router.replace('/')
                 return
             }
 
-            // Check if we have at least one identifier
             if (!user.email && !user.phoneNumber) {
-                // No identifier - redirect to home
                 router.replace('/')
                 return
             }
 
             try {
-                const isAdmin = await checkIsSuperAdmin({
-                    email: user.email,
-                    phoneNumber: user.phoneNumber
+                const token = await user.getIdToken()
+                const res = await fetch('/api/auth/staff-sync', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
                 })
 
-                if (isAdmin) {
-                    setAuthorized(true)
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.synced && data.isActive && (data.role === 'superadmin' || data.role === 'manager')) {
+                        setAuthorized(true)
+                    } else {
+                        router.replace('/')
+                    }
                 } else {
-                    // Not an admin - redirect to home immediately
                     router.replace('/')
                 }
             } catch (error: any) {
-                // Error checking admin status - redirect to home
                 console.error('Admin check failed')
                 router.replace('/')
             } finally {

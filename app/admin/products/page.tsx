@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react'
 
-import { subscribeToProducts, subscribeToPickupRequests, updatePickupRequest, updateProduct, type Product, type PickupRequest } from '@/lib/firebase/database'
+import { subscribeToProducts, subscribeToPickupRequests, updatePickupRequest, updateProduct, getStaffByRole, subscribeToShowroomWalkIns, type Product, type PickupRequest, type StaffUser, type ShowroomWalkIn } from '@/lib/firebase/database'
+import { Timestamp } from 'firebase/firestore'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import PricingCalculator from '@/components/admin/PricingCalculator'
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard'
 import AssessmentViewModal from '@/components/admin/AssessmentViewModal'
+import StaffManagement from '@/components/admin/StaffManagement'
+import ShowroomManagement from '@/components/admin/ShowroomManagement'
+import InventoryDashboard from '@/components/admin/InventoryDashboard'
 
 // Icons
 const PackageIcon = () => (
@@ -59,7 +63,7 @@ const CalendarIcon = () => (
 )
 
 export default function AdminProductsPage() {
-    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'rescheduled' | 'cancelled' | 'analytics'>('products')
+    const [activeTab, setActiveTab] = useState<'products' | 'calculator' | 'pickup' | 'rescheduled' | 'cancelled' | 'analytics' | 'staff' | 'showrooms' | 'inventory' | 'walkins'>('products')
     const [products, setProducts] = useState<Product[]>([])
     const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([])
     const [loading, setLoading] = useState(true)
@@ -68,6 +72,8 @@ export default function AdminProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [liveIndicator, setLiveIndicator] = useState(true)
     const [assessmentModalRequest, setAssessmentModalRequest] = useState<PickupRequest | null>(null)
+    const [pickupAgents, setPickupAgents] = useState<StaffUser[]>([])
+    const [walkIns, setWalkIns] = useState<ShowroomWalkIn[]>([])
 
     // Filters (Product List)
     const [searchTerm, setSearchTerm] = useState('')
@@ -108,6 +114,17 @@ export default function AdminProductsPage() {
         return () => unsubscribe()
     }, [])
 
+    // Load pickup agents for assignment dropdown
+    useEffect(() => {
+        getStaffByRole('pickup_agent').then(setPickupAgents).catch(console.error)
+    }, [])
+
+    // Real-time subscription: showroom walk-ins
+    useEffect(() => {
+        const unsub = subscribeToShowroomWalkIns((data) => setWalkIns(data))
+        return () => unsub()
+    }, [])
+
     // Optional: pulse "Live" indicator every few seconds to show real-time is active
     useEffect(() => {
         const t = setInterval(() => setLiveIndicator((v) => !v), 2000)
@@ -128,6 +145,25 @@ export default function AdminProductsPage() {
         } catch (error) {
             console.error('Error updating status:', error)
             alert('Failed to update status: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+
+    const handleAssignAgent = async (requestId: string, agentId: string) => {
+        try {
+            if (!agentId) {
+                await updatePickupRequest(requestId, { assignedTo: '', assignedAgentName: '', status: 'confirmed' as any })
+                return
+            }
+            const agent = pickupAgents.find(a => a.id === agentId)
+            await updatePickupRequest(requestId, {
+                assignedTo: agentId,
+                assignedAgentName: agent?.name || '',
+                assignedAt: Timestamp.now() as any,
+                status: 'assigned' as any,
+            })
+        } catch (error) {
+            console.error('Error assigning agent:', error)
+            alert('Failed to assign agent')
         }
     }
 
@@ -188,6 +224,17 @@ export default function AdminProductsPage() {
     const completedPickups = activePickupRequests.filter((r) => r.status === 'completed').length
     const totalProducts = products.length
 
+    const StaffIcon = () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    )
+    const ShowroomIcon = () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+    )
+
     const tabs = [
         { id: 'products' as const, label: 'Product List', icon: PackageIcon, count: totalProducts },
         { id: 'calculator' as const, label: 'Price Calculator', icon: CalculatorIcon },
@@ -195,17 +242,27 @@ export default function AdminProductsPage() {
         { id: 'rescheduled' as const, label: 'Rescheduled', icon: CalendarIcon, count: rescheduledSorted.length, warning: rescheduledSorted.length > 0 },
         { id: 'cancelled' as const, label: 'Cancelled Orders', icon: XCircleIcon, count: cancelledRequests.length, danger: true },
         { id: 'analytics' as const, label: 'Analytics', icon: ChartIcon },
+        { id: 'walkins' as const, label: 'Walk-Ins', icon: ShowroomIcon, count: walkIns.filter(w => w.status === 'pending_qc').length, highlight: walkIns.filter(w => w.status === 'pending_qc').length > 0 },
+        { id: 'staff' as const, label: 'Staff', icon: StaffIcon },
+        { id: 'showrooms' as const, label: 'Showrooms', icon: ShowroomIcon },
+        { id: 'inventory' as const, label: 'Inventory', icon: PackageIcon },
     ]
 
     const getStatusConfig = (status: string) => {
         const configs: Record<string, { bg: string; text: string; dot: string }> = {
             pending: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
+            confirmed: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
+            assigned: { bg: 'bg-cyan-50 border-cyan-200', text: 'text-cyan-700', dot: 'bg-cyan-500' },
+            picked_up: { bg: 'bg-teal-50 border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
+            qc_review: { bg: 'bg-indigo-50 border-indigo-200', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+            service_station: { bg: 'bg-purple-50 border-purple-200', text: 'text-purple-700', dot: 'bg-purple-500' },
+            showroom: { bg: 'bg-sky-50 border-sky-200', text: 'text-sky-700', dot: 'bg-sky-500' },
+            warehouse: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' },
             completed: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
             hold: { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
             verification: { bg: 'bg-violet-50 border-violet-200', text: 'text-violet-700', dot: 'bg-violet-500' },
             reject: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', dot: 'bg-red-500' },
             suspect: { bg: 'bg-pink-50 border-pink-200', text: 'text-pink-700', dot: 'bg-pink-500' },
-            confirmed: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
         }
         return configs[status] || { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', dot: 'bg-gray-500' }
     }
@@ -468,6 +525,12 @@ export default function AdminProductsPage() {
                                     <option value="All">All statuses</option>
                                     <option value="pending">Pending</option>
                                     <option value="confirmed">Confirmed</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="picked_up">Picked Up</option>
+                                    <option value="qc_review">QC Review</option>
+                                    <option value="service_station">Service Station</option>
+                                    <option value="showroom">Showroom</option>
+                                    <option value="warehouse">Warehouse</option>
                                     <option value="completed">Completed</option>
                                     <option value="hold">Hold</option>
                                     <option value="verification">Verification</option>
@@ -495,6 +558,7 @@ export default function AdminProductsPage() {
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Pickup Date</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Assign Agent</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Assessment</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Remarks</th>
                                     </tr>
@@ -602,12 +666,39 @@ export default function AdminProductsPage() {
                                                     >
                                                         <option value="pending">Pending</option>
                                                         <option value="confirmed">Confirmed</option>
+                                                        <option value="assigned">Assigned</option>
+                                                        <option value="picked_up">Picked Up</option>
+                                                        <option value="qc_review">QC Review</option>
+                                                        <option value="service_station">Service Station</option>
+                                                        <option value="showroom">Showroom</option>
+                                                        <option value="warehouse">Warehouse</option>
                                                         <option value="completed">Completed</option>
                                                         <option value="hold">Hold</option>
                                                         <option value="verification">Verification</option>
                                                         <option value="reject">Reject</option>
                                                         <option value="suspect">Suspect</option>
                                                     </select>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {pickupAgents.length > 0 ? (
+                                                        <div className="space-y-1">
+                                                            <select
+                                                                value={request.assignedTo || ''}
+                                                                onChange={(e) => handleAssignAgent(request.id, e.target.value)}
+                                                                className="text-xs rounded-lg px-2.5 py-1.5 border border-gray-200 focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white w-full"
+                                                            >
+                                                                <option value="">Unassigned</option>
+                                                                {pickupAgents.map(agent => (
+                                                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {request.assignedAgentName && (
+                                                                <span className="text-xs text-cyan-600 font-medium">{request.assignedAgentName}</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 italic">No agents</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <button
@@ -637,7 +728,7 @@ export default function AdminProductsPage() {
                                     })}
                                     {filteredActivePickupRequests.length === 0 && (
                                         <tr>
-                                            <td colSpan={8} className="px-6 py-16 text-center">
+                                            <td colSpan={9} className="px-6 py-16 text-center">
                                                 <div className="flex flex-col items-center">
                                                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                                         <TruckIcon />
@@ -964,6 +1055,74 @@ export default function AdminProductsPage() {
 
             {/* Analytics Tab */}
             {activeTab === 'analytics' && <AnalyticsDashboard />}
+
+            {activeTab === 'walkins' && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-yellow-50">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                                <ShowroomIcon />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-amber-800">Showroom Walk-Ins</h2>
+                                <p className="text-sm text-amber-600">{walkIns.length} total &middot; {walkIns.filter(w => w.status === 'pending_qc').length} pending QC</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-gray-50 border-b border-gray-100">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Order ID</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Showroom</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Product</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Price</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Staff</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {walkIns.length === 0 ? (
+                                    <tr><td colSpan={8} className="px-6 py-16 text-center text-gray-500">No showroom walk-ins yet</td></tr>
+                                ) : walkIns.map(w => {
+                                    const createdAt = w.createdAt instanceof Date ? w.createdAt : (w.createdAt as any)?.toDate?.() || new Date()
+                                    const statusConfig = getStatusConfig(w.status)
+                                    return (
+                                        <tr key={w.id} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 text-sm font-mono text-gray-600">{w.orderId || w.id}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-700">{w.showroomName}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm font-medium text-gray-900">{w.product?.name}</div>
+                                                <div className="text-xs text-gray-500">{w.product?.brand} &middot; {w.product?.category}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-gray-900">{w.customer?.name}</div>
+                                                <div className="text-xs text-gray-500">{w.customer?.phone}</div>
+                                            </td>
+                                            <td className="px-6 py-4 font-semibold text-gray-900">₹{(w.manualPrice || 0).toLocaleString('en-IN')}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`text-xs font-semibold rounded-lg px-3 py-1.5 border ${statusConfig.bg} ${statusConfig.text}`}>
+                                                    {w.status === 'pending_qc' ? 'Pending QC' : w.status.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{w.staffName}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{createdAt.toLocaleDateString('en-IN')}</td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'staff' && <StaffManagement />}
+
+            {activeTab === 'showrooms' && <ShowroomManagement />}
+
+            {activeTab === 'inventory' && <InventoryDashboard />}
 
             {/* Assessment view modal */}
             <AssessmentViewModal

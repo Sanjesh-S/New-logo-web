@@ -35,7 +35,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    // Validate request size
+    const contentLength = request.headers.get('content-length')
+    if (contentLength && parseInt(contentLength, 10) > 1024 * 100) {
+      return NextResponse.json(
+        { error: 'Request body too large' },
+        { status: 413 }
+      )
+    }
+
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
 
     // Validate request body
     const validation = schedulePickupSchema.safeParse(body)
@@ -96,10 +110,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error('Error scheduling pickup', error)
     return NextResponse.json(
-      {
-        error: 'Failed to schedule pickup',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to schedule pickup' },
       { status: 500 }
     )
   }

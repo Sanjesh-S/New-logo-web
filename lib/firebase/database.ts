@@ -174,20 +174,23 @@ export async function getUserValuations(
   userId: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResult<Valuation>> {
+  // Validate userId to prevent querying with empty/invalid values
+  if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+    return { data: [], lastDoc: undefined, hasMore: false }
+  }
+
   const { limit: limitCount = 20 } = options
   const valuationsRef = collection(getDb(), 'valuations')
   
-  // Query without orderBy to avoid index requirement
-  // We'll sort client-side
   const q = query(
     valuationsRef,
-    where('userId', '==', userId),
+    where('userId', '==', userId.trim()),
     limit(limitCount + 1)
   )
   
   try {
     const querySnapshot = await getDocs(q)
-    console.log('Valuations query returned:', querySnapshot.docs.length, 'documents')
+    logger.debug('Valuations query returned', { count: querySnapshot.docs.length })
     
     let data = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -965,12 +968,18 @@ export async function loadProductPricingData(productId: string, variantId?: stri
 }
 
 // Pickup Request interface - flexible to handle different structures
+export type PickupRequestStatus =
+  | 'pending' | 'confirmed' | 'assigned' | 'picked_up'
+  | 'qc_review' | 'service_station' | 'showroom' | 'warehouse'
+  | 'completed' | 'cancelled' | 'hold' | 'verification' | 'reject' | 'suspect'
+
 export interface PickupRequest {
   id: string
-  orderId?: string // Custom Order ID (e.g., TN37WTDSLR1001)
+  orderId?: string
   productName?: string
   price?: number
   valuationId?: string | null
+  userId?: string
   customer?: {
     name: string
     phone: string
@@ -983,17 +992,21 @@ export interface PickupRequest {
   }
   pickupDate?: string
   pickupTime?: string
-  status?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'hold' | 'verification' | 'reject' | 'suspect'
+  status?: PickupRequestStatus
   remarks?: string
-  /** Assessment answers (body conditions, lens, accessories, age, etc.) for admin view */
   assessmentAnswers?: Record<string, unknown>
   createdAt?: Timestamp | Date
   updatedAt?: Timestamp | Date
-  // Reschedule tracking
   rescheduled?: boolean
   rescheduledAt?: Timestamp | Date
   previousPickupDate?: string
   previousPickupTime?: string
+  // Agent assignment fields
+  assignedTo?: string
+  assignedAgentName?: string
+  assignedAt?: Timestamp | Date
+  // Source tracking
+  source?: 'online_pickup' | 'showroom_walkin'
   // Legacy/alternative fields
   device?: {
     accessories?: string[]
@@ -1006,7 +1019,7 @@ export interface PickupRequest {
   userPhone?: string
   userEmail?: string
   pickupAddress?: string
-  [key: string]: any // Allow any other fields
+  [key: string]: any
 }
 
 /**
@@ -1026,7 +1039,7 @@ export async function getUserPickupRequests(userId: string, userPhone?: string):
       )
       const querySnapshot = await getDocs(q)
       
-      console.log('Pickup requests query returned:', querySnapshot.docs.length, 'documents')
+      logger.debug('Pickup requests query returned', { count: querySnapshot.docs.length })
       
       const userIdRequests = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -1179,9 +1192,7 @@ export async function updatePickupRequest(id: string, updates: Partial<PickupReq
       updatedAt: Timestamp.now(),
     }
     
-    console.log('Updating pickup request in Firestore:', id, updateData)
     await updateDoc(docRef, updateData)
-    console.log('Pickup request updated successfully in Firestore')
   } catch (error) {
     logger.error('Error updating pickup request in Firestore:', error)
     throw error
@@ -1190,11 +1201,17 @@ export async function updatePickupRequest(id: string, updates: Partial<PickupReq
 
 export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumber?: string | null }): Promise<boolean> {
   try {
+    // Validate inputs to prevent unexpected queries
+    if (!user.email && !user.phoneNumber) {
+      return false
+    }
+
     const staffRef = collection(getDb(), 'staffUsers')
 
-    // Check by email if available
-    if (user.email) {
-      const qEmail = query(staffRef, where('email', '==', user.email))
+    // Check by email if available (normalize to lowercase for consistency)
+    if (user.email && typeof user.email === 'string' && user.email.length <= 254) {
+      const normalizedEmail = user.email.trim().toLowerCase()
+      const qEmail = query(staffRef, where('email', '==', normalizedEmail))
       const snapshotEmail = await getDocs(qEmail)
       if (!snapshotEmail.empty) {
         const staffDoc = snapshotEmail.docs[0].data()
@@ -1202,9 +1219,10 @@ export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumb
       }
     }
 
-    // Check by phone number if available
-    if (user.phoneNumber) {
-      const qPhone = query(staffRef, where('phoneNumber', '==', user.phoneNumber))
+    // Check by phone number if available (validate format)
+    if (user.phoneNumber && typeof user.phoneNumber === 'string' && user.phoneNumber.length <= 20) {
+      const normalizedPhone = user.phoneNumber.trim()
+      const qPhone = query(staffRef, where('phoneNumber', '==', normalizedPhone))
       const snapshotPhone = await getDocs(qPhone)
       if (!snapshotPhone.empty) {
         const staffDoc = snapshotPhone.docs[0].data()
@@ -1214,8 +1232,8 @@ export async function checkIsSuperAdmin(user: { email?: string | null, phoneNumb
 
     return false
   } catch (error: any) {
-    logger.error('Error checking super admin status', { error: error.message })
-    throw error
+    logger.error('Error checking super admin status')
+    return false
   }
 }
 
@@ -1394,5 +1412,742 @@ export async function saveUserPreferences(userId: string, preferences: Partial<U
   } catch (error) {
     logger.error('Error saving user preferences:', error)
     throw error
+  }
+}
+
+// ============================================================
+// Staff Role System
+// ============================================================
+
+export type StaffRole = 'superadmin' | 'manager' | 'pickup_agent' | 'showroom_staff' | 'qc_team'
+
+export interface StaffUser {
+  id?: string
+  name: string
+  email?: string
+  phoneNumber: string
+  role: StaffRole
+  isActive: boolean
+  showroomId?: string
+  showroomName?: string
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+  createdBy?: string
+}
+
+export interface StaffRoleResult {
+  role: StaffRole
+  isActive: boolean
+  showroomId?: string
+  showroomName?: string
+  staffDoc: StaffUser
+}
+
+export async function checkStaffRole(user: { email?: string | null, phoneNumber?: string | null }): Promise<StaffRoleResult | null> {
+  try {
+    if (!user.email && !user.phoneNumber) return null
+    const staffRef = collection(getDb(), 'staffUsers')
+
+    if (user.email && typeof user.email === 'string' && user.email.length <= 254) {
+      const normalizedEmail = user.email.trim().toLowerCase()
+      const qEmail = query(staffRef, where('email', '==', normalizedEmail))
+      const snap = await getDocs(qEmail)
+      if (!snap.empty) {
+        const data = snap.docs[0].data() as StaffUser
+        return {
+          role: data.role,
+          isActive: data.isActive,
+          showroomId: data.showroomId,
+          showroomName: data.showroomName,
+          staffDoc: { id: snap.docs[0].id, ...data },
+        }
+      }
+    }
+
+    if (user.phoneNumber && typeof user.phoneNumber === 'string' && user.phoneNumber.length <= 20) {
+      const normalizedPhone = user.phoneNumber.trim()
+      const qPhone = query(staffRef, where('phoneNumber', '==', normalizedPhone))
+      const snap = await getDocs(qPhone)
+      if (!snap.empty) {
+        const data = snap.docs[0].data() as StaffUser
+        return {
+          role: data.role,
+          isActive: data.isActive,
+          showroomId: data.showroomId,
+          showroomName: data.showroomName,
+          staffDoc: { id: snap.docs[0].id, ...data },
+        }
+      }
+    }
+
+    return null
+  } catch (error) {
+    logger.error('Error checking staff role:', error)
+    return null
+  }
+}
+
+export async function getStaffByRole(role: StaffRole): Promise<StaffUser[]> {
+  try {
+    const staffRef = collection(getDb(), 'staffUsers')
+    const q = query(staffRef, where('role', '==', role), where('isActive', '==', true))
+    const snap = await getDocs(q)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffUser))
+  } catch (error) {
+    logger.error('Error fetching staff by role:', error)
+    return []
+  }
+}
+
+export async function getAllStaff(): Promise<StaffUser[]> {
+  try {
+    const staffRef = collection(getDb(), 'staffUsers')
+    const snap = await getDocs(staffRef)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffUser))
+  } catch (error) {
+    logger.error('Error fetching all staff:', error)
+    return []
+  }
+}
+
+export async function createStaffMember(data: Omit<StaffUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const staffRef = collection(getDb(), 'staffUsers')
+  const newStaff = {
+    ...data,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  }
+  const docRef = await addDoc(staffRef, newStaff)
+  return docRef.id
+}
+
+export async function updateStaffMember(id: string, updates: Partial<StaffUser>): Promise<void> {
+  const docRef = doc(getDb(), 'staffUsers', id)
+  await updateDoc(docRef, { ...updates, updatedAt: Timestamp.now() })
+}
+
+export async function deactivateStaffMember(id: string): Promise<void> {
+  const docRef = doc(getDb(), 'staffUsers', id)
+  await updateDoc(docRef, { isActive: false, updatedAt: Timestamp.now() })
+}
+
+// ============================================================
+// Showrooms
+// ============================================================
+
+export interface Showroom {
+  id?: string
+  name: string
+  address: string
+  city: string
+  state: string
+  pincode: string
+  phone: string
+  isActive: boolean
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+}
+
+export async function getShowrooms(): Promise<Showroom[]> {
+  try {
+    const ref = collection(getDb(), 'showrooms')
+    const snap = await getDocs(ref)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Showroom))
+  } catch (error) {
+    logger.error('Error fetching showrooms:', error)
+    return []
+  }
+}
+
+export async function getShowroom(id: string): Promise<Showroom | null> {
+  try {
+    const docRef = doc(getDb(), 'showrooms', id)
+    const snap = await getDoc(docRef)
+    if (snap.exists()) return { id: snap.id, ...snap.data() } as Showroom
+    return null
+  } catch (error) {
+    logger.error('Error fetching showroom:', error)
+    return null
+  }
+}
+
+export async function createShowroom(data: Omit<Showroom, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const ref = collection(getDb(), 'showrooms')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function updateShowroom(id: string, updates: Partial<Showroom>): Promise<void> {
+  const docRef = doc(getDb(), 'showrooms', id)
+  await updateDoc(docRef, { ...updates, updatedAt: Timestamp.now() })
+}
+
+// ============================================================
+// Showroom Walk-Ins
+// ============================================================
+
+export interface ShowroomWalkIn {
+  id?: string
+  orderId?: string
+  showroomId: string
+  showroomName: string
+  staffId: string
+  staffName: string
+  customer: {
+    name: string
+    phone: string
+    email: string
+    idProofType?: string
+    idProofPhoto?: string
+  }
+  product: {
+    name: string
+    brand: string
+    category: string
+    serialNumber: string
+  }
+  manualPrice: number
+  staffNotes: string
+  devicePhotos: string[]
+  status: 'pending_qc' | 'qc_review' | 'service_station' | 'showroom' | 'warehouse' | 'completed'
+  source: 'showroom_walkin'
+  provisionalReceiptId?: string
+  finalReceiptId?: string
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+}
+
+export async function createShowroomWalkIn(data: Omit<ShowroomWalkIn, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const ref = collection(getDb(), 'showroomWalkIns')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function getShowroomWalkIns(showroomId?: string): Promise<ShowroomWalkIn[]> {
+  try {
+    const ref = collection(getDb(), 'showroomWalkIns')
+    let q
+    if (showroomId) {
+      q = query(ref, where('showroomId', '==', showroomId))
+    } else {
+      q = query(ref)
+    }
+    const snap = await getDocs(q)
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as ShowroomWalkIn))
+    results.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return results
+  } catch (error) {
+    logger.error('Error fetching showroom walk-ins:', error)
+    return []
+  }
+}
+
+export async function getShowroomWalkIn(id: string): Promise<ShowroomWalkIn | null> {
+  try {
+    const docRef = doc(getDb(), 'showroomWalkIns', id)
+    const snap = await getDoc(docRef)
+    if (snap.exists()) return { id: snap.id, ...snap.data() } as ShowroomWalkIn
+
+    const ref = collection(getDb(), 'showroomWalkIns')
+    const q = query(ref, where('orderId', '==', id))
+    const querySnap = await getDocs(q)
+    if (!querySnap.empty) {
+      const d = querySnap.docs[0]
+      return { id: d.id, ...d.data() } as ShowroomWalkIn
+    }
+    return null
+  } catch (error) {
+    logger.error('Error fetching showroom walk-in:', error)
+    return null
+  }
+}
+
+export async function updateShowroomWalkIn(id: string, updates: Partial<ShowroomWalkIn>): Promise<void> {
+  const docRef = doc(getDb(), 'showroomWalkIns', id)
+  await updateDoc(docRef, { ...updates, updatedAt: Timestamp.now() })
+}
+
+export function subscribeToShowroomWalkIns(
+  onUpdate: (walkIns: ShowroomWalkIn[]) => void,
+  showroomId?: string
+): Unsubscribe {
+  const ref = collection(getDb(), 'showroomWalkIns')
+  const q = showroomId ? query(ref, where('showroomId', '==', showroomId)) : query(ref)
+  return onSnapshot(q, (snapshot) => {
+    const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ShowroomWalkIn))
+    results.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    onUpdate(results)
+  }, (error) => {
+    logger.error('subscribeToShowroomWalkIns error:', error)
+  })
+}
+
+// ============================================================
+// Pickup Verifications
+// ============================================================
+
+export interface PickupVerification {
+  id?: string
+  orderId: string
+  pickupRequestId: string
+  agentId: string
+  agentName: string
+  devicePhotos: string[]
+  customerIdProof: string
+  serialNumber: string
+  customerSignature?: string
+  notes?: string
+  status: 'submitted' | 'reviewed'
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+}
+
+export async function createPickupVerification(data: Omit<PickupVerification, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const ref = collection(getDb(), 'pickupVerifications')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function getPickupVerification(orderId: string): Promise<PickupVerification | null> {
+  try {
+    const ref = collection(getDb(), 'pickupVerifications')
+    const q = query(ref, where('orderId', '==', orderId))
+    const snap = await getDocs(q)
+    if (!snap.empty) {
+      const d = snap.docs[0]
+      return { id: d.id, ...d.data() } as PickupVerification
+    }
+    return null
+  } catch (error) {
+    logger.error('Error fetching pickup verification:', error)
+    return null
+  }
+}
+
+export async function updatePickupVerification(id: string, updates: Partial<PickupVerification>): Promise<void> {
+  const docRef = doc(getDb(), 'pickupVerifications', id)
+  await updateDoc(docRef, { ...updates, updatedAt: Timestamp.now() })
+}
+
+// ============================================================
+// QC Reviews
+// ============================================================
+
+export type QCDecision = 'service_station' | 'showroom' | 'warehouse'
+
+export interface QCReview {
+  id?: string
+  orderId: string
+  sourceType: 'pickup' | 'showroom_walkin'
+  sourceId: string
+  verificationId?: string
+  reviewerId: string
+  reviewerName: string
+  decision: QCDecision
+  targetShowroomId?: string
+  notes?: string
+  createdAt?: Timestamp | Date
+}
+
+export async function createQCReview(data: Omit<QCReview, 'id' | 'createdAt'>): Promise<string> {
+  const ref = collection(getDb(), 'qcReviews')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function getQCReview(orderId: string): Promise<QCReview | null> {
+  try {
+    const ref = collection(getDb(), 'qcReviews')
+    const q = query(ref, where('orderId', '==', orderId))
+    const snap = await getDocs(q)
+    if (!snap.empty) {
+      const d = snap.docs[0]
+      return { id: d.id, ...d.data() } as QCReview
+    }
+    return null
+  } catch (error) {
+    logger.error('Error fetching QC review:', error)
+    return null
+  }
+}
+
+export async function getOrdersForQC(): Promise<Array<{ type: 'pickup' | 'showroom_walkin', data: PickupRequest | ShowroomWalkIn }>> {
+  try {
+    const results: Array<{ type: 'pickup' | 'showroom_walkin', data: PickupRequest | ShowroomWalkIn }> = []
+
+    const pickupRef = collection(getDb(), 'pickupRequests')
+    const pq = query(pickupRef, where('status', '==', 'picked_up'))
+    const pickupSnap = await getDocs(pq)
+    pickupSnap.docs.forEach(d => {
+      results.push({ type: 'pickup', data: { id: d.id, ...d.data() } as PickupRequest })
+    })
+
+    const walkInRef = collection(getDb(), 'showroomWalkIns')
+    const wq = query(walkInRef, where('status', '==', 'pending_qc'))
+    const walkInSnap = await getDocs(wq)
+    walkInSnap.docs.forEach(d => {
+      results.push({ type: 'showroom_walkin', data: { id: d.id, ...d.data() } as ShowroomWalkIn })
+    })
+
+    results.sort((a, b) => {
+      const aDate = a.data.createdAt instanceof Date ? a.data.createdAt.getTime() : (a.data.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.data.createdAt instanceof Date ? b.data.createdAt.getTime() : (b.data.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return results
+  } catch (error) {
+    logger.error('Error fetching orders for QC:', error)
+    return []
+  }
+}
+
+// ============================================================
+// Receipts
+// ============================================================
+
+export type ReceiptType = 'provisional' | 'final'
+
+export interface Receipt {
+  id?: string
+  orderId: string
+  sourceType: 'pickup' | 'showroom_walkin'
+  sourceId: string
+  receiptType: ReceiptType
+  receiptNumber: string
+  customerName: string
+  customerPhone: string
+  customerEmail: string
+  productName: string
+  brand: string
+  category: string
+  serialNumber: string
+  agreedPrice: number
+  showroomName?: string
+  staffName: string
+  qcDecision?: string
+  qcNotes?: string
+  date: string
+  createdAt?: Timestamp | Date
+  sentToCustomer: boolean
+  sentToAdmin: boolean
+}
+
+export async function createReceipt(data: Omit<Receipt, 'id' | 'createdAt'>): Promise<string> {
+  const ref = collection(getDb(), 'receipts')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function getReceiptsByOrder(orderId: string): Promise<Receipt[]> {
+  try {
+    const ref = collection(getDb(), 'receipts')
+    const q = query(ref, where('orderId', '==', orderId))
+    const snap = await getDocs(q)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Receipt))
+  } catch (error) {
+    logger.error('Error fetching receipts:', error)
+    return []
+  }
+}
+
+export async function updateReceipt(id: string, updates: Partial<Receipt>): Promise<void> {
+  const docRef = doc(getDb(), 'receipts', id)
+  await updateDoc(docRef, updates)
+}
+
+// ============================================================
+// Inventory
+// ============================================================
+
+export type InventoryLocation = 'service_station' | 'showroom' | 'warehouse'
+export type InventoryStatus = 'in_stock' | 'in_repair' | 'sold' | 'transferred' | 'returned'
+
+export interface InventoryItem {
+  id?: string
+  orderId: string
+  sourceType: 'pickup' | 'showroom_walkin'
+  sourceId: string
+  sourceShowroomId?: string
+  verificationId?: string
+  qcReviewId: string
+  serialNumber: string
+  productName: string
+  brand: string
+  category: string
+  condition: string
+  currentLocation: InventoryLocation
+  currentShowroomId?: string
+  status: InventoryStatus
+  agreedPrice: number
+  devicePhotos: string[]
+  qcDecision: string
+  qcNotes: string
+  stockInDate?: Timestamp | Date
+  lastMovementDate?: Timestamp | Date
+  createdAt?: Timestamp | Date
+  updatedAt?: Timestamp | Date
+}
+
+export async function createInventoryItem(data: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const ref = collection(getDb(), 'inventory')
+  const now = Timestamp.now()
+  const docRef = await addDoc(ref, {
+    ...data,
+    stockInDate: now,
+    lastMovementDate: now,
+    createdAt: now,
+    updatedAt: now,
+  })
+  return docRef.id
+}
+
+export async function getInventoryItems(filters?: {
+  location?: InventoryLocation
+  status?: InventoryStatus
+  category?: string
+  brand?: string
+}): Promise<InventoryItem[]> {
+  try {
+    const ref = collection(getDb(), 'inventory')
+    let q = query(ref)
+
+    if (filters?.location) {
+      q = query(ref, where('currentLocation', '==', filters.location))
+    }
+    if (filters?.status) {
+      q = query(ref, where('status', '==', filters.status))
+    }
+
+    const snap = await getDocs(q)
+    let items = snap.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem))
+
+    if (filters?.category) {
+      items = items.filter(i => i.category === filters.category)
+    }
+    if (filters?.brand) {
+      items = items.filter(i => i.brand === filters.brand)
+    }
+
+    items.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return items
+  } catch (error) {
+    logger.error('Error fetching inventory items:', error)
+    return []
+  }
+}
+
+export async function getInventoryItem(id: string): Promise<InventoryItem | null> {
+  try {
+    const docRef = doc(getDb(), 'inventory', id)
+    const snap = await getDoc(docRef)
+    if (snap.exists()) return { id: snap.id, ...snap.data() } as InventoryItem
+    return null
+  } catch (error) {
+    logger.error('Error fetching inventory item:', error)
+    return null
+  }
+}
+
+export async function updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<void> {
+  const docRef = doc(getDb(), 'inventory', id)
+  await updateDoc(docRef, { ...updates, updatedAt: Timestamp.now() })
+}
+
+export async function transferInventoryItem(
+  id: string,
+  toLocation: InventoryLocation,
+  reason: string,
+  performedBy: string,
+  performedByName: string,
+  notes?: string,
+  targetShowroomId?: string
+): Promise<void> {
+  const item = await getInventoryItem(id)
+  if (!item) throw new Error('Inventory item not found')
+
+  const now = Timestamp.now()
+  await updateDoc(doc(getDb(), 'inventory', id), {
+    currentLocation: toLocation,
+    currentShowroomId: targetShowroomId || null,
+    lastMovementDate: now,
+    updatedAt: now,
+  })
+
+  await createStockMovement({
+    inventoryId: id,
+    orderId: item.orderId,
+    serialNumber: item.serialNumber,
+    productName: item.productName,
+    type: 'transfer',
+    fromLocation: item.currentLocation,
+    toLocation,
+    reason,
+    performedBy,
+    performedByName,
+    notes: notes || '',
+  })
+}
+
+export async function stockOutItem(
+  id: string,
+  reason: string,
+  performedBy: string,
+  performedByName: string,
+  notes?: string
+): Promise<void> {
+  const item = await getInventoryItem(id)
+  if (!item) throw new Error('Inventory item not found')
+
+  const status: InventoryStatus = reason === 'returned' ? 'returned' : 'sold'
+  const now = Timestamp.now()
+  await updateDoc(doc(getDb(), 'inventory', id), {
+    status,
+    lastMovementDate: now,
+    updatedAt: now,
+  })
+
+  await createStockMovement({
+    inventoryId: id,
+    orderId: item.orderId,
+    serialNumber: item.serialNumber,
+    productName: item.productName,
+    type: 'stock_out',
+    fromLocation: item.currentLocation,
+    toLocation: null,
+    reason,
+    performedBy,
+    performedByName,
+    notes: notes || '',
+  })
+}
+
+export function subscribeToInventory(
+  onUpdate: (items: InventoryItem[]) => void
+): Unsubscribe {
+  const ref = collection(getDb(), 'inventory')
+  return onSnapshot(query(ref), (snapshot) => {
+    const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem))
+    items.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    onUpdate(items)
+  }, (error) => {
+    logger.error('subscribeToInventory error:', error)
+  })
+}
+
+export async function getInventoryStats(): Promise<{
+  total: number
+  byLocation: Record<string, number>
+  byStatus: Record<string, number>
+}> {
+  try {
+    const items = await getInventoryItems()
+    const byLocation: Record<string, number> = {}
+    const byStatus: Record<string, number> = {}
+    for (const item of items) {
+      byLocation[item.currentLocation] = (byLocation[item.currentLocation] || 0) + 1
+      byStatus[item.status] = (byStatus[item.status] || 0) + 1
+    }
+    return { total: items.length, byLocation, byStatus }
+  } catch (error) {
+    logger.error('Error fetching inventory stats:', error)
+    return { total: 0, byLocation: {}, byStatus: {} }
+  }
+}
+
+// ============================================================
+// Stock Movements
+// ============================================================
+
+export type StockMovementType = 'stock_in' | 'stock_out' | 'transfer'
+
+export interface StockMovement {
+  id?: string
+  inventoryId: string
+  orderId: string
+  serialNumber: string
+  productName: string
+  type: StockMovementType
+  fromLocation: string | null
+  toLocation: string | null
+  reason: string
+  performedBy: string
+  performedByName: string
+  notes?: string
+  createdAt?: Timestamp | Date
+}
+
+export async function createStockMovement(data: Omit<StockMovement, 'id' | 'createdAt'>): Promise<string> {
+  const ref = collection(getDb(), 'stockMovements')
+  const docRef = await addDoc(ref, { ...data, createdAt: Timestamp.now() })
+  return docRef.id
+}
+
+export async function getStockMovements(filters?: {
+  inventoryId?: string
+  type?: StockMovementType
+}): Promise<StockMovement[]> {
+  try {
+    const ref = collection(getDb(), 'stockMovements')
+    let q = query(ref)
+
+    if (filters?.inventoryId) {
+      q = query(ref, where('inventoryId', '==', filters.inventoryId))
+    } else if (filters?.type) {
+      q = query(ref, where('type', '==', filters.type))
+    }
+
+    const snap = await getDocs(q)
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as StockMovement))
+    results.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return results
+  } catch (error) {
+    logger.error('Error fetching stock movements:', error)
+    return []
+  }
+}
+
+export async function getItemMovementHistory(inventoryId: string): Promise<StockMovement[]> {
+  return getStockMovements({ inventoryId })
+}
+
+// ============================================================
+// Agent Assigned Orders
+// ============================================================
+
+export async function getAgentAssignedOrders(agentId: string): Promise<PickupRequest[]> {
+  try {
+    const ref = collection(getDb(), 'pickupRequests')
+    const q = query(ref, where('assignedTo', '==', agentId))
+    const snap = await getDocs(q)
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as PickupRequest))
+    results.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return results
+  } catch (error) {
+    logger.error('Error fetching agent assigned orders:', error)
+    return []
   }
 }

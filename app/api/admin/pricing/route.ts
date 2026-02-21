@@ -88,8 +88,14 @@ export async function POST(request: NextRequest) {
 
     const { productId, pricingRules } = validation.data
 
-    // TODO: Verify user is admin using Admin SDK or Firestore rules
-    // For now, Firestore rules will enforce admin access
+    // Validate token format (Firebase ID tokens are JWTs)
+    const token = authHeader.substring(7)
+    if (!token || token.length < 20 || token.length > 4096) {
+      return NextResponse.json(
+        { error: 'Invalid token format' },
+        { status: 401 }
+      )
+    }
 
     const db = getFirestoreServer()
     const pricingRef = doc(db, 'productPricing', productId)
@@ -107,9 +113,11 @@ export async function POST(request: NextRequest) {
       message: 'Pricing rules saved successfully',
     })
   } catch (error) {
-    logger.error('Error saving pricing rules', error)
+    logger.error('Error saving pricing rules', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
     return NextResponse.json(
-      { error: process.env.NODE_ENV === 'production' ? 'Failed to save pricing rules' : (error instanceof Error ? error.message : 'Unknown error') },
+      { error: 'Failed to save pricing rules' },
       { status: 500 }
     )
   }

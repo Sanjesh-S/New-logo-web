@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createLogger } from '@/lib/utils/logger'
 import { getFirestoreServer } from '@/lib/firebase/server'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
+import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
 
 const logger = createLogger('API:Email')
 
@@ -61,7 +62,7 @@ function validateEmailRequest(body: unknown): {
   if (!c.name || typeof c.name !== 'string') {
     return { valid: false, error: 'Invalid customer name' }
   }
-  if (!c.email || typeof c.email !== 'string' || !c.email.includes('@')) {
+  if (!c.email || typeof c.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email) || c.email.length > 254) {
     return { valid: false, error: 'Invalid customer email' }
   }
   if (!c.address || typeof c.address !== 'string') {
@@ -109,6 +110,16 @@ function validateEmailRequest(body: unknown): {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting (20 requests per minute per IP)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 20, windowMs: 60000 })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString() } }
+      )
+    }
+
     // Validate request size
     const contentLength = request.headers.get('content-length')
     if (contentLength && parseInt(contentLength, 10) > 1024 * 1024) {

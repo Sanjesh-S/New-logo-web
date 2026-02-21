@@ -93,16 +93,23 @@ export function checkRateLimit(
 }
 
 /**
+ * Sanitize an IP address string to prevent injection
+ * Only allows valid IPv4/IPv6 characters
+ */
+function sanitizeIp(ip: string): string {
+  return ip.replace(/[^a-fA-F0-9.:]/g, '').slice(0, 45)
+}
+
+/**
  * Get client identifier from request (IP address)
  */
 export function getClientIdentifier(request: Request): string {
-  // Try to get IP from various headers (for proxy/load balancer scenarios)
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
-  const cfConnectingIp = request.headers.get('cf-connecting-ip') // Cloudflare
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
   
-  const ip = forwarded?.split(',')[0]?.trim() || realIp || cfConnectingIp || 'unknown'
-  return ip
+  const rawIp = forwarded?.split(',')[0]?.trim() || realIp || cfConnectingIp || 'unknown'
+  return rawIp === 'unknown' ? rawIp : sanitizeIp(rawIp)
 }
 
 /**

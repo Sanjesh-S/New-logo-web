@@ -2,28 +2,54 @@ import { NextRequest, NextResponse } from 'next/server'
 import { collection, addDoc, Timestamp } from 'firebase/firestore'
 import { getFirestoreServer } from '@/lib/firebase/server'
 import { createLogger } from '@/lib/utils/logger'
+import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
+import { getRequestBody } from '@/lib/middleware/request-limits'
+import { z } from 'zod'
 
 const logger = createLogger('API:LaptopTabletInquiry')
 
+const inquirySchema = z.object({
+  category: z.string().min(1).max(100),
+  model: z.string().min(1).max(200),
+  age: z.string().min(1).max(100),
+  warranty: z.string().min(1).max(100),
+  name: z.string().min(1).max(200),
+  contact: z.string().min(1).max(20),
+  location: z.string().min(1).max(500),
+})
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    
-    const { category, model, age, warranty, name, contact, location } = body
-
-    // Basic validation
-    if (!category || !model || !age || !warranty || !name || !contact || !location) {
-      logger.error('Missing required fields', { body })
+    // Rate limiting (20 requests per minute per IP)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 20, windowMs: 60000 })
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString() } }
+      )
+    }
+
+    // Validate request size
+    const { body, error: bodyError } = await getRequestBody(request)
+    if (bodyError) {
+      return NextResponse.json({ error: bodyError }, { status: 413 })
+    }
+
+    // Validate request body with schema
+    const validation = inquirySchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: validation.error.issues.map(i => i.message) },
         { status: 400 }
       )
     }
 
+    const { category, model, age, warranty, name, contact, location } = validation.data
+
     // Validate contact number (10 digits)
     const cleanContact = contact.replace(/\D/g, '')
     if (cleanContact.length !== 10) {
-      logger.error('Invalid contact number', { contact, cleanContact })
       return NextResponse.json(
         { error: 'Invalid contact number. Must be 10 digits.' },
         { status: 400 }
@@ -47,10 +73,7 @@ export async function POST(request: NextRequest) {
         stack: firebaseError?.stack,
       })
       return NextResponse.json(
-        { 
-          error: 'Failed to initialize database',
-          details: firebaseError?.message || 'Unknown Firebase error'
-        },
+        { error: 'Failed to initialize database' },
         { status: 500 }
       )
     }
@@ -79,11 +102,7 @@ export async function POST(request: NextRequest) {
         stack: firestoreError?.stack,
       })
       return NextResponse.json(
-        { 
-          error: 'Failed to save inquiry',
-          details: firestoreError?.message || 'Unknown Firestore error',
-          code: firestoreError?.code
-        },
+        { error: 'Failed to save inquiry' },
         { status: 500 }
       )
     }
@@ -170,10 +189,7 @@ export async function POST(request: NextRequest) {
       stack: error?.stack,
     })
     return NextResponse.json(
-      { 
-        error: 'Failed to submit inquiry',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to submit inquiry' },
       { status: 500 }
     )
   }

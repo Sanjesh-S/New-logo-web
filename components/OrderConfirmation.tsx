@@ -87,12 +87,11 @@ export default function OrderConfirmation({
 
   // Fetch address details from pincode API
   const fetchAddressFromPincode = async (pincode: string) => {
-    if (pincode.length !== 6) return
+    // Validate pincode is exactly 6 digits before making external API call
+    if (!/^\d{6}$/.test(pincode)) return
 
     setPincodeLoading(true)
     try {
-      // Using India Post API or similar pincode lookup service
-      // You can use: https://api.postalpincode.in/pincode/{pincode}
       const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`)
       const data = await response.json()
 

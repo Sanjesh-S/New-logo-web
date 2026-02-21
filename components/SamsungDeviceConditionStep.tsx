@@ -14,10 +14,10 @@ interface SamsungDeviceConditionStepProps {
 
 const displayConditionImage = (condition: string): string | null => {
   const imageMap: Record<string, string> = {
-    goodWorking: getAssetPath('/images/conditions/phone-flawless.webp'),
-    screenLine: getAssetPath('/images/conditions/phone-minor.webp'),
-    minorCrack: getAssetPath('/images/conditions/phone-minor.webp'),
-    majorDamage: getAssetPath('/images/conditions/phone-visible.webp'),
+    goodWorking: getAssetPath('/Icons/Mobile Display_Perfect.svg'),
+    screenLine: getAssetPath('/Icons/Mobile Display_Scratch.svg'),
+    minorCrack: getAssetPath('/Icons/Mobile Display_Scratch.svg'),
+    majorDamage: getAssetPath('/Icons/Mobile Display_Major.svg'),
   }
   return imageMap[condition] || null
 }

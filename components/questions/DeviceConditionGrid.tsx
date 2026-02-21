@@ -17,10 +17,10 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
       'minor': getAssetPath('/images/conditions/phone-minor.webp'),
       'visible': getAssetPath('/images/conditions/phone-visible.webp'),
       'cracked': getAssetPath('/images/conditions/phone-cracked.webp'),
-      'goodWorking': getAssetPath(encodeURI('/Icons/Phone_ Perfect Display.svg')),
-      'minorCrack': getAssetPath(encodeURI('/Icons/Phone_Minor Scratch Display.svg')),
-      'majorDamage': getAssetPath(encodeURI('/Icons/Phone_Major Scratch Display.svg')),
-      // notWorking: left empty for now – add image path here when ready
+      'goodWorking': getAssetPath('/Icons/Mobile Display_Perfect.svg'),
+      'minorCrack': getAssetPath('/Icons/Mobile Display_Scratch.svg'),
+      'majorDamage': getAssetPath('/Icons/Mobile Display_Major.svg'),
+      'notWorking': getAssetPath('/Icons/Mobile Display_Not Working.svg'),
     }
     return imageMap[condition] || null
   }
@@ -93,8 +93,6 @@ export default function DeviceConditionGrid({ answers, onChange, showFrameCondit
                       alt={option.label}
                       className="w-24 h-24 object-contain"
                     />
-                  ) : showFrameCondition && option.id === 'notWorking' ? (
-                    null
                   ) : (
                     getIcon(option.id)
                   )}

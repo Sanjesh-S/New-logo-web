@@ -2,18 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDevices, getDevice } from '@/lib/firebase/database'
 import { createLogger } from '@/lib/utils/logger'
 import { getCache, setCache, generateCacheKey } from '@/lib/utils/cache'
+import { checkRateLimit, getClientIdentifier } from '@/lib/middleware/rate-limit'
 
 const logger = createLogger('API:Devices')
 
-// Note: API routes are skipped during static export (output: 'export')
-// These routes are handled by Firebase Functions in production
-
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting (200 requests per minute per IP)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 200, windowMs: 60000 })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString() } }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const category = searchParams.get('category')
     const brand = searchParams.get('brand')
     const model = searchParams.get('model')
+
+    // Validate query parameter lengths
+    if (category && category.length > 100) {
+      return NextResponse.json({ error: 'Invalid category parameter' }, { status: 400 })
+    }
+    if (brand && brand.length > 100) {
+      return NextResponse.json({ error: 'Invalid brand parameter' }, { status: 400 })
+    }
+    if (model && model.length > 200) {
+      return NextResponse.json({ error: 'Invalid model parameter' }, { status: 400 })
+    }
 
     if (brand && model) {
       // Cache individual device lookups (10 minutes TTL)

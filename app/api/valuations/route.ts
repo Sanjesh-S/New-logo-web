@@ -120,11 +120,7 @@ export async function POST(request: NextRequest) {
       // Don't use fallback - fail the request if Order ID generation fails
       // This ensures we always get sequential numbers
       return NextResponse.json(
-        {
-          error: 'Failed to generate Order ID',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          code: error?.code || 'UNKNOWN',
-        },
+        { error: 'Failed to generate Order ID' },
         { status: 500 }
       )
     }
@@ -174,11 +170,7 @@ export async function POST(request: NextRequest) {
       code: error?.code,
     })
     return NextResponse.json(
-      { 
-        error: 'Failed to create valuation',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        code: error?.code || 'UNKNOWN',
-      },
+      { error: 'Failed to create valuation' },
       { status: 500 }
     )
   }
@@ -186,9 +178,27 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting (200 requests per minute per IP for reads)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 200, windowMs: 60000 })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString() } }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
     const userId = searchParams.get('userId')
+
+    // Validate query parameter lengths to prevent abuse
+    if (id && (id.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(id))) {
+      return NextResponse.json({ error: 'Invalid id parameter' }, { status: 400 })
+    }
+    if (userId && (userId.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(userId))) {
+      return NextResponse.json({ error: 'Invalid userId parameter' }, { status: 400 })
+    }
 
     if (id) {
       const valuation = await getValuation(id)
@@ -211,7 +221,9 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     )
   } catch (error) {
-    logger.error('Error fetching valuation', error)
+    logger.error('Error fetching valuation', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
     return NextResponse.json(
       { error: 'Failed to fetch valuation' },
       { status: 500 }
@@ -221,7 +233,17 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    // Validate request size (same as POST)
+    // Rate limiting (50 requests per minute per IP for updates)
+    const clientId = getClientIdentifier(request)
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 50, windowMs: 60000 })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString() } }
+      )
+    }
+
+    // Validate request size
     const { body, error: bodyError } = await getRequestBody(request)
     if (bodyError) {
       return NextResponse.json(
@@ -245,7 +267,9 @@ export async function PATCH(request: NextRequest) {
       message: 'Valuation updated successfully' 
     })
   } catch (error) {
-    logger.error('Error updating valuation', error)
+    logger.error('Error updating valuation', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
     return NextResponse.json(
       { error: 'Failed to update valuation' },
       { status: 500 }

@@ -29,6 +29,18 @@ service cloud.firestore {
       return hasRole('superadmin') || hasRole('manager');
     }
     
+    function isPickupAgent() {
+      return hasRole('pickup_agent');
+    }
+    
+    function isShowroomStaff() {
+      return hasRole('showroom_staff');
+    }
+    
+    function isQCTeam() {
+      return hasRole('qc_team');
+    }
+    
     // Helper function to validate pickup request data
     function isValidPickupRequest() {
       let data = request.resource.data;
@@ -267,6 +279,58 @@ service cloud.firestore {
       
       // Only superadmins can delete inquiries
       allow delete: if hasRole('superadmin');
+    }
+    
+    // Showrooms Collection
+    match /showrooms/{showroomId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // Showroom Walk-Ins Collection
+    match /showroomWalkIns/{walkInId} {
+      allow read: if isStaff();
+      allow create: if isShowroomStaff() || isAdmin();
+      allow update: if isShowroomStaff() || isQCTeam() || isAdmin();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // Pickup Verifications Collection
+    match /pickupVerifications/{verificationId} {
+      allow read: if isStaff();
+      allow create: if isPickupAgent() || isAdmin();
+      allow update: if isStaff();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // QC Reviews Collection
+    match /qcReviews/{reviewId} {
+      allow read: if isStaff();
+      allow create: if isQCTeam() || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // Receipts Collection
+    match /receipts/{receiptId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // Inventory Collection
+    match /inventory/{inventoryId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if hasRole('superadmin');
+    }
+    
+    // Stock Movements Collection
+    match /stockMovements/{movementId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
     }
     
     // Default deny all other collections

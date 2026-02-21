@@ -38,7 +38,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  const rawMeasurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  // Validate measurement ID format (G-XXXXXXXXXX) to prevent XSS via env injection
+  const measurementId = rawMeasurementId && /^G-[A-Z0-9]+$/.test(rawMeasurementId) ? rawMeasurementId : null
 
   return (
     <html lang="en">

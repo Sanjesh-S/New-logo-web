@@ -193,7 +193,7 @@ export default function ProductDetail({
                   Sell Old {product.modelName}
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {product.brand.charAt(0).toUpperCase() + product.brand.slice(1)} {product.category}
+                  {product.brand ? product.brand.charAt(0).toUpperCase() + product.brand.slice(1) : ''} {product.category || ''}
                 </p>
               </div>
 

@@ -10,11 +10,10 @@ export default function ReferralHandler() {
   const referralCode = searchParams.get('ref')
 
   useEffect(() => {
-    if (referralCode) {
-      // Store referral code in localStorage for later use
+    // Validate referral code format before storing (alphanumeric, max 50 chars)
+    if (referralCode && /^[a-zA-Z0-9_-]{1,50}$/.test(referralCode)) {
       localStorage.setItem('pendingReferralCode', referralCode)
       
-      // If user is already logged in, apply referral immediately
       if (user) {
         applyReferralCode(referralCode, user.uid)
       }
