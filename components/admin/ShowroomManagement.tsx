@@ -64,7 +64,7 @@ export default function ShowroomManagement() {
 
   const handleToggleActive = async (showroom: Showroom) => {
     try {
-      await fetch(`/api/admin/showrooms/${showroom.id}`, {
+      await fetch(`/api/admin/showrooms?id=${showroom.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !showroom.isActive }),
@@ -87,7 +87,7 @@ export default function ShowroomManagement() {
     try {
       const data = { name: name.trim(), address: address.trim(), city: city.trim(), state: state.trim(), pincode: pincode.trim(), phone: phone.trim(), isActive: editing?.isActive ?? true }
       if (editing?.id) {
-        const res = await fetch(`/api/admin/showrooms/${editing.id}`, {
+        const res = await fetch(`/api/admin/showrooms?id=${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),

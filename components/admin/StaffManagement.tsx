@@ -62,9 +62,9 @@ export default function StaffManagement() {
   const handleToggleActive = async (member: StaffUser) => {
     try {
       if (member.isActive) {
-        await fetch(`/api/admin/staff/${member.id}`, { method: 'DELETE' })
+        await fetch(`/api/admin/staff?id=${member.id}`, { method: 'DELETE' })
       } else {
-        await fetch(`/api/admin/staff/${member.id}`, {
+        await fetch(`/api/admin/staff?id=${member.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isActive: true }),
@@ -79,7 +79,7 @@ export default function StaffManagement() {
 
   const handleSubmit = async (data: Omit<StaffUser, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingStaff?.id) {
-      await fetch(`/api/admin/staff/${editingStaff.id}`, {
+      await fetch(`/api/admin/staff?id=${editingStaff.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

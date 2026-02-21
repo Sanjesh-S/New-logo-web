@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { getPickupRequest, createPickupVerification, updatePickupRequest, checkStaffRole, type PickupRequest } from '@/lib/firebase/database'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -15,10 +15,10 @@ const STEPS: { key: Step; label: string }[] = [
 ]
 
 export default function VerificationPage() {
-  const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
-  const orderId = params.orderId as string
+  const orderId = searchParams.get('orderId') || ''
 
   const [order, setOrder] = useState<PickupRequest | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,6 +38,7 @@ export default function VerificationPage() {
   const serialPhotoRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (!orderId) { setLoading(false); return }
     const load = async () => {
       try {
         const data = await getPickupRequest(orderId)
@@ -116,7 +117,6 @@ export default function VerificationPage() {
 
       await updatePickupRequest(order.id, { status: 'picked_up' as any })
 
-      // Generate provisional receipt
       try {
         await fetch('/api/receipts/generate', {
           method: 'POST',
@@ -169,7 +169,7 @@ export default function VerificationPage() {
     )
   }
 
-  if (!order) {
+  if (!orderId || !order) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
         <p className="text-gray-600 font-medium">Order not found</p>
@@ -192,7 +192,6 @@ export default function VerificationPage() {
         </div>
       </div>
 
-      {/* Step progress */}
       <div className="bg-white border-b border-gray-100 px-4 py-3">
         <div className="max-w-lg mx-auto flex gap-1">
           {STEPS.map((s, i) => (
@@ -205,7 +204,6 @@ export default function VerificationPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6">
-        {/* Step 1: Device Photos */}
         {step === 'photos' && (
           <div className="space-y-4">
             <div>
@@ -222,7 +220,7 @@ export default function VerificationPage() {
                 {devicePhotosPrev.map((url, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
                     <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                    <button onClick={() => removeDevicePhoto(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">×</button>
+                    <button onClick={() => removeDevicePhoto(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">&times;</button>
                   </div>
                 ))}
               </div>
@@ -231,7 +229,6 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* Step 2: ID Proof */}
         {step === 'id_proof' && (
           <div className="space-y-4">
             <div>
@@ -253,7 +250,6 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* Step 3: Serial Number */}
         {step === 'serial' && (
           <div className="space-y-4">
             <div>
@@ -269,7 +265,6 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* Step 4: Review */}
         {step === 'review' && (
           <div className="space-y-4">
             <h2 className="font-semibold text-gray-900">Review & Submit</h2>
@@ -277,7 +272,7 @@ export default function VerificationPage() {
               <div className="p-4">
                 <p className="text-xs text-gray-500 uppercase font-semibold">Product</p>
                 <p className="font-medium text-gray-900 mt-1">{order.productName || 'N/A'}</p>
-                <p className="text-sm text-gray-600">₹{(order.price || 0).toLocaleString('en-IN')}</p>
+                <p className="text-sm text-gray-600">{'\u20B9'}{(order.price || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="p-4">
                 <p className="text-xs text-gray-500 uppercase font-semibold">Device Photos</p>
@@ -305,7 +300,6 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* Navigation */}
         <div className="flex gap-3 mt-6">
           {currentStepIdx > 0 && (
             <button onClick={() => setStep(STEPS[currentStepIdx - 1].key)} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors">Back</button>

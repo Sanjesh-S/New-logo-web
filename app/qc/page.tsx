@@ -142,7 +142,7 @@ function QCItemCard({ item }: { item: QCItem }) {
         <p className="font-semibold text-gray-900">₹{price.toLocaleString('en-IN')}</p>
       </div>
       <Link
-        href={`/qc/review/${orderId}?type=${item.type}&docId=${data.id}`}
+        href={`/qc/review?orderId=${orderId}&type=${item.type}&docId=${data.id}`}
         className="mt-3 block w-full text-center bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors"
       >
         Review

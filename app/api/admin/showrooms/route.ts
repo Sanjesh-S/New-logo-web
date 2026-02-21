@@ -31,3 +31,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    const body = await request.json()
+    const db = getAdminFirestore()
+    await db.collection('showrooms').doc(id).update({
+      ...body,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 })
+  }
+}

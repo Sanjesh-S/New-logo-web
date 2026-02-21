@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getReceiptsByOrder } from '@/lib/firebase/database'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { orderId } = await params
+    const { searchParams } = new URL(request.url)
+    const orderId = searchParams.get('orderId')
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
     }

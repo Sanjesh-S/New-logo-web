@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   getPickupRequest, getPickupVerification, getShowroomWalkIn,
@@ -12,12 +12,11 @@ import {
 } from '@/lib/firebase/database'
 
 export default function QCReviewPage() {
-  const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
 
-  const orderId = params.orderId as string
+  const orderId = searchParams.get('orderId') || ''
   const sourceType = (searchParams.get('type') || 'pickup') as 'pickup' | 'showroom_walkin'
   const docId = searchParams.get('docId') || orderId
 
@@ -34,6 +33,7 @@ export default function QCReviewPage() {
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
+    if (!orderId) { setLoading(false); return }
     const load = async () => {
       try {
         const [showroomList] = await Promise.all([getShowrooms()])
@@ -74,8 +74,6 @@ export default function QCReviewPage() {
       if (sourceType === 'pickup' && pickupData) {
         sourceId = pickupData.id
         productName = pickupData.productName || ''
-        brand = ''
-        category = ''
         serialNumber = verification?.serialNumber || ''
         agreedPrice = pickupData.price || 0
         condition = 'From online assessment'
@@ -153,7 +151,6 @@ export default function QCReviewPage() {
         notes: `QC decision: ${decision}. ${notes.trim()}`,
       })
 
-      // Generate final receipt
       try {
         const receiptPayload = {
           orderId,
@@ -198,6 +195,15 @@ export default function QCReviewPage() {
     )
   }
 
+  if (!orderId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+        <p className="text-gray-600 font-medium">No order specified</p>
+        <button onClick={() => router.back()} className="mt-4 text-indigo-600 font-medium">Go Back</button>
+      </div>
+    )
+  }
+
   const isPickup = sourceType === 'pickup'
   const photos = isPickup ? (verification?.devicePhotos || []) : (walkInData?.devicePhotos || [])
   const idProof = isPickup ? verification?.customerIdProof : walkInData?.customer?.idProofPhoto
@@ -207,9 +213,9 @@ export default function QCReviewPage() {
   const customerName = isPickup ? (pickupData?.customer?.name || pickupData?.userName || 'N/A') : (walkInData?.customer?.name || 'N/A')
 
   const decisionConfig = {
-    service_station: { label: 'Service Station', color: 'bg-purple-600 hover:bg-purple-700', icon: '🔧' },
-    showroom: { label: 'Ready for Showroom', color: 'bg-sky-600 hover:bg-sky-700', icon: '🏪' },
-    warehouse: { label: 'Send to Warehouse', color: 'bg-slate-600 hover:bg-slate-700', icon: '📦' },
+    service_station: { label: 'Service Station', color: 'bg-purple-600 hover:bg-purple-700', icon: '\uD83D\uDD27' },
+    showroom: { label: 'Ready for Showroom', color: 'bg-sky-600 hover:bg-sky-700', icon: '\uD83C\uDFEA' },
+    warehouse: { label: 'Send to Warehouse', color: 'bg-slate-600 hover:bg-slate-700', icon: '\uD83D\uDCE6' },
   }
 
   return (
@@ -230,14 +236,13 @@ export default function QCReviewPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Product info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="font-semibold text-gray-900 text-lg">{productName}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{customerName}</p>
             </div>
-            <p className="text-xl font-bold text-gray-900">₹{price.toLocaleString('en-IN')}</p>
+            <p className="text-xl font-bold text-gray-900">{'\u20B9'}{price.toLocaleString('en-IN')}</p>
           </div>
           {serial && <p className="text-sm text-gray-600 mt-2">Serial: <span className="font-mono">{serial}</span></p>}
           {!isPickup && walkInData?.staffNotes && (
@@ -254,7 +259,6 @@ export default function QCReviewPage() {
           )}
         </div>
 
-        {/* Photos */}
         {photos.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-900 mb-3">Device Photos</h3>
@@ -268,7 +272,6 @@ export default function QCReviewPage() {
           </div>
         )}
 
-        {/* ID Proof */}
         {idProof && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-900 mb-3">Customer ID Proof</h3>
@@ -278,7 +281,6 @@ export default function QCReviewPage() {
           </div>
         )}
 
-        {/* Decision section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <h3 className="font-semibold text-gray-900 mb-4">QC Decision</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -296,7 +298,7 @@ export default function QCReviewPage() {
               <select value={targetShowroomId} onChange={e => setTargetShowroomId(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                 <option value="">Select showroom</option>
                 {showrooms.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} — {s.city}</option>
+                  <option key={s.id} value={s.id}>{s.name} &mdash; {s.city}</option>
                 ))}
               </select>
             </div>
@@ -319,7 +321,6 @@ export default function QCReviewPage() {
         </div>
       </div>
 
-      {/* Confirm dialog */}
       {showConfirm && decision && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">

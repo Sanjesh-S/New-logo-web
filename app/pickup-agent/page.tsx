@@ -129,7 +129,7 @@ function OrderCard({ order, completed }: { order: PickupRequest; completed?: boo
       </div>
       {!completed && (
         <Link
-          href={`/pickup-agent/verify/${orderId}`}
+          href={`/pickup-agent/verify?orderId=${orderId}`}
           className="mt-3 block w-full text-center bg-teal-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-teal-700 transition-colors"
         >
           Start Verification
