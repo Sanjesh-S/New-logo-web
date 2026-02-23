@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getAgentAssignedOrders, checkStaffRole, type PickupRequest } from '@/lib/firebase/database'
+import { checkStaffRole, type PickupRequest } from '@/lib/firebase/database'
 import { signOut } from '@/lib/firebase/auth'
 import Link from 'next/link'
 
@@ -20,8 +20,9 @@ export default function PickupAgentDashboard() {
       if (role?.staffDoc?.name) setAgentName(role.staffDoc.name)
 
       const staffId = role?.staffDoc?.id || user.uid
-      const data = await getAgentAssignedOrders(staffId)
-      setOrders(data)
+      const res = await fetch(`/api/pickup-agent/orders?agentId=${encodeURIComponent(staffId)}`)
+      const data = await res.json()
+      setOrders(data.orders || [])
     } catch (error) {
       console.error('Error loading orders:', error)
     } finally {

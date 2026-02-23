@@ -1,15 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Fragment } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  getPickupRequest, getPickupVerification, getShowroomWalkIn,
-  createQCReview, updatePickupRequest, updateShowroomWalkIn,
-  createInventoryItem, createStockMovement, getShowrooms,
   checkStaffRole,
   type PickupRequest, type ShowroomWalkIn, type PickupVerification, type QCDecision, type Showroom,
 } from '@/lib/firebase/database'
+import { ASSESSMENT_GROUPS, getAssessmentLabel, formatAnswerValue } from '@/lib/utils/assessmentLabels'
 
 export default function QCReviewPage() {
   const searchParams = useSearchParams()
@@ -24,8 +22,10 @@ export default function QCReviewPage() {
   const [walkInData, setWalkInData] = useState<ShowroomWalkIn | null>(null)
   const [verification, setVerification] = useState<PickupVerification | null>(null)
   const [showrooms, setShowrooms] = useState<Showroom[]>([])
+  const [assessment, setAssessment] = useState<Record<string, any> | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [showAssessment, setShowAssessment] = useState(false)
 
   const [decision, setDecision] = useState<QCDecision | ''>('')
   const [targetShowroomId, setTargetShowroomId] = useState('')
@@ -36,19 +36,18 @@ export default function QCReviewPage() {
     if (!orderId) { setLoading(false); return }
     const load = async () => {
       try {
-        const [showroomList] = await Promise.all([getShowrooms()])
-        setShowrooms(showroomList.filter(s => s.isActive))
+        const params = new URLSearchParams({ orderId, type: sourceType, docId })
+        const res = await fetch(`/api/qc/review-data?${params}`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to load')
 
+        setShowrooms(data.showrooms || [])
         if (sourceType === 'pickup') {
-          const [pd, vd] = await Promise.all([
-            getPickupRequest(orderId),
-            getPickupVerification(orderId),
-          ])
-          setPickupData(pd)
-          setVerification(vd)
+          setPickupData(data.pickupData || null)
+          setVerification(data.verification || null)
+          setAssessment(data.assessment || null)
         } else {
-          const wd = await getShowroomWalkIn(docId)
-          setWalkInData(wd)
+          setWalkInData(data.walkInData || null)
         }
       } catch (err) {
         console.error('Error loading review data:', err)
@@ -67,112 +66,63 @@ export default function QCReviewPage() {
       const reviewerId = role?.staffDoc?.id || user.uid
       const reviewerName = role?.staffDoc?.name || 'QC Reviewer'
 
-      let sourceId = '', productName = '', brand = '', category = '', serialNumber = '', agreedPrice = 0
-      let condition = '', devicePhotos: string[] = [], customerName = '', customerPhone = '', customerEmail = '', staffName = ''
-      let sourceShowroomId: string | undefined
+      const sourceId = sourceType === 'pickup' ? (pickupData?.id || orderId) : (walkInData?.id || docId)
 
-      if (sourceType === 'pickup' && pickupData) {
-        sourceId = pickupData.id
-        productName = pickupData.productName || ''
-        serialNumber = verification?.serialNumber || ''
-        agreedPrice = pickupData.price || 0
-        condition = 'From online assessment'
-        devicePhotos = verification?.devicePhotos || []
-        customerName = pickupData.customer?.name || pickupData.userName || ''
-        customerPhone = pickupData.customer?.phone || pickupData.userPhone || ''
-        customerEmail = pickupData.customer?.email || pickupData.userEmail || ''
-        staffName = verification?.agentName || ''
-      } else if (walkInData) {
-        sourceId = walkInData.id || ''
-        productName = walkInData.product?.name || ''
-        brand = walkInData.product?.brand || ''
-        category = walkInData.product?.category || ''
-        serialNumber = walkInData.product?.serialNumber || ''
-        agreedPrice = walkInData.manualPrice || 0
-        condition = walkInData.staffNotes || ''
-        devicePhotos = walkInData.devicePhotos || []
-        customerName = walkInData.customer?.name || ''
-        customerPhone = walkInData.customer?.phone || ''
-        customerEmail = walkInData.customer?.email || ''
-        staffName = walkInData.staffName || ''
-        sourceShowroomId = walkInData.showroomId
-      }
-
-      const reviewId = await createQCReview({
-        orderId,
-        sourceType,
-        sourceId,
-        verificationId: verification?.id,
-        reviewerId,
-        reviewerName,
-        decision,
-        targetShowroomId: decision === 'showroom' ? targetShowroomId : undefined,
-        notes: notes.trim() || undefined,
-      })
-
-      if (sourceType === 'pickup' && pickupData) {
-        await updatePickupRequest(pickupData.id, { status: decision as any })
-      } else if (walkInData?.id) {
-        await updateShowroomWalkIn(walkInData.id, { status: decision as any })
-      }
-
-      const inventoryId = await createInventoryItem({
-        orderId,
-        sourceType,
-        sourceId,
-        sourceShowroomId,
-        verificationId: verification?.id,
-        qcReviewId: reviewId,
-        serialNumber,
-        productName,
-        brand,
-        category,
-        condition,
-        currentLocation: decision,
-        currentShowroomId: decision === 'showroom' ? targetShowroomId : undefined,
-        status: 'in_stock',
-        agreedPrice,
-        devicePhotos,
-        qcDecision: decision,
-        qcNotes: notes.trim(),
-      })
-
-      await createStockMovement({
-        inventoryId,
-        orderId,
-        serialNumber,
-        productName,
-        type: 'stock_in',
-        fromLocation: null,
-        toLocation: decision,
-        reason: 'qc_routing',
-        performedBy: reviewerId,
-        performedByName: reviewerName,
-        notes: `QC decision: ${decision}. ${notes.trim()}`,
-      })
-
-      try {
-        const receiptPayload = {
+      const res = await fetch('/api/qc/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           orderId,
           sourceType,
           sourceId,
-          receiptType: 'final',
-          customerName,
-          customerPhone,
-          customerEmail,
-          productName,
-          brand,
-          category,
-          serialNumber,
-          agreedPrice,
-          staffName,
-          qcDecision: decision,
-          qcNotes: notes.trim(),
+          verificationId: verification?.id,
+          reviewerId,
+          reviewerName,
+          decision,
+          targetShowroomId: decision === 'showroom' ? targetShowroomId : undefined,
+          notes: notes.trim() || '',
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to submit QC review')
+      }
+
+      try {
+        let customerName = '', customerPhone = '', customerEmail = '', productName = '', brand = '', category = ''
+        let serialNumber = '', staffName = ''
+        let agreedPrice = 0
+
+        if (sourceType === 'pickup' && pickupData) {
+          productName = pickupData.productName || ''
+          serialNumber = verification?.serialNumber || ''
+          agreedPrice = pickupData.price || 0
+          customerName = pickupData.customer?.name || pickupData.userName || ''
+          customerPhone = pickupData.customer?.phone || pickupData.userPhone || ''
+          customerEmail = pickupData.customer?.email || pickupData.userEmail || ''
+          staffName = verification?.agentName || ''
+        } else if (walkInData) {
+          productName = walkInData.product?.name || ''
+          brand = walkInData.product?.brand || ''
+          category = walkInData.product?.category || ''
+          serialNumber = walkInData.product?.serialNumber || ''
+          agreedPrice = walkInData.manualPrice || 0
+          customerName = walkInData.customer?.name || ''
+          customerPhone = walkInData.customer?.phone || ''
+          customerEmail = walkInData.customer?.email || ''
+          staffName = walkInData.staffName || ''
         }
+
         await fetch('/api/receipts/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(receiptPayload),
+          body: JSON.stringify({
+            orderId, sourceType, sourceId,
+            receiptType: 'final', customerName, customerPhone, customerEmail,
+            productName, brand, category, serialNumber, agreedPrice,
+            staffName, qcDecision: decision, qcNotes: notes.trim(),
+          }),
         })
       } catch (receiptErr) {
         console.error('Receipt generation failed:', receiptErr)
@@ -211,6 +161,11 @@ export default function QCReviewPage() {
   const productName = isPickup ? (pickupData?.productName || 'N/A') : (walkInData?.product?.name || 'N/A')
   const price = isPickup ? (pickupData?.price || 0) : (walkInData?.manualPrice || 0)
   const customerName = isPickup ? (pickupData?.customer?.name || pickupData?.userName || 'N/A') : (walkInData?.customer?.name || 'N/A')
+  const customerPhone = isPickup ? (pickupData?.customer?.phone || pickupData?.userPhone || '') : (walkInData?.customer?.phone || '')
+  const customerAddress = isPickup ? (pickupData?.customer?.address || pickupData?.pickupAddress || '') : ''
+  const customerCity = isPickup ? (pickupData?.customer?.city || '') : ''
+  const agentName = verification?.agentName || ''
+  const assessmentKeys = assessment ? Object.keys(assessment).filter(k => assessment[k] != null && assessment[k] !== '') : []
 
   const decisionConfig = {
     service_station: { label: 'Service Station', color: 'bg-purple-600 hover:bg-purple-700', icon: '\uD83D\uDD27' },
@@ -236,6 +191,7 @@ export default function QCReviewPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        {/* Product & Customer Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div className="flex justify-between items-start">
             <div>
@@ -245,6 +201,29 @@ export default function QCReviewPage() {
             <p className="text-xl font-bold text-gray-900">{'\u20B9'}{price.toLocaleString('en-IN')}</p>
           </div>
           {serial && <p className="text-sm text-gray-600 mt-2">Serial: <span className="font-mono">{serial}</span></p>}
+
+          {/* Customer Details */}
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+            {customerPhone && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Phone</span>
+                <span className="font-medium text-gray-900">{customerPhone}</span>
+              </div>
+            )}
+            {customerAddress && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Address</span>
+                <span className="font-medium text-gray-900 text-right max-w-[65%]">{customerAddress}{customerCity && `, ${customerCity}`}</span>
+              </div>
+            )}
+            {agentName && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Pickup Agent</span>
+                <span className="font-medium text-gray-900">{agentName}</span>
+              </div>
+            )}
+          </div>
+
           {!isPickup && walkInData?.staffNotes && (
             <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
               <p className="text-xs font-semibold text-amber-700 uppercase">Staff Inspection Notes</p>
@@ -258,6 +237,55 @@ export default function QCReviewPage() {
             </div>
           )}
         </div>
+
+        {/* Assessment Details */}
+        {isPickup && assessmentKeys.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <button onClick={() => setShowAssessment(!showAssessment)} className="w-full flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Device Assessment ({assessmentKeys.length} items)</h3>
+              <svg className={`w-5 h-5 text-gray-400 transition-transform ${showAssessment ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            {showAssessment && (
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-4">
+                {Object.entries(ASSESSMENT_GROUPS).map(([groupName, groupKeys]) => {
+                  const present = groupKeys.filter(k => assessmentKeys.includes(k))
+                  if (present.length === 0) return null
+                  return (
+                    <Fragment key={groupName}>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 border-b border-gray-100 pb-1">{groupName}</p>
+                      <div className="space-y-1.5">
+                        {present.map(key => (
+                          <div key={key} className="flex justify-between gap-3 text-sm">
+                            <span className="text-gray-500">{getAssessmentLabel(key)}</span>
+                            <span className="font-medium text-gray-900 text-right">{formatAnswerValue(assessment![key])}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Fragment>
+                  )
+                })}
+                {(() => {
+                  const grouped = Object.values(ASSESSMENT_GROUPS).flat()
+                  const other = assessmentKeys.filter(k => !grouped.includes(k))
+                  if (other.length === 0) return null
+                  return (
+                    <>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 border-b border-gray-100 pb-1">Other</p>
+                      <div className="space-y-1.5">
+                        {other.map(key => (
+                          <div key={key} className="flex justify-between gap-3 text-sm">
+                            <span className="text-gray-500">{getAssessmentLabel(key)}</span>
+                            <span className="font-medium text-gray-900 text-right">{formatAnswerValue(assessment![key])}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+        )}
 
         {photos.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

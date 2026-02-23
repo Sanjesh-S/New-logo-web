@@ -1005,6 +1005,8 @@ export interface PickupRequest {
   assignedTo?: string
   assignedAgentName?: string
   assignedAt?: Timestamp | Date
+  assignedByRole?: 'admin' | 'qc_team'
+  assignedByName?: string
   // Source tracking
   source?: 'online_pickup' | 'showroom_walkin'
   // Legacy/alternative fields
@@ -1776,6 +1778,24 @@ export async function getQCReview(orderId: string): Promise<QCReview | null> {
   } catch (error) {
     logger.error('Error fetching QC review:', error)
     return null
+  }
+}
+
+export async function getPendingPickupRequests(): Promise<PickupRequest[]> {
+  try {
+    const ref = collection(getDb(), 'pickupRequests')
+    const q1 = query(ref, where('status', 'in', ['pending', 'confirmed']))
+    const snap = await getDocs(q1)
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as PickupRequest))
+    results.sort((a, b) => {
+      const aDate = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.toDate?.()?.getTime() || 0
+      const bDate = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.toDate?.()?.getTime() || 0
+      return bDate - aDate
+    })
+    return results
+  } catch (error) {
+    logger.error('Error fetching pending pickup requests:', error)
+    return []
   }
 }
 

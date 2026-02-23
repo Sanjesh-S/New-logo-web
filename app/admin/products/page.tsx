@@ -151,7 +151,7 @@ export default function AdminProductsPage() {
     const handleAssignAgent = async (requestId: string, agentId: string) => {
         try {
             if (!agentId) {
-                await updatePickupRequest(requestId, { assignedTo: '', assignedAgentName: '', status: 'confirmed' as any })
+                await updatePickupRequest(requestId, { assignedTo: '', assignedAgentName: '', assignedByRole: '' as any, assignedByName: '', status: 'confirmed' as any })
                 return
             }
             const agent = pickupAgents.find(a => a.id === agentId)
@@ -159,6 +159,8 @@ export default function AdminProductsPage() {
                 assignedTo: agentId,
                 assignedAgentName: agent?.name || '',
                 assignedAt: Timestamp.now() as any,
+                assignedByRole: 'admin' as any,
+                assignedByName: 'Admin',
                 status: 'assigned' as any,
             })
         } catch (error) {
@@ -523,19 +525,23 @@ export default function AdminProductsPage() {
                                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none bg-white transition-all"
                                 >
                                     <option value="All">All statuses</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="confirmed">Confirmed</option>
-                                    <option value="assigned">Assigned</option>
-                                    <option value="picked_up">Picked Up</option>
-                                    <option value="qc_review">QC Review</option>
-                                    <option value="service_station">Service Station</option>
-                                    <option value="showroom">Showroom</option>
-                                    <option value="warehouse">Warehouse</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="hold">Hold</option>
-                                    <option value="verification">Verification</option>
-                                    <option value="reject">Reject</option>
-                                    <option value="suspect">Suspect</option>
+                                    <optgroup label="Pre-pickup">
+                                        <option value="pending">Pending</option>
+                                        <option value="confirmed">Confirmed</option>
+                                        <option value="assigned">Assigned</option>
+                                        <option value="hold">Hold</option>
+                                        <option value="verification">Verification</option>
+                                        <option value="reject">Reject</option>
+                                        <option value="suspect">Suspect</option>
+                                    </optgroup>
+                                    <optgroup label="After pickup">
+                                        <option value="picked_up">Picked Up</option>
+                                        <option value="qc_review">QC Review</option>
+                                        <option value="service_station">Service Stn</option>
+                                        <option value="showroom">Showroom</option>
+                                        <option value="warehouse">Warehouse</option>
+                                        <option value="completed">Completed</option>
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
@@ -552,15 +558,15 @@ export default function AdminProductsPage() {
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[180px]">Order ID</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Product</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Customer</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Price</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Pickup Date</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Status</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Assign Agent</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Assessment</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px]">Remarks</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Order ID</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[110px]">Product</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Customer</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[80px]">Price</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">Pickup Date</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[110px]">Status</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">Assign Agent</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[90px]">Assessment</th>
+                                        <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
@@ -593,99 +599,96 @@ export default function AdminProductsPage() {
 
                                         return (
                                             <tr key={request.id} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <div className="space-y-1">
-                                                        <div className={`text-sm font-mono ${isLegacy ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+                                                <td className="px-3 py-3">
+                                                    <div className="space-y-0.5">
+                                                        <div className={`text-xs font-mono ${isLegacy ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
                                                             {displayOrderId}
                                                         </div>
                                                         {isLegacy && (
-                                                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                                </svg>
-                                                                Legacy (Firebase ID)
-                                                            </span>
+                                                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Legacy</span>
                                                         )}
-                                                        <div className="text-xs text-gray-400">
+                                                        <div className="text-[10px] text-gray-400">
                                                             {createdAt.toLocaleDateString('en-IN')}
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="font-medium text-gray-900 text-sm">{productName}</div>
+                                                <td className="px-3 py-3">
+                                                    <div className="font-medium text-gray-900 text-xs">{productName}</div>
                                                     {request.device?.accessories && request.device.accessories.length > 0 && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            + {request.device.accessories.length} accessories
-                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 mt-0.5">+{request.device.accessories.length} acc.</div>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="space-y-1">
-                                                        <div className="font-medium text-gray-900 text-sm">{customerName}</div>
-                                                        <div className="text-sm text-gray-500">{customerPhone}</div>
+                                                <td className="px-3 py-3">
+                                                    <div className="space-y-0.5">
+                                                        <div className="font-medium text-gray-900 text-xs">{customerName}</div>
+                                                        <div className="text-xs text-gray-500">{customerPhone}</div>
                                                         {customerEmail !== 'N/A' && (
-                                                            <div className="text-xs text-gray-400 truncate max-w-[180px]">{customerEmail}</div>
+                                                            <div className="text-[10px] text-gray-400 truncate max-w-[150px]">{customerEmail}</div>
                                                         )}
-                                                        {(address || city || state) && (
-                                                            <div className="text-xs text-gray-400 truncate max-w-[180px]">
-                                                                {city && `${city}, `}{state}{pincode && ` - ${pincode}`}
-                                                            </div>
+                                                        {address && (
+                                                            <div className="text-[10px] text-gray-500 max-w-[150px] line-clamp-2">{typeof address === 'string' ? address : ''}</div>
+                                                        )}
+                                                        {(city || state || pincode) && (
+                                                            <div className="text-[10px] text-gray-400">{city && `${city}, `}{state}{pincode && ` - ${pincode}`}</div>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="font-semibold text-gray-900">
-                                                        ₹{price.toLocaleString('en-IN')}
-                                                    </span>
+                                                <td className="px-3 py-3">
+                                                    <span className="font-semibold text-gray-900 text-sm">₹{price.toLocaleString('en-IN')}</span>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-3">
                                                     {pickupDate ? (
-                                                        <div className="space-y-1">
-                                                            <div className="font-medium text-gray-900 text-sm">
-                                                                {pickupDate.toLocaleDateString('en-IN', { 
-                                                                    weekday: 'short',
-                                                                    day: 'numeric',
-                                                                    month: 'short'
-                                                                })}
+                                                        <div className="space-y-0.5">
+                                                            <div className="font-medium text-gray-900 text-xs">
+                                                                {pickupDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
                                                             </div>
                                                             {request.pickupTime && (
-                                                                <div className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded inline-block">
-                                                                    {request.pickupTime}
-                                                                </div>
+                                                                <div className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block">{request.pickupTime}</div>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-sm text-gray-400 italic">Not scheduled</span>
+                                                        <span className="text-xs text-gray-400 italic">Not set</span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-3">
                                                     <select
                                                         value={status}
                                                         onChange={(e) => handleStatusChange(request.id, e.target.value)}
-                                                        className={`text-xs font-semibold rounded-lg px-3 py-1.5 border ${statusConfig.bg} ${statusConfig.text} focus:ring-2 focus:ring-brand-blue-500 outline-none cursor-pointer transition-all`}
+                                                        className={`text-[11px] font-semibold rounded-md px-2 py-1 border ${statusConfig.bg} ${statusConfig.text} focus:ring-2 focus:ring-brand-blue-500 outline-none cursor-pointer`}
                                                     >
-                                                        <option value="pending">Pending</option>
-                                                        <option value="confirmed">Confirmed</option>
-                                                        <option value="assigned">Assigned</option>
-                                                        <option value="picked_up">Picked Up</option>
-                                                        <option value="qc_review">QC Review</option>
-                                                        <option value="service_station">Service Station</option>
-                                                        <option value="showroom">Showroom</option>
-                                                        <option value="warehouse">Warehouse</option>
-                                                        <option value="completed">Completed</option>
-                                                        <option value="hold">Hold</option>
-                                                        <option value="verification">Verification</option>
-                                                        <option value="reject">Reject</option>
-                                                        <option value="suspect">Suspect</option>
+                                                        {['picked_up', 'qc_review', 'service_station', 'showroom', 'warehouse', 'completed'].includes(status) ? (
+                                                            <>
+                                                                <option value="picked_up">Picked Up</option>
+                                                                <option value="qc_review">QC Review</option>
+                                                                <option value="service_station">Service Stn</option>
+                                                                <option value="showroom">Showroom</option>
+                                                                <option value="warehouse">Warehouse</option>
+                                                                <option value="completed">Completed</option>
+                                                                <option value="hold">Hold</option>
+                                                                <option value="reject">Reject</option>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <option value="pending">Pending</option>
+                                                                <option value="confirmed">Confirmed</option>
+                                                                {status === 'assigned' && <option value="assigned">Assigned</option>}
+                                                                <option value="hold">Hold</option>
+                                                                <option value="verification">Verification</option>
+                                                                <option value="reject">Reject</option>
+                                                                <option value="suspect">Suspect</option>
+                                                            </>
+                                                        )}
                                                     </select>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    {pickupAgents.length > 0 ? (
-                                                        <div className="space-y-1">
+                                                <td className="px-3 py-3">
+                                                    {status === 'pending' ? (
+                                                        <span className="text-[10px] text-gray-400 italic">Confirm first</span>
+                                                    ) : pickupAgents.length > 0 ? (
+                                                        <div className="space-y-0.5">
                                                             <select
                                                                 value={request.assignedTo || ''}
                                                                 onChange={(e) => handleAssignAgent(request.id, e.target.value)}
-                                                                className="text-xs rounded-lg px-2.5 py-1.5 border border-gray-200 focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white w-full"
+                                                                className="text-[11px] rounded-md px-2 py-1 border border-gray-200 focus:ring-2 focus:ring-brand-blue-500 outline-none bg-white w-full"
                                                             >
                                                                 <option value="">Unassigned</option>
                                                                 {pickupAgents.map(agent => (
@@ -693,33 +696,36 @@ export default function AdminProductsPage() {
                                                                 ))}
                                                             </select>
                                                             {request.assignedAgentName && (
-                                                                <span className="text-xs text-cyan-600 font-medium">{request.assignedAgentName}</span>
+                                                                <div className="space-y-0.5">
+                                                                    <span className="text-[10px] text-cyan-600 font-medium">{request.assignedAgentName}</span>
+                                                                    {request.assignedByRole && (
+                                                                        <span className={`block text-[9px] font-medium ${request.assignedByRole === 'admin' ? 'text-purple-500' : 'text-indigo-500'}`}>
+                                                                            by {request.assignedByRole === 'admin' ? 'Admin' : 'QC'}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-gray-400 italic">No agents</span>
+                                                        <span className="text-[10px] text-gray-400 italic">No agents</span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-3">
                                                     <button
                                                         type="button"
                                                         onClick={() => setAssessmentModalRequest(request)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-blue-600 hover:text-brand-blue-700 hover:bg-brand-blue-50 rounded-lg transition-all border border-brand-blue-200"
+                                                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-brand-blue-600 hover:text-brand-blue-700 hover:bg-brand-blue-50 rounded-md transition-all border border-brand-blue-200"
                                                     >
                                                         <ChartIcon />
-                                                        {(request.assessmentAnswers && Object.keys(request.assessmentAnswers).length > 0) ||
-                                                        (request.device?.assessmentAnswers && Object.keys(request.device.assessmentAnswers).length > 0) ||
-                                                        (!!request.valuationId && String(request.valuationId).trim() !== '')
-                                                            ? 'View assessment'
-                                                            : 'View assessment'}
+                                                        View
                                                     </button>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-3 py-3">
                                                     <textarea
                                                         defaultValue={request.remarks || ''}
                                                         onBlur={(e) => handleRemarksChange(request.id, e.target.value)}
-                                                        placeholder="Add remarks..."
-                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none resize-none transition-all bg-gray-50 hover:bg-white focus:bg-white"
+                                                        placeholder="Remarks..."
+                                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-brand-blue-500 focus:border-brand-blue-500 outline-none resize-none bg-gray-50 hover:bg-white focus:bg-white"
                                                         rows={2}
                                                     />
                                                 </td>

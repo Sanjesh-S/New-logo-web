@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Fragment } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getPickupRequest, createPickupVerification, updatePickupRequest, checkStaffRole, type PickupRequest } from '@/lib/firebase/database'
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { checkStaffRole, type PickupRequest } from '@/lib/firebase/database'
+import { ASSESSMENT_GROUPS, getAssessmentLabel, formatAnswerValue } from '@/lib/utils/assessmentLabels'
 
-type Step = 'photos' | 'id_proof' | 'serial' | 'review'
+type Step = 'details' | 'photos' | 'id_proof' | 'serial' | 'review'
 const STEPS: { key: Step; label: string }[] = [
+  { key: 'details', label: 'Order Info' },
   { key: 'photos', label: 'Device Photos' },
   { key: 'id_proof', label: 'ID Proof' },
   { key: 'serial', label: 'Serial Number' },
@@ -21,9 +22,11 @@ export default function VerificationPage() {
   const orderId = searchParams.get('orderId') || ''
 
   const [order, setOrder] = useState<PickupRequest | null>(null)
+  const [assessment, setAssessment] = useState<Record<string, any> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [step, setStep] = useState<Step>('photos')
+  const [step, setStep] = useState<Step>('details')
   const [submitting, setSubmitting] = useState(false)
+  const [showAssessment, setShowAssessment] = useState(false)
 
   const [devicePhotos, setDevicePhotos] = useState<File[]>([])
   const [devicePhotosPrev, setDevicePhotosPrev] = useState<string[]>([])
@@ -41,8 +44,12 @@ export default function VerificationPage() {
     if (!orderId) { setLoading(false); return }
     const load = async () => {
       try {
-        const data = await getPickupRequest(orderId)
-        setOrder(data)
+        const res = await fetch(`/api/pickup-agent/order-detail?orderId=${encodeURIComponent(orderId)}`)
+        const data = await res.json()
+        if (res.ok) {
+          setOrder(data.order || null)
+          setAssessment(data.assessment || null)
+        }
       } catch (err) {
         console.error('Error loading order:', err)
       } finally {
@@ -78,11 +85,17 @@ export default function VerificationPage() {
     if (file) setSerialPhoto(file)
   }
 
-  const uploadFile = async (file: File, path: string): Promise<string> => {
-    const storage = getStorage()
-    const storageRef = ref(storage, path)
-    await uploadBytes(storageRef, file)
-    return getDownloadURL(storageRef)
+  const uploadFile = async (file: File, pathPrefix: string): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('path', pathPrefix)
+    const res = await fetch('/api/upload', { method: 'POST', body: formData })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Upload failed')
+    }
+    const data = await res.json()
+    return data.url
   }
 
   const handleSubmit = async () => {
@@ -98,24 +111,30 @@ export default function VerificationPage() {
       const agentName = role?.staffDoc?.name || 'Agent'
       const oId = order.orderId || order.id
 
+      const pathPrefix = `pickupVerifications/${oId}`
       const photoUrls = await Promise.all(
-        devicePhotos.map((f, i) => uploadFile(f, `pickupVerifications/${oId}/device_${i}_${Date.now()}.jpg`))
+        devicePhotos.map((f) => uploadFile(f, pathPrefix))
       )
-      const idProofUrl = await uploadFile(idProofFile, `pickupVerifications/${oId}/id_proof_${Date.now()}.jpg`)
+      const idProofUrl = await uploadFile(idProofFile, pathPrefix)
 
-      await createPickupVerification({
-        orderId: oId,
-        pickupRequestId: order.id,
-        agentId,
-        agentName,
-        devicePhotos: photoUrls,
-        customerIdProof: idProofUrl,
-        serialNumber: serialNumber.trim(),
-        notes: notes.trim() || undefined,
-        status: 'submitted',
+      const verifyRes = await fetch('/api/pickup-agent/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: oId,
+          pickupRequestId: order.id,
+          agentId,
+          agentName,
+          devicePhotos: photoUrls,
+          customerIdProof: idProofUrl,
+          serialNumber: serialNumber.trim(),
+          notes: notes.trim() || '',
+        }),
       })
-
-      await updatePickupRequest(order.id, { status: 'picked_up' as any })
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to save verification')
+      }
 
       try {
         await fetch('/api/receipts/generate', {
@@ -154,6 +173,7 @@ export default function VerificationPage() {
 
   const canProceed = () => {
     switch (step) {
+      case 'details': return true
       case 'photos': return devicePhotos.length >= 3
       case 'id_proof': return !!idProofFile
       case 'serial': return serialNumber.trim().length > 0
@@ -177,6 +197,17 @@ export default function VerificationPage() {
       </div>
     )
   }
+
+  const customerName = order.customer?.name || order.userName || 'N/A'
+  const customerPhone = order.customer?.phone || order.userPhone || ''
+  const customerEmail = order.customer?.email || order.userEmail || ''
+  const customerAddress = order.customer?.address || order.pickupAddress || ''
+  const customerCity = order.customer?.city || ''
+  const customerState = order.customer?.state || order.state || ''
+  const customerPincode = order.customer?.pincode || ''
+  const customerLandmark = order.customer?.landmark || ''
+
+  const assessmentKeys = assessment ? Object.keys(assessment).filter(k => assessment[k] != null && assessment[k] !== '') : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -204,6 +235,127 @@ export default function VerificationPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6">
+        {step === 'details' && (
+          <div className="space-y-4">
+            {/* Product Info */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{order.productName || 'N/A'}</h3>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5">{order.orderId || order.id}</p>
+                </div>
+                <p className="text-lg font-bold text-gray-900">{'\u20B9'}{(order.price || 0).toLocaleString('en-IN')}</p>
+              </div>
+              {order.remarks && (
+                <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded-lg p-2">{order.remarks}</p>
+              )}
+            </div>
+
+            {/* Customer Info */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                Customer Details
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Name</span>
+                  <span className="text-sm font-medium text-gray-900">{customerName}</span>
+                </div>
+                {customerPhone && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Phone</span>
+                    <a href={`tel:${customerPhone}`} className="text-sm font-medium text-teal-600">{customerPhone}</a>
+                  </div>
+                )}
+                {customerEmail && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Email</span>
+                    <span className="text-sm text-gray-900">{customerEmail}</span>
+                  </div>
+                )}
+              </div>
+              {customerAddress && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Pickup Address</p>
+                  <p className="text-sm text-gray-800">{customerAddress}</p>
+                  {customerLandmark && <p className="text-sm text-gray-600">Landmark: {customerLandmark}</p>}
+                  <p className="text-sm text-gray-600">
+                    {[customerCity, customerState, customerPincode].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              )}
+              {(order.pickupDate || order.pickupTime) && (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex gap-3">
+                  {order.pickupDate && (
+                    <span className="text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded font-medium">
+                      {new Date(order.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                  {order.pickupTime && (
+                    <span className="text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded font-medium">{order.pickupTime}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Assessment Details */}
+            {assessmentKeys.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <button
+                  onClick={() => setShowAssessment(!showAssessment)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                    Device Assessment ({assessmentKeys.length} items)
+                  </h3>
+                  <svg className={`w-5 h-5 text-gray-400 transition-transform ${showAssessment ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {showAssessment && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-4">
+                    {Object.entries(ASSESSMENT_GROUPS).map(([groupName, groupKeys]) => {
+                      const present = groupKeys.filter(k => assessmentKeys.includes(k))
+                      if (present.length === 0) return null
+                      return (
+                        <Fragment key={groupName}>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-teal-600 border-b border-gray-100 pb-1">{groupName}</p>
+                          <div className="space-y-1.5">
+                            {present.map(key => (
+                              <div key={key} className="flex justify-between gap-3 text-sm">
+                                <span className="text-gray-500">{getAssessmentLabel(key)}</span>
+                                <span className="font-medium text-gray-900 text-right">{formatAnswerValue(assessment![key])}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </Fragment>
+                      )
+                    })}
+                    {(() => {
+                      const grouped = Object.values(ASSESSMENT_GROUPS).flat()
+                      const other = assessmentKeys.filter(k => !grouped.includes(k))
+                      if (other.length === 0) return null
+                      return (
+                        <>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-teal-600 border-b border-gray-100 pb-1">Other</p>
+                          <div className="space-y-1.5">
+                            {other.map(key => (
+                              <div key={key} className="flex justify-between gap-3 text-sm">
+                                <span className="text-gray-500">{getAssessmentLabel(key)}</span>
+                                <span className="font-medium text-gray-900 text-right">{formatAnswerValue(assessment![key])}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {step === 'photos' && (
           <div className="space-y-4">
             <div>
@@ -273,6 +425,11 @@ export default function VerificationPage() {
                 <p className="text-xs text-gray-500 uppercase font-semibold">Product</p>
                 <p className="font-medium text-gray-900 mt-1">{order.productName || 'N/A'}</p>
                 <p className="text-sm text-gray-600">{'\u20B9'}{(order.price || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div className="p-4">
+                <p className="text-xs text-gray-500 uppercase font-semibold">Customer</p>
+                <p className="font-medium text-gray-900 mt-1">{customerName}</p>
+                {customerPhone && <p className="text-sm text-gray-600">{customerPhone}</p>}
               </div>
               <div className="p-4">
                 <p className="text-xs text-gray-500 uppercase font-semibold">Device Photos</p>

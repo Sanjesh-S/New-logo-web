@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, startTransition } from 'react'
+import { useState, useEffect, useCallback, startTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -17,13 +17,49 @@ const navLinks = [
   { href: '/#faq', label: 'FAQ' },
 ]
 
+const STAFF_PORTALS: Record<string, { label: string; path: string }> = {
+  superadmin: { label: 'Admin Panel', path: '/admin/products' },
+  manager: { label: 'Admin Panel', path: '/admin/products' },
+  qc_team: { label: 'QC Dashboard', path: '/qc' },
+  showroom_staff: { label: 'Showroom Portal', path: '/showroom' },
+  pickup_agent: { label: 'Pickup Portal', path: '/pickup-agent' },
+}
+
 export default function Navigation() {
   const { user, isAuthenticated } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [staffRole, setStaffRole] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
+
+  const checkStaffRole = useCallback(async () => {
+    if (!user) { setStaffRole(null); return }
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch('/api/auth/staff-sync', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.synced && data.isActive) {
+          setStaffRole(data.role)
+          return
+        }
+      }
+    } catch {}
+    setStaffRole(null)
+  }, [user])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkStaffRole()
+    } else {
+      setStaffRole(null)
+    }
+  }, [isAuthenticated, checkStaffRole])
 
   const handleLogout = async () => {
     try {
@@ -128,6 +164,16 @@ export default function Navigation() {
                         <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200">
                           {user?.phoneNumber}
                         </div>
+                        {staffRole && STAFF_PORTALS[staffRole] && (
+                          <Link
+                            href={STAFF_PORTALS[staffRole].path}
+                            onClick={() => setShowUserMenu(false)}
+                            className="block w-full px-4 py-2 text-left text-sm text-brand-blue-900 font-medium hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            {STAFF_PORTALS[staffRole].label}
+                          </Link>
+                        )}
                         <Link
                           href="/dashboard"
                           onClick={() => setShowUserMenu(false)}
@@ -191,6 +237,16 @@ export default function Navigation() {
                       <div className="px-4 py-2 text-sm text-gray-600">
                         Logged in as {user?.phoneNumber}
                       </div>
+                      {staffRole && STAFF_PORTALS[staffRole] && (
+                        <Link
+                          href={STAFF_PORTALS[staffRole].path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block w-full px-4 py-3 text-left text-brand-blue-900 hover:bg-blue-50 rounded-lg flex items-center gap-2 font-semibold"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                          {STAFF_PORTALS[staffRole].label}
+                        </Link>
+                      )}
                       <Link
                         href="/dashboard"
                         onClick={() => setMobileMenuOpen(false)}

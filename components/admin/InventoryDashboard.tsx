@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  subscribeToInventory, getStockMovements, getInventoryStats,
-  transferInventoryItem, stockOutItem, getShowrooms, checkStaffRole,
-  type InventoryItem, type StockMovement, type InventoryLocation, type Showroom,
-} from '@/lib/firebase/database'
+import { useState, useEffect, useCallback } from 'react'
+import { type InventoryItem, type StockMovement, type InventoryLocation, type Showroom } from '@/lib/firebase/database'
 import { useAuth } from '@/contexts/AuthContext'
+import { checkStaffRole } from '@/lib/firebase/database'
 
 const LOCATION_LABELS: Record<string, string> = {
   service_station: 'Service Station',
@@ -52,26 +49,42 @@ export default function InventoryDashboard() {
   const [detailItem, setDetailItem] = useState<InventoryItem | null>(null)
   const [detailMovements, setDetailMovements] = useState<StockMovement[]>([])
 
-  useEffect(() => {
-    const unsub = subscribeToInventory((data) => {
-      setItems(data)
+  const loadInventory = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [itemsRes, statsRes, showroomRes] = await Promise.all([
+        fetch('/api/admin/inventory?action=list').then(r => r.json()),
+        fetch('/api/admin/inventory?action=stats').then(r => r.json()),
+        fetch('/api/admin/showrooms').then(r => r.json()),
+      ])
+      setItems(itemsRes.items || [])
+      setStats(statsRes.total !== undefined ? statsRes : { total: 0, byLocation: {}, byStatus: {} })
+      setShowrooms((showroomRes.showrooms || []).filter((s: Showroom) => s.isActive))
+    } catch (err) {
+      console.error('Error loading inventory:', err)
+    } finally {
       setLoading(false)
-    })
-    getShowrooms().then(s => setShowrooms(s.filter(x => x.isActive)))
-    getInventoryStats().then(setStats)
-    return () => unsub()
+    }
   }, [])
+
+  useEffect(() => { loadInventory() }, [loadInventory])
 
   useEffect(() => {
     if (view === 'movements') {
       setMovementsLoading(true)
-      getStockMovements().then(m => { setMovements(m); setMovementsLoading(false) })
+      fetch('/api/admin/inventory?action=movements')
+        .then(r => r.json())
+        .then(data => { setMovements(data.movements || []); setMovementsLoading(false) })
+        .catch(() => setMovementsLoading(false))
     }
   }, [view])
 
   useEffect(() => {
     if (detailItem?.id) {
-      getStockMovements({ inventoryId: detailItem.id }).then(setDetailMovements)
+      fetch(`/api/admin/inventory?action=movements&inventoryId=${detailItem.id}`)
+        .then(r => r.json())
+        .then(data => setDetailMovements(data.movements || []))
+        .catch(() => setDetailMovements([]))
     }
   }, [detailItem])
 
@@ -87,8 +100,18 @@ export default function InventoryDashboard() {
   })
 
   const getDaysInStock = (item: InventoryItem): number => {
-    const stockIn = item.stockInDate instanceof Date ? item.stockInDate : (item.stockInDate as any)?.toDate?.()
-    if (!stockIn) return 0
+    const stockIn = item.stockInDate instanceof Date
+      ? item.stockInDate
+      : (item.stockInDate as any)?.toDate?.()
+        || (item.stockInDate as any)?._seconds ? new Date((item.stockInDate as any)._seconds * 1000) : null
+    if (!stockIn) {
+      const created = item.createdAt instanceof Date
+        ? item.createdAt
+        : (item.createdAt as any)?.toDate?.()
+          || (item.createdAt as any)?._seconds ? new Date((item.createdAt as any)._seconds * 1000) : null
+      if (!created) return 0
+      return Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24))
+    }
     return Math.floor((Date.now() - stockIn.getTime()) / (1000 * 60 * 60 * 24))
   }
 
@@ -106,13 +129,24 @@ export default function InventoryDashboard() {
       const role = await checkStaffRole({ email: user.email, phoneNumber: user.phoneNumber })
       const performedBy = role?.staffDoc?.id || user.uid
       const performedByName = role?.staffDoc?.name || 'Admin'
-      await transferInventoryItem(
-        transferItem.id, transferLocation, 'manual_transfer', performedBy, performedByName,
-        transferNotes, transferLocation === 'showroom' ? transferShowroomId : undefined
-      )
+      const res = await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'transfer',
+          id: transferItem.id,
+          toLocation: transferLocation,
+          toShowroomId: transferLocation === 'showroom' ? transferShowroomId : undefined,
+          reason: 'manual_transfer',
+          performedBy,
+          performedByName,
+          notes: transferNotes,
+        }),
+      })
+      if (!res.ok) throw new Error('Transfer failed')
       setTransferItem(null)
       setTransferNotes('')
-      getInventoryStats().then(setStats)
+      loadInventory()
     } catch (err) {
       console.error('Transfer failed:', err)
       alert('Transfer failed')
@@ -125,16 +159,35 @@ export default function InventoryDashboard() {
     if (!item.id || !user) return
     try {
       const role = await checkStaffRole({ email: user.email, phoneNumber: user.phoneNumber })
-      await stockOutItem(item.id, reason, role?.staffDoc?.id || user.uid, role?.staffDoc?.name || 'Admin')
-      getInventoryStats().then(setStats)
+      const res = await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'stock_out',
+          id: item.id,
+          reason,
+          performedBy: role?.staffDoc?.id || user.uid,
+          performedByName: role?.staffDoc?.name || 'Admin',
+        }),
+      })
+      if (!res.ok) throw new Error('Stock out failed')
+      loadInventory()
     } catch (err) {
       console.error('Stock out failed:', err)
     }
   }
 
+  const formatDate = (d: any): string => {
+    if (!d) return '—'
+    if (d instanceof Date) return d.toLocaleDateString('en-IN')
+    if (d?.toDate) return d.toDate().toLocaleDateString('en-IN')
+    if (d?._seconds) return new Date(d._seconds * 1000).toLocaleDateString('en-IN')
+    if (d?.seconds) return new Date(d.seconds * 1000).toLocaleDateString('en-IN')
+    return '—'
+  }
+
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Total In Stock</p>
@@ -148,7 +201,6 @@ export default function InventoryDashboard() {
         ))}
       </div>
 
-      {/* View tabs */}
       <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-100">
         {(['stock', 'movements', 'aging'] as const).map(v => (
           <button key={v} onClick={() => setView(v)} className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${view === v ? 'bg-brand-blue-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
@@ -261,12 +313,11 @@ export default function InventoryDashboard() {
                 <tbody className="divide-y divide-gray-50">
                   {movements.length === 0 ? (
                     <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No movements recorded</td></tr>
-                  ) : movements.map(m => {
-                    const d = m.createdAt instanceof Date ? m.createdAt : (m.createdAt as any)?.toDate?.()
+                  ) : movements.map((m: any) => {
                     const typeColor = m.type === 'stock_in' ? 'bg-emerald-100 text-emerald-700' : m.type === 'stock_out' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
                     return (
                       <tr key={m.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-sm text-gray-600">{d ? d.toLocaleDateString('en-IN') : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{formatDate(m.createdAt)}</td>
                         <td className="px-4 py-3"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>{m.type.replace('_', ' ')}</span></td>
                         <td className="px-4 py-3 text-sm text-gray-900">{m.productName}</td>
                         <td className="px-4 py-3 text-sm font-mono text-gray-600">{m.serialNumber}</td>
@@ -321,7 +372,6 @@ export default function InventoryDashboard() {
         </div>
       )}
 
-      {/* Transfer modal */}
       {transferItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -358,7 +408,6 @@ export default function InventoryDashboard() {
         </div>
       )}
 
-      {/* Detail / history modal */}
       {detailItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
@@ -383,22 +432,19 @@ export default function InventoryDashboard() {
               <p className="text-sm text-gray-500 text-center py-4">No movements recorded</p>
             ) : (
               <div className="space-y-2">
-                {detailMovements.map(m => {
-                  const d = m.createdAt instanceof Date ? m.createdAt : (m.createdAt as any)?.toDate?.()
-                  return (
-                    <div key={m.id} className="p-3 bg-gray-50 rounded-lg text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900">{m.type.replace('_', ' ')}</span>
-                        <span className="text-xs text-gray-500">{d ? d.toLocaleDateString('en-IN') : ''}</span>
-                      </div>
-                      <p className="text-gray-600 text-xs mt-1">
-                        {m.fromLocation ? `${LOCATION_LABELS[m.fromLocation] || m.fromLocation} → ` : ''}
-                        {m.toLocation ? (LOCATION_LABELS[m.toLocation] || m.toLocation) : 'Out'}
-                      </p>
-                      {m.notes && <p className="text-gray-500 text-xs mt-0.5">{m.notes}</p>}
+                {detailMovements.map((m: any) => (
+                  <div key={m.id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">{m.type.replace('_', ' ')}</span>
+                      <span className="text-xs text-gray-500">{formatDate(m.createdAt)}</span>
                     </div>
-                  )
-                })}
+                    <p className="text-gray-600 text-xs mt-1">
+                      {m.fromLocation ? `${LOCATION_LABELS[m.fromLocation] || m.fromLocation} → ` : ''}
+                      {m.toLocation ? (LOCATION_LABELS[m.toLocation] || m.toLocation) : 'Out'}
+                    </p>
+                    {m.notes && <p className="text-gray-500 text-xs mt-0.5">{m.notes}</p>}
+                  </div>
+                ))}
               </div>
             )}
           </div>

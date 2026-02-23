@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createPickupVerification, updatePickupRequest } from '@/lib/firebase/database'
+import { getAdminFirestore } from '@/lib/firebase/admin'
+import { FieldValue } from 'firebase-admin/firestore'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,14 +9,31 @@ export async function POST(request: NextRequest) {
     if (!orderId || !pickupRequestId || !agentId || !devicePhotos || !customerIdProof || !serialNumber) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    const id = await createPickupVerification({
-      orderId, pickupRequestId, agentId, agentName: agentName || 'Agent',
-      devicePhotos, customerIdProof, serialNumber,
-      notes: notes || undefined, status: 'submitted',
+
+    const db = getAdminFirestore()
+
+    const verRef = await db.collection('pickupVerifications').add({
+      orderId,
+      pickupRequestId,
+      agentId,
+      agentName: agentName || 'Agent',
+      devicePhotos,
+      customerIdProof,
+      serialNumber,
+      notes: notes || '',
+      status: 'submitted',
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     })
-    await updatePickupRequest(pickupRequestId, { status: 'picked_up' as any })
-    return NextResponse.json({ id })
+
+    await db.collection('pickupRequests').doc(pickupRequestId).update({
+      status: 'picked_up',
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    return NextResponse.json({ id: verRef.id })
   } catch (error: any) {
+    console.error('Verification submit error:', error)
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 })
   }
 }
